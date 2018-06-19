@@ -49,8 +49,11 @@ def deformation(vert,uvert,vvert):
     (vvert[1]+vvert[0])*(vert[1,0]-vert[0,0])+
     (vvert[2]+vvert[1])*(vert[2,0]-vert[1,0])+
     (vvert[0]+vvert[2])*(vert[0,0]-vert[2,0]) )
+  
+  #B&R, 2015 filtering
+  
 
-  return dux,duy,dvx,dvy,minang
+  return dux,duy,dvx,dvy,minang,area
 
 def getColumn(filename, column, delimiter=','):
     results = csv.reader(open(filename),delimiter=delimiter)

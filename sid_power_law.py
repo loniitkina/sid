@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111, axisbg='.9')
-title = 'SAR+ship_radar+buoys'
+title = 'ship_radar+buoys+SAR'
+#title = 'ship_radar+buoys'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -17,54 +18,6 @@ meantd_list=[]
 
 meanls_list_sar=[]
 meantd_list_sar=[]
-
-
-#SAR data
-inpath = '../data/Sentinel1_def_24h_'
-outpath = '../plots/'
-fname_start = 'td_leg1_L'
-lsc_list = [5,7,10,25,50,100]   #not ls but number of nominal grid points
-minlen = [50,20,10,4,2,1,.5,.2]
-maxlen = [100,50,18,6,3,1.5,.75,.3]
-
-for i in range(0,len(lsc_list)):
-    scale = lsc_list[i]
-    print scale
-    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'.csv'
-    
-    ls = getColumn(fname,0, delimiter=',')
-    td = getColumn(fname,1, delimiter=',')
-    ang = getColumn(fname,2)
-    ls = np.array(ls,dtype=np.float)
-    td = np.array(td,dtype=np.float)
-    ang = np.array(ang,dtype=np.float)
-    
-    #mask out all the acute triangles
-    mask=ang<15
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)/1000  #convert from m to km
-    td = np.ma.compressed(td)
-    
-    #mask all very small or big triangles
-    #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
-    mask = (ls<minlen[i]) | (ls>maxlen[i])
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
-    
-    #calculate and store averages
-    meanls=np.mean(ls)
-    meantd=np.mean(td)
-    #meanls_list.append(meanls)
-    #meantd_list.append(meantd)
-    meanls_list_sar.append(meanls)
-    meantd_list_sar.append(meantd)
-    
-    #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2)  # Data
-    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='k')
 
 #ship radar data
 inpath = '../data/ship_radar/24h/'
@@ -132,6 +85,53 @@ for i in range(0,len(lsc_list)):
     ax.scatter(ls_class, td_class, lw=0, alpha=.2)  # Data
     ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='k')
 
+#SAR data
+inpath = '../data/Sentinel1_def_24h_'
+outpath = '../plots/'
+fname_start = 'td_leg1_L'
+lsc_list = [7,10,25,50,100,200,500]   #not ls but number of nominal grid points
+minlen = [20,10,4,2,1,.5,.2]
+maxlen = [50,18,6,3,1.5,.75,.3]
+
+
+for i in range(0,len(lsc_list)):
+    scale = lsc_list[i]
+    print scale
+    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'.csv'
+    
+    ls = getColumn(fname,0, delimiter=',')
+    td = getColumn(fname,1, delimiter=',')
+    ang = getColumn(fname,2)
+    ls = np.array(ls,dtype=np.float)
+    td = np.array(td,dtype=np.float)
+    ang = np.array(ang,dtype=np.float)
+    
+    #mask out all the acute triangles
+    mask=ang<15
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)/1000  #convert from m to km
+    td = np.ma.compressed(td)
+    
+    #mask all very small or big triangles
+    #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
+    mask = (ls<minlen[i]) | (ls>maxlen[i])
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td)   
+    
+    #calculate and store averages
+    meanls=np.mean(ls)
+    meantd=np.mean(td)
+    meanls_list_sar.append(meanls)
+    meantd_list_sar.append(meantd)
+    
+    #plot all the data
+    ax.scatter(ls, td, lw=0, alpha=.2)  # Data
+    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='k')
+
+
 #fit the line
 xdata = meanls_list
 ydata = meantd_list
@@ -188,7 +188,7 @@ ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k))
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-#and separate for sar
+#and separate for SAR
 #fit the line
 xdata = meanls_list_sar
 ydata = meantd_list_sar

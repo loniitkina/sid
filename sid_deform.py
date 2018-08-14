@@ -22,7 +22,7 @@ outpath = outpath_def
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 
-outname_td = 'td_'+reg+'_L'+str(lscale)+'_thin.csv'
+outname_td = 'td_'+reg+'_L'+str(lscale)+'_thined.csv'
 td_list=[]
 ls_list=[]
 ang_list=[]
@@ -33,23 +33,15 @@ for i in fl:
     u = np.load(i)
     v = np.load(i.split('_upm')[0]+'_vpm.npy')          #in m/s???
     rpm = np.load(i.split('_upm')[0]+'_rpm.npy')       #cross-correlation matrix
-    lat = np.load(i.split('_upm')[0]+'_lat2pm.npy')      #consider using starting coordinates instead
-    lon = np.load(i.split('_upm')[0]+'_lon2pm.npy')
-    
-    #print u
-    #print v
-    
+    lat = np.load(i.split('_upm')[0]+'_lat1pm.npy')      #consider using starting coordinates instead
+    lon = np.load(i.split('_upm')[0]+'_lon1pm.npy')
+        
     #thin out the data
-    #print u.shape
     u = u[::3,::3]
-    #print u.shape
     v = v[::3,::3]
     rpm = rpm[::3,::3]
     lat = lat[::3,::3]
     lon = lon[::3,::3]
-    
-    
-    #exit()
     
     #Lance postion (from Lance's met system)
     name2 = i.split('/')[-1]
@@ -65,17 +57,48 @@ for i in fl:
     Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
     if np.isnan(Lance_lon): continue
     
-    #check time differences - they need to be similar for the data to be comparable!
+    #select a region around Lance that corresponds to the buoy array area
+    #radius of 100 km
+    #otherwise to much sea ice deep in the Arctic is included (reduced scaling slope)
     
+    #convert Lance position and sea ice drift array to projected coordinates
+    #project the coordinates (units of distance have to be meters)
+    #use QGIS for the first guess about the coordinates
+    area_def = pr.utils.load_area('area.cfg', reg)
+    m = pr.plot.area_def2basemap(area_def)
+        
+    #reproject vertices
+    x, y = m(lon, lat)
+    
+    #reproject Lance position
+    xl, yl = m(Lance_lon, Lance_lat)
+
+    
+    #cut out region
+    radius = 100000
+    mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
+    x = np.ma.array(x,mask=mask)
+    x = np.ma.compressed(x)
+    y = np.ma.array(y,mask=mask)
+    y = np.ma.compressed(y)
+    u = np.ma.array(u,mask=mask)
+    u = np.ma.compressed(u)
+    v = np.ma.array(v,mask=mask)
+    v = np.ma.compressed(v)
+    rpm = np.ma.array(rpm,mask=mask)
+    rpm = np.ma.compressed(rpm)
+   
     #get rid of all the nans, the resulting arrays are flattened
+    x = np.ma.masked_where(~(np.isfinite(u)),x)
+    x = np.ma.compressed(x)
+    y = np.ma.masked_where(~(np.isfinite(u)),y)
+    y = np.ma.compressed(y)
+
+    
     u = np.ma.masked_invalid(u)
     u = np.ma.compressed(u)
     v = np.ma.masked_invalid(v)
     v = np.ma.compressed(v)
-    lat = np.ma.masked_invalid(lat)
-    lat = np.ma.compressed(lat)
-    lon = np.ma.masked_invalid(lon)
-    lon = np.ma.compressed(lon)
     rpm = np.ma.masked_invalid(rpm)
     rpm = np.ma.compressed(rpm)
     #print lon.shape
@@ -86,18 +109,11 @@ for i in fl:
     u = np.ma.compressed(u)
     v = np.ma.array(v,mask=~mask)
     v = np.ma.compressed(v)
-    lat = np.ma.array(lat,mask=~mask)
-    lat = np.ma.compressed(lat)
-    lon = np.ma.array(lon,mask=~mask)
-    lon = np.ma.compressed(lon)
+    x = np.ma.array(x,mask=~mask)
+    x = np.ma.compressed(x)
+    y = np.ma.array(y,mask=~mask)
+    y = np.ma.compressed(y)
     
-    #project the coordinates (units of distance have to be meters)
-    #use QGIS for the first guess about the coordinates
-    area_def = pr.utils.load_area('area.cfg', reg)
-    m = pr.plot.area_def2basemap(area_def)
-        
-    #reproject vertices
-    x, y = m(lon, lat)
 
     #triangulate betwen the points
     pts = np.zeros((len(x),2))
@@ -204,8 +220,8 @@ for i in fl:
     #cbar.set_label(label,size=16)
 
     ##Lance
-    #xa, ya = m(Lance_lon, Lance_lat)
-    #cx.plot(xa,ya,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+    ##xl, yl = m(Lance_lon, Lance_lat)
+    #cx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
     
 
     #fig3.savefig(outpath+outname,bbox_inches='tight')

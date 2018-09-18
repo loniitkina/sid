@@ -18,7 +18,7 @@ from sea_ice_drift import SeaIceDrift
 #in QGIS: create layer - new temporary scratch layer - draw point - save as
 #create user on scihub: https://scihub.copernicus.eu/
 #download data to the data partition!
-#sentinelsat --user polona --password jank0vna --geometry /mnt/data/sea_ice_drift/lance.geojson --sentinel 1 --producttype GRD --start 20150122 --end 20150218 --download --path /mnt/data/sea_ice_drift/Sentinel1
+#sentinelsat --user polona --password jank0vna --geometry /mnt/data/sea_ice_drift/lance.geojson --sentinel 1 --producttype GRD --start 20150128 --end 20150202 --download --path /mnt/data/sea_ice_drift/Sentinel1
 
 #retrieve drift
 #plot drift and write text output
@@ -27,9 +27,13 @@ from sea_ice_drift import SeaIceDrift
 
 
 # ==== ICE DRIFT RETRIEVAL ====
-inpath = '/mnt/data/sea_ice_drift/Sentinel1/'
-outpath_drift = '/mnt/data/sea_ice_drift/Sentinel1_drift/'
-outpath = '../plots/'
+#inpath = '/mnt/data/sea_ice_drift/Sentinel1/'
+#inpath = '/mnt/data/sea_ice_drift/Sentinel1_selection/'
+inpath = '/mnt/data/sea_ice_drift/Sentinel1_selection_24h/'
+#outpath_drift = '/mnt/data/sea_ice_drift/Sentinel1_drift/'
+outpath_drift = '/mnt/data/sea_ice_drift/Sentinel1_drift_24h_25/'
+#outpath = '../plots/'
+outpath = outpath_drift
 
 #specify region
 regn = 84
@@ -37,8 +41,8 @@ regs = 82
 regw = 10
 rege = 25
 #and number of grid points in each direction
-gridp_we = 100
-gridp_sn = 100
+gridp_we = 25
+gridp_sn = gridp_we*1.5         #the region is elongated in NS direction (it needs more points to get nicer triangles/squares)
 
 #show Lance position
 import csv
@@ -56,11 +60,12 @@ for i in range(0,len(fl)):
     print(fl[i].split('/')[-1])
     print(fl[i+1].split('/')[-1])
     name1 = fl[i].split('/')[-1].split('.zip')[0]
+    date1 = name1.split('_')[4]
     
     #Lance postion (from Lance's met system)
     name2 = fl[i+1].split('/')[-1].split('.zip')[0]
-    date = name2.split('_')[4]
-    dt = datetime.strptime(date, "%Y%m%dT%H%M%S")
+    date2 = name2.split('_')[4]
+    dt = datetime.strptime(date2, "%Y%m%dT%H%M%S")
     mettime = getColumn(metfile,0)
     dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
     if dtb[0]>dt: continue
@@ -100,6 +105,8 @@ for i in range(0,len(fl)):
     np.save(outpath_drift+name1+'_apm',apm)
     np.save(outpath_drift+name1+'_rpm',rpm)
     np.save(outpath_drift+name1+'_hpm',hpm)
+    np.save(outpath_drift+name1+'_lon1pm',lon1pm)
+    np.save(outpath_drift+name1+'_lat1pm',lat1pm)
     np.save(outpath_drift+name1+'_lon2pm',lon2pm)
     np.save(outpath_drift+name1+'_lat2pm',lat2pm)
 
@@ -124,7 +131,7 @@ for i in range(0,len(fl)):
     # set X/Y limits of figure
     plt.xlim([regw, rege])
     plt.ylim([regs, regn])
-    plt.savefig(outpath+name1+'sea_ice_drift_FT_img1.png', dpi=500, bbox_inches='tight', pad_inches=0)
+    plt.savefig(outpath+date1+'_'+date2+'_sea_ice_drift_FT_img1.png', dpi=500, bbox_inches='tight', pad_inches=0)
     plt.close('all')
 
     # plot the projected image from the second SAR scene
@@ -142,6 +149,6 @@ for i in range(0,len(fl)):
     #plot Lance
     plt.plot(Lance_lon, Lance_lat, '*', color='purple', markersize=6)
     
-    plt.savefig(outpath+name1+'sea_ice_drift_PM_img2.png', dpi=500, bbox_inches='tight', pad_inches=0)
+    plt.savefig(outpath+date1+'_'+date2+'_sea_ice_drift_PM_img2.png', dpi=500, bbox_inches='tight', pad_inches=0)
     plt.close('all')
 

@@ -22,7 +22,7 @@ outpath = outpath_def
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 
-outname_td = 'td_'+reg+'_L'+str(lscale)+'_thined.csv'
+outname_td = 'td_'+reg+'_L'+str(lscale)+'_15km.csv'
 td_list=[]
 ls_list=[]
 ang_list=[]
@@ -36,12 +36,12 @@ for i in fl:
     lat = np.load(i.split('_upm')[0]+'_lat1pm.npy')      #consider using starting coordinates instead
     lon = np.load(i.split('_upm')[0]+'_lon1pm.npy')
         
-    #thin out the data
-    u = u[::3,::3]
-    v = v[::3,::3]
-    rpm = rpm[::3,::3]
-    lat = lat[::3,::3]
-    lon = lon[::3,::3]
+    ##thin out the data
+    #u = u[::3,::3]
+    #v = v[::3,::3]
+    #rpm = rpm[::3,::3]
+    #lat = lat[::3,::3]
+    #lon = lon[::3,::3]
     
     #Lance postion (from Lance's met system)
     name2 = i.split('/')[-1]
@@ -75,7 +75,7 @@ for i in fl:
 
     
     #cut out region
-    radius = 100000
+    radius = 15000
     mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
     x = np.ma.array(x,mask=mask)
     x = np.ma.compressed(x)

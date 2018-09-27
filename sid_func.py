@@ -59,3 +59,91 @@ def getColumn(filename, column, delimiter=','):
     results = csv.reader(open(filename),delimiter=delimiter)
     next(results, None)
     return [result[column] for result in results]
+
+def logfit(xdata,ydata):
+    logx=np.log10(xdata)
+    logy=np.log10(ydata)
+
+    # fit a curve to the data using a least squares 1st order polynomial fit
+    z = np.polyfit(logx,logy,1)
+    p = np.poly1d(z)
+    fit = p(logx)
+
+    # get the coordinates for the fit curve
+    c_y = [np.min(fit),np.max(fit)]
+    c_x = [np.min(logx),np.max(logx)]
+
+    # predict y values of origional data using the fit
+    p_y = z[0] * logx + z[1]
+
+    # calculate the y-error (residuals)
+    y_err = logy -p_y
+
+    # create series of new test x-values to predict for
+    p_x = np.arange(np.min(logx),np.max(logx)+.01,.01)
+
+    # now calculate confidence intervals for new test x-series
+    mean_x = np.mean(logx)         # mean of x
+    n = len(logx)              # number of samples in origional fit
+    from scipy import stats
+    tval = stats.t.ppf(1-0.005, n)		# appropriate t value for 2-tailed distribution
+    s_err = np.sum(np.power(y_err,2))   # sum of the squares of the residuals
+
+    confs = tval * np.sqrt((s_err/(n-2))*(1.0/n + (np.power((p_x-mean_x),2)/
+                ((np.sum(np.power(logx,2)))-n*(np.power(mean_x,2))))))
+
+    # now predict y based on test x-values
+    p_y = z[0]*p_x+z[1]
+
+    # get lower and upper confidence limits based on predicted y and confidence intervals
+    lower = p_y - abs(confs)
+    upper = p_y + abs(confs)
+
+    #get them back on the exponential scale
+    k=z[0]
+    loga=z[1]
+    a=10.0**loga
+    ciy_low = 10.0**lower
+    ciy_upp = 10.0**upper
+    cix = 10.0**p_x
+
+    return(a,k,cix,ciy_upp,ciy_low)
+
+#based on: https://gist.github.com/dvida/8337a60a36fdd022287aeeca7b42f813
+#this function is nost implemented yet!
+def logfit_mle(xdata,ydata):
+    from __future__ import print_function
+    import scipy.stats
+
+    # Exponent
+    a = 3.2
+
+    # Number of samples
+    n_samples = 1000
+
+
+    # Generate powerlaw data
+    data = scipy.stats.powerlaw.rvs(a, loc=0, scale=1, size=n_samples)
+
+    # Introduce some gaussian noise
+    data_noise = data + np.random.normal(0, 0.01, size=n_samples)
+
+
+    ### Fit a powerlaw to given data
+
+    # Initial estimate of the exponent
+    exp_est = 3.0
+
+    # Initial estimate of x0
+    x0_est = 0
+
+    # Initial estimate of the scale
+    scale_est = 1
+
+
+    # Perform the fit
+    pl_fit = scipy.stats.powerlaw.fit(data_noise, exp_est, loc=x0_est, scale=scale_est)
+
+
+    print("Fit:", pl_fit)
+    ###

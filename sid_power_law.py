@@ -5,19 +5,24 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111, axisbg='.9')
-title = 'ship_radar+buoys+SAR'
+#title = 'ship_radar+buoys+SAR_select'
 #title = 'ship_radar+buoys'
+title = 'ship_radar+buoys+SAR_in'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-meanls_list=[]
-meantd_list=[]
+meanls_list_sr=[]
+meantd_list_sr=[]
 
 meanls_list_sar=[]
 meantd_list_sar=[]
+
+meanls_list_b=[]
+meantd_list_b=[]
+
 
 #ship radar data
 inpath = '../data/ship_radar/24h/'
@@ -38,8 +43,8 @@ for i in range(0,len(lsc_list)):
     #calculate and store averages
     meanls=np.mean(ls)
     meantd=np.mean(td)
-    meanls_list.append(meanls)
-    meantd_list.append(meantd)
+    meanls_list_sr.append(meanls)
+    meantd_list_sr.append(meantd)
     
     #plot all the data
     ax.scatter(ls, td, lw=0, alpha=.2)  # Data
@@ -47,25 +52,39 @@ for i in range(0,len(lsc_list)):
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
-inpath = '../../buoys/scripts/'
+inpath = '../data/buoys/'
 outpath = '../plots/'
-fname_td = 'dr_nice1_comb_24h'
-fname_ls = 'ls_nice1_comb_24h'
-
-td = np.load(inpath+fname_td)/24/60/60      #convert from days to seconds
-ls = np.load(inpath+fname_ls)
+#fname_start = 'nice1_comb_SAR'
+fname_start = 'nice1_in_SAR'
+#fname_start = 'nice1_outer_SAR'
+#fname_start = 'nice1_late_SAR'
+#fname_start = 'nice1_early_SAR'
+#fname_start = 'nice1_select_SAR'
+fname_td1 = inpath+'dr_'+fname_start+'1_'+'24h'
+fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
+fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
+fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
+ 
+td = np.append(np.load(fname_td1),np.load(fname_td2))/24/60/60      #convert from days to s
+ls = np.append(np.load(fname_ls1),np.load(fname_ls2))
 
 #throw away very high deformation rates (unrealistic values)
-mask = td>10e-6
+mask = td>10e-3
 ls = np.ma.array(ls,mask=mask)
 td = np.ma.array(td,mask=mask)
 ls = np.ma.compressed(ls)
 td = np.ma.compressed(td)   
 
-#divide in lengh scale classes
+##divide in lengh scale classes
+#lsc_list = [1]   #order number
+#minlen = [1]
+#maxlen = [200]
+
+#inner ring
 lsc_list = [1,2,3]   #order number
-minlen = [3,7,10]
-maxlen = [7,10,20]
+minlen = [2,4,7]
+maxlen = [4,7,10]
+
 
 for i in range(0,len(lsc_list)):
     print i
@@ -78,8 +97,8 @@ for i in range(0,len(lsc_list)):
     #calculate and store averages
     meanls=np.mean(ls_class)
     meantd=np.mean(td_class)
-    meanls_list.append(meanls)
-    meantd_list.append(meantd)
+    meanls_list_b.append(meanls)
+    meantd_list_b.append(meantd)
     
     #plot all the data
     ax.scatter(ls_class, td_class, lw=0, alpha=.2)  # Data
@@ -89,15 +108,15 @@ for i in range(0,len(lsc_list)):
 inpath = '../data/Sentinel1_def_24h_'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-lsc_list = [7,10,25,50,100,200,500]   #not ls but number of nominal grid points
-minlen = [20,10,4,2,1,.5,.2]
-maxlen = [50,18,6,3,1.5,.75,.3]
+lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
+minlen = [4,2,1,.5,.2]
+maxlen = [6,3,1.5,.75,.3]
 
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print scale
-    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'.csv'
+    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'_15km.csv'
     
     ls = getColumn(fname,0, delimiter=',')
     td = getColumn(fname,1, delimiter=',')
@@ -123,7 +142,7 @@ for i in range(0,len(lsc_list)):
     
     #calculate and store averages
     meanls=np.mean(ls)
-    meantd=np.mean(td)
+    meantd=np.mean(td); print meantd
     meanls_list_sar.append(meanls)
     meantd_list_sar.append(meantd)
     
@@ -131,124 +150,39 @@ for i in range(0,len(lsc_list)):
     ax.scatter(ls, td, lw=0, alpha=.2)  # Data
     ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='k')
 
-
+#ship radar
 #fit the line
-xdata = meanls_list
-ydata = meantd_list
-logx=np.log10(xdata)
-logy=np.log10(ydata)
-
-# fit a curve to the data using a least squares 1st order polynomial fit
-z = np.polyfit(logx,logy,1)
-p = np.poly1d(z)
-fit = p(logx)
-
-# get the coordinates for the fit curve
-c_y = [np.min(fit),np.max(fit)]
-c_x = [np.min(logx),np.max(logx)]
-
-# predict y values of origional data using the fit
-p_y = z[0] * logx + z[1]
-
-# calculate the y-error (residuals)
-y_err = logy -p_y
-
-# create series of new test x-values to predict for
-p_x = np.arange(np.min(logx),np.max(logx)+.01,.01)
-
-# now calculate confidence intervals for new test x-series
-mean_x = np.mean(logx)         # mean of x
-n = len(logx)              # number of samples in origional fit
-from scipy import stats
-tval = stats.t.ppf(1-0.005, n)		# appropriate t value for 2-tailed distribution
-s_err = np.sum(np.power(y_err,2))   # sum of the squares of the residuals
-
-confs = tval * np.sqrt((s_err/(n-2))*(1.0/n + (np.power((p_x-mean_x),2)/
-            ((np.sum(np.power(logx,2)))-n*(np.power(mean_x,2))))))
-
-# now predict y based on test x-values
-p_y = z[0]*p_x+z[1]
-
-# get lower and upper confidence limits based on predicted y and confidence intervals
-lower = p_y - abs(confs)
-upper = p_y + abs(confs)
-
-#get them back on the exponential scale
-k=z[0]
-loga=z[1]
-a=10.0**loga
-ciy_low = 10.0**lower
-ciy_upp = 10.0**upper
-cix = 10.0**p_x
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,meantd_list_sr)
 
 #dummy x data for plotting
-x = np.arange(min(xdata), max(xdata), 1)
+x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k))
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='m')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+#buoys
+#fit the line
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_b,meantd_list_b)
+
+#dummy x data for plotting
+x = np.arange(min(meanls_list_b), max(meanls_list_b), 1)
+
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #and separate for SAR
 #fit the line
-xdata = meanls_list_sar
-ydata = meantd_list_sar
-logx=np.log10(xdata)
-logy=np.log10(ydata)
-
-# fit a curve to the data using a least squares 1st order polynomial fit
-z = np.polyfit(logx,logy,1)
-p = np.poly1d(z)
-fit = p(logx)
-
-# get the coordinates for the fit curve
-c_y = [np.min(fit),np.max(fit)]
-c_x = [np.min(logx),np.max(logx)]
-
-# predict y values of origional data using the fit
-p_y = z[0] * logx + z[1]
-
-# calculate the y-error (residuals)
-y_err = logy -p_y
-
-# create series of new test x-values to predict for
-p_x = np.arange(np.min(logx),np.max(logx)+.01,.01)
-
-# now calculate confidence intervals for new test x-series
-mean_x = np.mean(logx)         # mean of x
-n = len(logx)              # number of samples in origional fit
-from scipy import stats
-tval = stats.t.ppf(1-0.005, n)		# appropriate t value for 2-tailed distribution
-s_err = np.sum(np.power(y_err,2))   # sum of the squares of the residuals
-
-confs = tval * np.sqrt((s_err/(n-2))*(1.0/n + (np.power((p_x-mean_x),2)/
-            ((np.sum(np.power(logx,2)))-n*(np.power(mean_x,2))))))
-
-# now predict y based on test x-values
-p_y = z[0]*p_x+z[1]
-
-# get lower and upper confidence limits based on predicted y and confidence intervals
-lower = p_y - abs(confs)
-upper = p_y + abs(confs)
-
-#get them back on the exponential scale
-k=z[0]
-loga=z[1]
-a=10.0**loga
-ciy_low = 10.0**lower
-ciy_upp = 10.0**upper
-cix = 10.0**p_x
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 
 #dummy x data for plotting
-x = np.arange(min(xdata), max(xdata), 1)
+x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k))
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='purple')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-
-
-#ax.set_xlim(1,400)
-#ax.set_ylim(1e-4,100)
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())    

@@ -109,41 +109,5 @@ def logfit(xdata,ydata):
 
     return(a,k,cix,ciy_upp,ciy_low)
 
-#based on: https://gist.github.com/dvida/8337a60a36fdd022287aeeca7b42f813
-#this function is nost implemented yet!
-def logfit_mle(xdata,ydata):
-    from __future__ import print_function
-    import scipy.stats
-
-    # Exponent
-    a = 3.2
-
-    # Number of samples
-    n_samples = 1000
-
-
-    # Generate powerlaw data
-    data = scipy.stats.powerlaw.rvs(a, loc=0, scale=1, size=n_samples)
-
-    # Introduce some gaussian noise
-    data_noise = data + np.random.normal(0, 0.01, size=n_samples)
-
-
-    ### Fit a powerlaw to given data
-
-    # Initial estimate of the exponent
-    exp_est = 3.0
-
-    # Initial estimate of x0
-    x0_est = 0
-
-    # Initial estimate of the scale
-    scale_est = 1
-
-
-    # Perform the fit
-    pl_fit = scipy.stats.powerlaw.fit(data_noise, exp_est, loc=x0_est, scale=scale_est)
-
-
-    print("Fit:", pl_fit)
-    ###
+#consider this option too:
+#https://stackoverflow.com/questions/26851533/fit-a-power-law-function-to-the-data-with-both-x-and-y-errors

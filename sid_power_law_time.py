@@ -14,10 +14,9 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 
 meanls_list=[]
-meantd_list=[]
 
-meanls_list_sar=[]
-meantd_list_sar=[]
+meantd_list_sr=[]
+meantd_list_b=[]
 
 #ship radar data
 inpath = '../data/ship_radar/L6/'
@@ -39,7 +38,7 @@ for i in range(0,len(lsc_list)):
     meanls=ls
     meantd=np.mean(td)
     meanls_list.append(meanls)
-    meantd_list.append(meantd)
+    meantd_list_sr.append(meantd)
     
     #plot all the data
     #ax.scatter(ls, td, lw=0, alpha=.2)  # Data
@@ -87,8 +86,8 @@ for i in lsc_list:
     #calculate and store averages
     meanls=i
     meantd=np.mean(td_class)
-    meanls_list.append(meanls)
-    meantd_list.append(meantd)
+    #meanls_list.append(meanls)
+    meantd_list_b.append(meantd)
     
     #print meanls, meantd
     
@@ -143,127 +142,30 @@ for i in lsc_list:
     #ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='k')
 
 
-##fit the line
-#xdata = meanls_list
-#ydata = meantd_list
-#logx=np.log10(xdata)
-#logy=np.log10(ydata)
+#ship radar
+#fit the line
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,meantd_list_sr)
 
-## fit a curve to the data using a least squares 1st order polynomial fit
-#z = np.polyfit(logx,logy,1)
-#p = np.poly1d(z)
-#fit = p(logx)
+#dummy x data for plotting
+x = np.arange(min(meanls_list), max(meanls_list), 1)
 
-## get the coordinates for the fit curve
-#c_y = [np.min(fit),np.max(fit)]
-#c_x = [np.min(logx),np.max(logx)]
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='m')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-## predict y values of origional data using the fit
-#p_y = z[0] * logx + z[1]
+#buoys
+#fit the line to bins
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[1:],meantd_list_b[1:])
 
-## calculate the y-error (residuals)
-#y_err = logy -p_y
-
-## create series of new test x-values to predict for
-#p_x = np.arange(np.min(logx),np.max(logx)+.01,.01)
-
-## now calculate confidence intervals for new test x-series
-#mean_x = np.mean(logx)         # mean of x
-#n = len(logx)              # number of samples in origional fit
-#from scipy import stats
-#tval = stats.t.ppf(1-0.005, n)		# appropriate t value for 2-tailed distribution
-#s_err = np.sum(np.power(y_err,2))   # sum of the squares of the residuals
-
-#confs = tval * np.sqrt((s_err/(n-2))*(1.0/n + (np.power((p_x-mean_x),2)/
-            #((np.sum(np.power(logx,2)))-n*(np.power(mean_x,2))))))
-
-## now predict y based on test x-values
-#p_y = z[0]*p_x+z[1]
-
-## get lower and upper confidence limits based on predicted y and confidence intervals
-#lower = p_y - abs(confs)
-#upper = p_y + abs(confs)
-
-##get them back on the exponential scale
-#k=z[0]
-#loga=z[1]
-#a=10.0**loga
-#ciy_low = 10.0**lower
-#ciy_upp = 10.0**upper
-#cix = 10.0**p_x
-
-##dummy x data for plotting
-#x = np.arange(min(xdata), max(xdata), 1)
-
-#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k))
-#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
-#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
-
-##and separate for SAR
-##fit the line
-#xdata = meanls_list_sar
-#ydata = meantd_list_sar
-#logx=np.log10(xdata)
-#logy=np.log10(ydata)
-
-## fit a curve to the data using a least squares 1st order polynomial fit
-#z = np.polyfit(logx,logy,1)
-#p = np.poly1d(z)
-#fit = p(logx)
-
-## get the coordinates for the fit curve
-#c_y = [np.min(fit),np.max(fit)]
-#c_x = [np.min(logx),np.max(logx)]
-
-## predict y values of origional data using the fit
-#p_y = z[0] * logx + z[1]
-
-## calculate the y-error (residuals)
-#y_err = logy -p_y
-
-## create series of new test x-values to predict for
-#p_x = np.arange(np.min(logx),np.max(logx)+.01,.01)
-
-## now calculate confidence intervals for new test x-series
-#mean_x = np.mean(logx)         # mean of x
-#n = len(logx)              # number of samples in origional fit
-#from scipy import stats
-#tval = stats.t.ppf(1-0.005, n)		# appropriate t value for 2-tailed distribution
-#s_err = np.sum(np.power(y_err,2))   # sum of the squares of the residuals
-
-#confs = tval * np.sqrt((s_err/(n-2))*(1.0/n + (np.power((p_x-mean_x),2)/
-            #((np.sum(np.power(logx,2)))-n*(np.power(mean_x,2))))))
-
-## now predict y based on test x-values
-#p_y = z[0]*p_x+z[1]
-
-## get lower and upper confidence limits based on predicted y and confidence intervals
-#lower = p_y - abs(confs)
-#upper = p_y + abs(confs)
-
-##get them back on the exponential scale
-#k=z[0]
-#loga=z[1]
-#a=10.0**loga
-#ciy_low = 10.0**lower
-#ciy_upp = 10.0**upper
-#cix = 10.0**p_x
-
-##dummy x data for plotting
-#x = np.arange(min(xdata), max(xdata), 1)
-
-#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k))
-#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
-#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+ax.loglog(x[1:],a*x[1:]**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 
-
-#ax.set_xlim(1,400)
-#ax.set_ylim(1e-4,100)
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())    
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_4-5km_'+title)
+fig1.savefig(outpath+'power_law_3-5km_'+title)

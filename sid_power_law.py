@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111, axisbg='.9')
-#title = 'ship_radar+buoys+SAR_select'
-#title = 'ship_radar+buoys'
 title = 'ship_radar+buoys+SAR_in'
+title = 'ship_radar+buoys+SAR_short'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -16,12 +15,18 @@ ax.set_yscale('log')
 
 meanls_list_sr=[]
 meantd_list_sr=[]
-
 meanls_list_sar=[]
 meantd_list_sar=[]
-
 meanls_list_b=[]
 meantd_list_b=[]
+
+ls_list_sr=[]
+td_list_sr=[]
+ls_list_b=[]
+td_list_b=[]
+ls_list_sar=[]
+td_list_sar=[]
+
 
 
 #ship radar data
@@ -45,6 +50,9 @@ for i in range(0,len(lsc_list)):
     meantd=np.mean(td)
     meanls_list_sr.append(meanls)
     meantd_list_sr.append(meantd)
+    ls_list_sr.extend(ls)
+    td_list_sr.extend(td)
+
     
     #plot all the data
     ax.scatter(ls, td, lw=0, alpha=.2)  # Data
@@ -56,10 +64,7 @@ inpath = '../data/buoys/'
 outpath = '../plots/'
 #fname_start = 'nice1_comb_SAR'
 fname_start = 'nice1_in_SAR'
-#fname_start = 'nice1_outer_SAR'
-#fname_start = 'nice1_late_SAR'
-#fname_start = 'nice1_early_SAR'
-#fname_start = 'nice1_select_SAR'
+fname_start = 'nice1_short_SAR'
 fname_td1 = inpath+'dr_'+fname_start+'1_'+'24h'
 fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
@@ -99,6 +104,9 @@ for i in range(0,len(lsc_list)):
     meantd=np.mean(td_class)
     meanls_list_b.append(meanls)
     meantd_list_b.append(meantd)
+    ls_list_b.extend(ls)
+    td_list_b.extend(td)
+
     
     #plot all the data
     ax.scatter(ls_class, td_class, lw=0, alpha=.2)  # Data
@@ -146,13 +154,19 @@ for i in range(0,len(lsc_list)):
     meanls_list_sar.append(meanls)
     meantd_list_sar.append(meantd)
     
+    ls_list_sar.extend(ls)
+    td_list_sar.extend(td)
+    
     #plot all the data
     ax.scatter(ls, td, lw=0, alpha=.2)  # Data
     ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='k')
 
+
+
 #ship radar
 #fit the line
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,meantd_list_sr)
+#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sr,td_list_sr)
 
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
@@ -162,8 +176,9 @@ ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #buoys
-#fit the line
+#fit the line to bins
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_b,meantd_list_b)
+#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_b,td_list_b)
 
 #dummy x data for plotting
 x = np.arange(min(meanls_list_b), max(meanls_list_b), 1)
@@ -175,13 +190,54 @@ ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 #and separate for SAR
 #fit the line
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
+#no binning
+#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sar,td_list_sar)
+
+
+#alternative fitting (MLE)
+from mle import var, Normal
+
+# Define model
+x = var('x', observed=True, vector=True)
+y = var('y', observed=True, vector=True)
+
+a = var('a')
+k = var('k')
+sigma = var('sigma')
+
+model = Normal(y, a*x**k, sigma)
+
+# all data
+xs=np.array(ls_list_sar)
+ys=np.array(td_list_sar)
+
+
+# Fit model to data
+result = model.fit({'x': xs, 'y': ys}, {'a': 1, 'k': -1, 'sigma': 1})
+print(result)
+
+
+# Get data back on the original scale
+k=result.x['k']
+a=result.x['a']
+
+#exit()
+
 
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
+x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
 
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='purple')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+
+
+
+
+
+
 
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter

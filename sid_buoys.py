@@ -24,14 +24,17 @@ from sid_func import *
 dep='1'
 path = '../../buoys/data/deployment1/'
 path_out = '../data/buoys/'
+#There are no S1 scenes in GRD format (what Antons algorithm is using) between January 28 and February 2 2015. 
 ##1st SAR period
 start = datetime(2015, 1, 21, 0, 0)
-end = datetime(2015, 2, 5, 0, 0)
+end = datetime(2015, 1, 28, 0, 0)
 outname_sh = 'nice1_in_SAR1_'
-###2nd SAR period
-#start = datetime(2015, 2, 5, 0, 0)
-#end = datetime(2015, 2, 16, 0, 0)
-#outname_sh = 'nice1_in_SAR2_'
+outname_sh = 'nice1_short_SAR1_'
+##2nd SAR period
+start = datetime(2015, 2, 3, 0, 0)
+end = datetime(2015, 2, 16, 0, 0)
+outname_sh = 'nice1_in_SAR2_'
+outname_sh = 'nice1_short_SAR2_'
 ##pick which buoys to use: 
 ##all buoys
 flist= glob(path+'*rev.csv')

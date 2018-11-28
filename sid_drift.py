@@ -5,6 +5,9 @@ import glob
 import unittest
 import inspect
 
+import csv
+from datetime import datetime, timedelta
+
 import numpy as np
 import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
@@ -26,14 +29,21 @@ from sea_ice_drift import SeaIceDrift
 #retrieve sea ice deformation (next script)
 
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+outpath_drift = '../output/drift_50/el/'
+outpath = '../plots/drift_50/el/'
+#selection mode (in time)
+#all: all images are analyzed
+#ee: only image from early morning and early afternoon (same date) - ee and el will often be mixed up (lots of missing images etc) - that is not a problem!
+#el: only image from early morning and late afteroon (same date)
+#24h: only early mornming images (2 different dates)
+mode = ['all', 'ee', 'el', '24h'][2]
+print(mode)
+
+
 # ==== ICE DRIFT RETRIEVAL ====
-#inpath = '/mnt/data/sea_ice_drift/Sentinel1/'
-#inpath = '/mnt/data/sea_ice_drift/Sentinel1_selection/'
-inpath = '/mnt/data/sea_ice_drift/Sentinel1_selection_24h/'
-#outpath_drift = '/mnt/data/sea_ice_drift/Sentinel1_drift/'
-outpath_drift = '/mnt/data/sea_ice_drift/Sentinel1_drift_24h_25/'
-#outpath = '../plots/'
-outpath = outpath_drift
+#inpath = '../data/Sentinel1/'
+inpath = '/Data/sim/data/Sentinel1/'
 
 #specify region
 regn = 84
@@ -41,43 +51,82 @@ regs = 82
 regw = 10
 rege = 25
 #and number of grid points in each direction
-gridp_we = 25
+#used in post-processing:
+#lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
+#minlen = [4,2,1,.5,.2]
+#maxlen = [6,3,1.5,.75,.3]
+gridp_we = 50
 gridp_sn = gridp_we*1.5         #the region is elongated in NS direction (it needs more points to get nicer triangles/squares)
 
+
 #show Lance position
-import csv
-from datetime import datetime
 def getColumn(filename, column):
     results = csv.reader(open(filename))
     next(results, None)
     return [result[column] for result in results]
 metfile = '../data/10minute_nounits.csv'
 
+#file list
 fl = sorted(glob.glob(inpath+'S1A_EW_GRDM_1SDH_*.zip'))
 print(fl)
 
+#date list
+dl = []
 for i in range(0,len(fl)):
-    print(fl[i].split('/')[-1])
-    print(fl[i+1].split('/')[-1])
-    name1 = fl[i].split('/')[-1].split('.zip')[0]
-    date1 = name1.split('_')[4]
+    tmp = fl[i].split('/')[-1].split('.zip')[0].split('_')[4]
+    date = datetime.strptime(tmp, "%Y%m%dT%H%M%S")
+    dl.append(date)
+
+print(dl)
+
+for i in range(0,len(fl)):    
+
+    dt1 = dl[i]
+    if mode != 'all':
+        #check if the file is early morning
+        if dt1.hour > 8: continue
+
+        #select dt2, depending on the mode
+        dt_diff = np.array(dl) - dt1
+        #ee: expected time difference: 5-6 h
+        if mode == 'ee':
+            match = np.argmin(abs(dt_diff - timedelta(hours=5)))
+        #el: expected time difference: 7-9 h
+        elif mode == 'el':
+            match = np.argmin(abs(dt_diff - timedelta(hours=8)))
+        #24h: expected time difference: 22-24 h 
+        elif mode =='24h':
+            match = np.argmin(abs(dt_diff - timedelta(hours=22)))
+        
+        print(match)
     
-    #Lance postion (from Lance's met system)
-    name2 = fl[i+1].split('/')[-1].split('.zip')[0]
-    date2 = name2.split('_')[4]
-    dt = datetime.strptime(date2, "%Y%m%dT%H%M%S")
+    else:
+        match = i+1
+    
+    #find where Lance is
     mettime = getColumn(metfile,0)
     dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
-    if dtb[0]>dt: continue
-    if dtb[-1]<dt: continue
-    mi = np.argmin(abs(np.asarray(dtb)-dt))
+    if dtb[0]>dt1: continue
+    if dtb[-1]<dt1: continue
+    mi = np.argmin(abs(np.asarray(dtb)-dt1))
     Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
     Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
     if np.isnan(Lance_lon): continue
-    
+
     # open files, read 'sigma0_HV' band and convert to UInt8 image
     f1 = fl[i]
-    f2 = fl[i+1]
+    f2 = fl[match]
+    print(f1)
+    print(f2)
+    if f1 == f2: print('same file'); continue
+    
+    print(datetime.strftime(dl[i], "%Y%m%dT%H%M%S"))
+    print(datetime.strftime(dl[match], "%Y%m%dT%H%M%S"))
+
+    #uncoment to check the pairs before processing
+    #continue
+    
+    
     sid = SeaIceDrift(f1, f2)
 
     # apply Feature Tracking algorithm and retrieve ice drift speed
@@ -85,21 +134,14 @@ for i in range(0,len(fl)):
     uft, vft, lon1ft, lat1ft, lon2ft, lat2ft = sid.get_drift_FT()
 
     # user defined grid of points:
-    lon1pm, lat1pm = np.meshgrid(np.linspace(regw, rege, gridp_we),
-                        np.linspace(regs, regn, gridp_sn))
+    lon1pm, lat1pm = np.meshgrid(np.linspace(regw, rege, gridp_we), np.linspace(regs, regn, gridp_sn))
 
     # apply Pattern Matching and find sea ice drift speed
     # for the given grid of points
-    upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(
-                                        lon1pm, lat1pm,
-                                        lon1ft, lat1ft,
-                                        lon2ft, lat2ft)
-    
-    #print(upm)
-    #print(rpm)
-    #exit()    
-    
+    upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(lon1pm, lat1pm, lon1ft, lat1ft, lon2ft, lat2ft)
+
     #dump the PM data into numpy files
+    name1 = fl[i].split('/')[-1].split('.zip')[0]
     np.save(outpath_drift+name1+'_upm',upm)
     np.save(outpath_drift+name1+'_vpm',vpm)
     np.save(outpath_drift+name1+'_apm',apm)
@@ -111,6 +153,8 @@ for i in range(0,len(fl)):
     np.save(outpath_drift+name1+'_lat2pm',lat2pm)
 
     # ==== PLOTTING ====
+    date1 = datetime.strftime(dl[i], "%Y%m%dT%H%M%S")
+    date2 = datetime.strftime(dl[match], "%Y%m%dT%H%M%S")
     # get coordinates of SAR scene borders
     lon1, lat1 = sid.n1.get_border()
     lon2, lat2 = sid.n2.get_border()

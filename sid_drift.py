@@ -30,16 +30,24 @@ from sea_ice_drift import SeaIceDrift
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-outpath_drift = '../output/drift_50/el/'
-outpath = '../plots/drift_50/el/'
 #selection mode (in time)
 #all: all images are analyzed
 #ee: only image from early morning and early afternoon (same date) - ee and el will often be mixed up (lots of missing images etc) - that is not a problem!
 #el: only image from early morning and late afteroon (same date)
 #24h: only early mornming images (2 different dates)
-mode = ['all', 'ee', 'el', '24h'][2]
+#all drift files will be in same folder files with same time steps will be overwritten - finally there will be no double files!
+mode = ['all', 'ee', 'el', '24h'][3]
 print(mode)
 
+#and number of grid points in each direction
+#used in post-processing:
+#lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
+#minlen = [4,2,1,.5,.2]
+#maxlen = [6,3,1.5,.75,.3]
+resolution = 200
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+outpath_drift = '../output/drift_'+str(resolution)+'/'
+outpath = '../plots/drift_'+str(resolution)+'/'
 
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '../data/Sentinel1/'
@@ -55,9 +63,8 @@ rege = 25
 #lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
 #minlen = [4,2,1,.5,.2]
 #maxlen = [6,3,1.5,.75,.3]
-gridp_we = 50
+gridp_we = resolution
 gridp_sn = gridp_we*1.5         #the region is elongated in NS direction (it needs more points to get nicer triangles/squares)
-
 
 #show Lance position
 def getColumn(filename, column):
@@ -120,8 +127,9 @@ for i in range(0,len(fl)):
     print(f2)
     if f1 == f2: print('same file'); continue
     
-    print(datetime.strftime(dl[i], "%Y%m%dT%H%M%S"))
-    print(datetime.strftime(dl[match], "%Y%m%dT%H%M%S"))
+    date1 = datetime.strftime(dl[i], "%Y%m%dT%H%M%S")
+    date2 = datetime.strftime(dl[match], "%Y%m%dT%H%M%S")
+    print(date1,date2)
 
     #uncoment to check the pairs before processing
     #continue
@@ -141,20 +149,18 @@ for i in range(0,len(fl)):
     upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(lon1pm, lat1pm, lon1ft, lat1ft, lon2ft, lat2ft)
 
     #dump the PM data into numpy files
-    name1 = fl[i].split('/')[-1].split('.zip')[0]
-    np.save(outpath_drift+name1+'_upm',upm)
-    np.save(outpath_drift+name1+'_vpm',vpm)
-    np.save(outpath_drift+name1+'_apm',apm)
-    np.save(outpath_drift+name1+'_rpm',rpm)
-    np.save(outpath_drift+name1+'_hpm',hpm)
-    np.save(outpath_drift+name1+'_lon1pm',lon1pm)
-    np.save(outpath_drift+name1+'_lat1pm',lat1pm)
-    np.save(outpath_drift+name1+'_lon2pm',lon2pm)
-    np.save(outpath_drift+name1+'_lat2pm',lat2pm)
+    output_name = 'SeaIceDrift_'+date1+'_'+date2
+    np.save(outpath_drift+output_name+'_upm',upm)
+    np.save(outpath_drift+output_name+'_vpm',vpm)
+    np.save(outpath_drift+output_name+'_apm',apm)
+    np.save(outpath_drift+output_name+'_rpm',rpm)
+    np.save(outpath_drift+output_name+'_hpm',hpm)
+    np.save(outpath_drift+output_name+'_lon1pm',lon1pm)
+    np.save(outpath_drift+output_name+'_lat1pm',lat1pm)
+    np.save(outpath_drift+output_name+'_lon2pm',lon2pm)
+    np.save(outpath_drift+output_name+'_lat2pm',lat2pm)
 
     # ==== PLOTTING ====
-    date1 = datetime.strftime(dl[i], "%Y%m%dT%H%M%S")
-    date2 = datetime.strftime(dl[match], "%Y%m%dT%H%M%S")
     # get coordinates of SAR scene borders
     lon1, lat1 = sid.n1.get_border()
     lon2, lat2 = sid.n2.get_border()
@@ -175,7 +181,7 @@ for i in range(0,len(fl)):
     # set X/Y limits of figure
     plt.xlim([regw, rege])
     plt.ylim([regs, regn])
-    plt.savefig(outpath+date1+'_'+date2+'_sea_ice_drift_FT_img1.png', dpi=500, bbox_inches='tight', pad_inches=0)
+    plt.savefig(outpath+'SeaIceDrift_FT_img1_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
     plt.close('all')
 
     # plot the projected image from the second SAR scene
@@ -193,6 +199,6 @@ for i in range(0,len(fl)):
     #plot Lance
     plt.plot(Lance_lon, Lance_lat, '*', color='purple', markersize=6)
     
-    plt.savefig(outpath+date1+'_'+date2+'_sea_ice_drift_PM_img2.png', dpi=500, bbox_inches='tight', pad_inches=0)
+    plt.savefig(outpath+'SeaIceDrift_PM_img2_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
     plt.close('all')
 

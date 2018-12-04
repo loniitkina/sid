@@ -24,10 +24,10 @@ def deformation(vert,uvert,vvert):
   ##area of triangle
   #Hutchings etal, 2012 (ISPOL)
   area = .5* (vert[0,0]*vert[1,1] - vert[0,1]*vert[1,0] + vert[1,0]*vert[2,1] - vert[1,1]*vert[2,0] + vert[2,0]*vert[0,1] - vert[2,1]*vert[0,0])
-  if area < 0: print 'not counter-clockwise oriented triangle!'; exit()
+  if area < 0: print('not counter-clockwise oriented triangle!'); exit()
   
   #some filtering to throw out the erroneous GPS positioning. If the accuracy is 2m.
-  if area < 1: print area; return 0,0,0,0,0	#Hutchings etal, 2011 (SEDNA)
+  if area < 1: print(area); return 0,0,0,0,0	#Hutchings etal, 2011 (SEDNA)
     
   #calculate line integrals
   dux = (.5 / area) * (

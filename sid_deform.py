@@ -11,21 +11,21 @@ from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #select lenght scale
-lscale = 10
-lsc_list = [10,25,50,100,200,500]
+lscale = [10,25,50,100,200,500][1]
 
 #-------------------------------------------------------------------
-inpath = '../data/Sentinel1_drift_24h_'+str(lscale)+'/'
-outpath_def = '../data/Sentinel1_def_24h_'+str(lscale)+'/'
-outpath = '../plots/'
-outpath = outpath_def
+inpath = '../output/drift_'+str(lscale)+'/'
+outpath_def = '../output/def_'+str(lscale)+'/'
+outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 
-outname_td = 'td_'+reg+'_L'+str(lscale)+'_15km.csv'
+outname_td = 'td_'+reg+'_L'+str(lscale)+'_25km.csv'
 td_list=[]
 ls_list=[]
 ang_list=[]
+time_list=[]
+date_list=[]
 
 fl = sorted(glob(inpath+'*_upm.npy'))
 for i in fl:
@@ -35,24 +35,21 @@ for i in fl:
     rpm = np.load(i.split('_upm')[0]+'_rpm.npy')       #cross-correlation matrix
     lat = np.load(i.split('_upm')[0]+'_lat1pm.npy')      #consider using starting coordinates instead
     lon = np.load(i.split('_upm')[0]+'_lon1pm.npy')
-        
-    ##thin out the data
-    #u = u[::3,::3]
-    #v = v[::3,::3]
-    #rpm = rpm[::3,::3]
-    #lat = lat[::3,::3]
-    #lon = lon[::3,::3]
+    
+    #get time difference
+    date1 = i.split('/')[-1].split('_')[1]
+    date2 = i.split('/')[-1].split('_')[2]
+    dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
+    dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
+
+    diff = (dt2-dt1).seconds
     
     #Lance postion (from Lance's met system)
-    name2 = i.split('/')[-1]
-    date = name2.split('_')[4]
-    print date
-    dt = datetime.strptime(date, "%Y%m%dT%H%M%S")
     mettime = getColumn(metfile,0)
     dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
-    if dtb[0]>dt: continue
-    if dtb[-1]<dt: continue
-    mi = np.argmin(abs(np.asarray(dtb)-dt))
+    if dtb[0]>dt1: continue
+    if dtb[-1]<dt1: continue
+    mi = np.argmin(abs(np.asarray(dtb)-dt1))
     Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
     Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
     if np.isnan(Lance_lon): continue
@@ -75,7 +72,7 @@ for i in fl:
 
     
     #cut out region
-    radius = 15000
+    radius = 25000
     mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
     x = np.ma.array(x,mask=mask)
     x = np.ma.compressed(x)
@@ -152,6 +149,7 @@ for i in fl:
     minang = np.array(minang)
     area = np.array(area)
     
+    
     div = dux + dvy
     shr = .5*np.sqrt((dux-dvy)**2+(duy+dvx)**2)
     td = np.sqrt(div**2 + shr**2)
@@ -162,21 +160,34 @@ for i in fl:
     ls_list.extend(ls.tolist())
     ang_list.extend(minang.tolist())
     
+    #print(td)
+    #print(diff_tri)
+    #print(dt_tri.astype(datetime))
+    #exit()
+    dt_tri = np.full_like(dux,np.datetime64(dt1))
+    diff_tri = np.ones_like(dux)*diff
+    
+    date_list.extend(dt_tri.tolist())
+    time_list.extend(diff_tri.tolist())
+    
+    #print(len(diff_tri.tolist()))
+    #exit()
+    
     ##plotting 
     #deform = div*1e6
-    #outname = 'map_div_'+str(lscale)+'_'+date
+    #outname = 'map_div_'+str(lscale)+'_'+date1
     #label = r'Divergence (10$^6$s$^{-1}$)'
     #interval = [-50, 50]
     #cmap=plt.cm.bwr
     ##title = 'c'
     
-    #deform = shr*1e6
-    #outname = 'map_shr_'+str(lscale)+'_'+date
-    #label = r'Shear (10$^6$s$^{-1}$)'
-    #interval = [0, 50]
-    #cmap=plt.cm.Reds
+    ##deform = shr*1e6
+    ##outname = 'map_shr_'+str(lscale)+'_'+date1
+    ##label = r'Shear (10$^6$s$^{-1}$)'
+    ##interval = [0, 50]
+    ##cmap=plt.cm.Reds
 
-    #print outname
+    #print(outname)
     ##deformation plots
     #fig3    = plt.figure(figsize=(10,10))
     #cx      = fig3.add_subplot(111)
@@ -225,14 +236,18 @@ for i in fl:
     
 
     #fig3.savefig(outpath+outname,bbox_inches='tight')
-    #exit()
+    ##exit()
+    
 
 #write out lists into csv file
-tt = [ls_list, td_list, ang_list]
+tt = [date_list, ls_list, time_list, td_list, ang_list]
 table = zip(*tt)
+#adjusted to python3:
+table = list(zip(*tt))
 
 output = outpath_def + outname_td
+
 with open(output, 'wb') as f:
   #header
-  f.write(b'length scale, total deformation, min angle\n')
+  f.write(b'date, length scale, time difference, total deformation, min angle\n')
   np.savetxt(f, table, fmt="%s", delimiter=",")

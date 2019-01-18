@@ -1,0 +1,122 @@
+1. Log in to johansen
+ssh -p5522 politk@johansen
+
+2. You are in your home directory. Install conda. Follow instructions on: https://github.com/nansencenter/sea_ice_drift/blob/add_mcc_functions/.travis.yml
+Use python version 3.2 and name the environment py3drift. Activate the environment by:
+
+source activate py3drift.
+
+Add 'export PATH=$HOME/miniconda/bin:$PATH' to .bashrc
+Add '' 
+
+pip install Nansat
+
+3. pip install https://github.com/nansencenter/sea_ice_drift/archive/v0.7.tar.gz
+
+That version in outdated: use:
+pip uninstall sea-ice-drift
+pip install git+https://github.com/nansencenter/sea_ice_drift.git
+
+4. run test 'nosetests sea_ice_drift'
+Other tests: 
+export ICE_DRIFT_TEST_DATA_DIR=$HOME 
+and use the test scripts
+
+5. all the data i need is probably already in johansen in /Data/sat/downloads/sentinel1/
+To add my data and to have access to the folder, i need to be added to the 'sat' group (ask Lars Gunnar)
+
+6. with using geospas (password protected NERSC github repository) i can select pairs of images (specify interval and min overlap fraction)
+
+7. To have my scripts, data visible to johanson, i need to mount my /Home/politk folder from Svedrup on my computer. Then I simply add all i need to that folder.
+Backup all the scripts to github (commit all changes on the old computer, clone on new computer)
+
+check fstab on Svedrup/Johansen:
+cat /etc/fstab
+
+and add in my own fstab on my computer
+//10.47.20.22/Home          /mnt/10.11.12.231/Home        cifs credentials=/home/polona/.sverdrupcred,vers=1.0,uid=1000,gid=1000,noauto   1 1
+
+create such file
+mkdir /mnt/10.11.12.231/Home
+sudo mount /mnt/10.11.12.231/Home/
+
+To avoid typing funny links do: (This also has same file structure as Johansen and as everybody else at NERSC has, so its very convenient)
+ln -s /Home/politk /mnt/10.11.12.231/Home/politk
+
+sudo mkdir Data
+ll -a
+chown Data polona:polona
+sudo chown polona:polona Data
+cd Data/
+ln -s /mnt/10.11.12.231/sim/
+ln -s /mnt/10.11.12.232/nextsimf/
+
+whenever something is changed re-mount by specifying:
+sudo umount /mnt/10.11.12.231/Home
+sudo mount /mnt/10.11.12.231/Home
+
+create file /home/polona/.sverdrupcred, write there my credentials in form:
+username=user123
+password=password
+
+Whenever computer is restarted, mounting needs to be repeated. Write a file where all mounting is listed and mount all by running that script
+vi mountall.sh
+
+example content:
+sudo mount /mnt/10.11.12.231/sim
+sudo mount /mnt/10.11.12.232/nextsimf
+sudo mount /mnt/10.11.12.231/Home
+
+
+chmod 755 mountall.sh
+./mountall.sh
+
+8. Some tests
+
+copy Sentinel1 data to ~/data/sim/data
+and make links to /Home
+
+on johansen navigate to /Home/politk/SeaIceDrift/data/Sentinel1
+and do:
+ln -s /Data/sim/data/Sentinel1/* .
+
+ln -s 
+
+
+
+
+8. Clone my sid repository on the /Home/politk on canberra
+
+git clone https://github.com/loniitkina/sid.git
+
+Also install basemap:
+
+locate libgeos
+export GEOS_DIR=/opt/geos/3.4.2/
+
+pip install --user git+https://github.com/matplotlib/basemap.git
+
+
+9. Get me added to 'sat' group
+
+10. Use geospas
+
+##############################################################################################################################################################################
+Use after installation
+
+1. Logging in and setting up
+
+You need internet and VPN connection.
+
+ssh johansen
+source .bashrc
+source activate py3drift
+cd SeaIceDrift/sid 
+
+2. Use kate text editior with terminal view to code and run code at the same time.
+
+
+
+
+
+

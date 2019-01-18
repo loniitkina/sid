@@ -36,7 +36,7 @@ from sea_ice_drift import SeaIceDrift
 #el: only image from early morning and late afteroon (same date)
 #24h: only early mornming images (2 different dates)
 #all drift files will be in same folder files with same time steps will be overwritten - finally there will be no double files!
-mode = ['all', 'ee', 'el', '24h'][3]
+mode = ['all', 'ee', 'el', '24h', '2d', '3d'][2]
 print(mode)
 
 #and number of grid points in each direction
@@ -44,7 +44,7 @@ print(mode)
 #lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
 #minlen = [4,2,1,.5,.2]
 #maxlen = [6,3,1.5,.75,.3]
-resolution = 200
+resolution = 25
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 outpath_drift = '../output/drift_'+str(resolution)+'/'
 outpath = '../plots/drift_'+str(resolution)+'/'
@@ -91,7 +91,7 @@ for i in range(0,len(fl)):
     dt1 = dl[i]
     if mode != 'all':
         #check if the file is early morning
-        if dt1.hour > 8: continue
+        if dt1.hour > 7: print('not early morning');continue
 
         #select dt2, depending on the mode
         dt_diff = np.array(dl) - dt1
@@ -104,9 +104,15 @@ for i in range(0,len(fl)):
         #24h: expected time difference: 22-24 h 
         elif mode =='24h':
             match = np.argmin(abs(dt_diff - timedelta(hours=22)))
-        
-        print(match)
-    
+            if dl[match].hour > 7: print('second file not early morning');continue
+        #2days
+        elif mode =='2d':
+            match = np.argmin(abs(dt_diff - timedelta(hours=46)))
+            if dl[match].hour > 7: print('second file not early morning');continue
+        #3days
+        elif mode =='3d':
+            match = np.argmin(abs(dt_diff - timedelta(hours=70)))
+            if dl[match].hour > 7: print('second file not early morning');continue
     else:
         match = i+1
     

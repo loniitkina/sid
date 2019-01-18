@@ -12,6 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #select lenght scale
 lscale = [10,25,50,100,200,500][1]
+print(lscale)
 
 #-------------------------------------------------------------------
 inpath = '../output/drift_'+str(lscale)+'/'
@@ -20,7 +21,7 @@ outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 
-outname_td = 'td_'+reg+'_L'+str(lscale)+'_25km.csv'
+outname_td = 'td_'+reg+'_L'+str(lscale)+'_15km.csv'
 td_list=[]
 ls_list=[]
 ang_list=[]
@@ -30,19 +31,25 @@ date_list=[]
 fl = sorted(glob(inpath+'*_upm.npy'))
 for i in fl:
     #read in all the data
+    print(i)
     u = np.load(i)
     v = np.load(i.split('_upm')[0]+'_vpm.npy')          #in m/s???
     rpm = np.load(i.split('_upm')[0]+'_rpm.npy')       #cross-correlation matrix
-    lat = np.load(i.split('_upm')[0]+'_lat1pm.npy')      #consider using starting coordinates instead
+    lat = np.load(i.split('_upm')[0]+'_lat1pm.npy')
     lon = np.load(i.split('_upm')[0]+'_lon1pm.npy')
+    
+    lat2 = np.load(i.split('_upm')[0]+'_lat2pm.npy')
+    lon2 = np.load(i.split('_upm')[0]+'_lon2pm.npy')
     
     #get time difference
     date1 = i.split('/')[-1].split('_')[1]
     date2 = i.split('/')[-1].split('_')[2]
     dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
+    
+    if dt1 > datetime(2015,2,12): continue
 
-    diff = (dt2-dt1).seconds
+    diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
     
     #Lance postion (from Lance's met system)
     mettime = getColumn(metfile,0)
@@ -67,13 +74,19 @@ for i in fl:
     #reproject vertices
     x, y = m(lon, lat)
     
+    #recalculate u,v
+    x2, y2 = m(lon2, lat2)
+    u = (x2-x)/diff
+    v = (y2-y)/diff
+    
     #reproject Lance position
     xl, yl = m(Lance_lon, Lance_lat)
 
-    
+
     #cut out region
-    radius = 25000
+    radius = 15000
     mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
+    
     x = np.ma.array(x,mask=mask)
     x = np.ma.compressed(x)
     y = np.ma.array(y,mask=mask)
@@ -102,7 +115,10 @@ for i in fl:
     
     #mask out all poor quality data: rpm > 0.4
     mask = rpm > 0.3
-    u = np.ma.array(u,mask=~mask)
+    try:
+        u = np.ma.array(u,mask=~mask)       #sometimes problems with the mask - as if gridding of lat2pm is not always perfect!
+    except:
+        continue
     u = np.ma.compressed(u)
     v = np.ma.array(v,mask=~mask)
     v = np.ma.compressed(v)

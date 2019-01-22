@@ -106,8 +106,8 @@ outpath = '../plots/'
 minlen=0
 maxlen=10
 
-tc_min = [.4,1,4,6,7,15,20,25,50]
-tc_max = [1,2,6,7,9,20,25,50,80]
+tc_min = [1,2,15,20,25,50]
+tc_max = [2,9,20,25,50,80]
 
 
 #tc_min = [1,4,6,15,20,25,50]
@@ -198,21 +198,21 @@ x = (np.array(tc_min)+np.array(tc_max))/2
 
 
 
-##ship radar
-##fit the line
-#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,meantd_list_sr)
+#ship radar
+#fit the line
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,meantd_list_sr)
 
-#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='m')
-#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
-#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='m')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-##buoys
-##fit the line to bins
-#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[1:],meantd_list_b[1:])
+#buoys
+#fit the line to bins
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[1:],meantd_list_b[1:])
 
-#ax.loglog(x[1:],a*x[1:]**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
-#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
-#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+ax.loglog(x[1:],a*x[1:]**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #sar 
 #fit the line
@@ -227,7 +227,7 @@ ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())    
-ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
+ax.legend(loc='upper right',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
 fig1.savefig(outpath+'power_law_3-5km_'+title)

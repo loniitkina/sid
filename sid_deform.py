@@ -11,7 +11,7 @@ from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #select lenght scale
-lscale = [10,25,50,100,200,500][1]
+lscale = [10,25,50,100,200,500][5]
 print(lscale)
 
 #-------------------------------------------------------------------

@@ -203,7 +203,7 @@ x = (np.array(tc_min)+np.array(tc_max))/2
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,meantd_list_sr)
 
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='m')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #buoys
@@ -211,12 +211,14 @@ ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[1:],meantd_list_b[1:])
 
 ax.loglog(x[1:],a*x[1:]**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #sar 
 #fit the line
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
+
+
 
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='royalblue')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')

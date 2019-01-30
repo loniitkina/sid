@@ -117,6 +117,59 @@ cd SeaIceDrift/sid
 
 
 
+########################################################################################
+how to check the sea ice drift output quickly
+
+(py3drift) -bash-4.2$ pwd
+/Home/politk/SeaIceDrift/sid
+(py3drift) -bash-4.2$ cd ../output/drift_1000
+(py3drift) -bash-4.2$ python
+Python 3.6.7 | packaged by conda-forge | (default, Nov 21 2018, 02:32:25) 
+[GCC 4.8.2 20140120 (Red Hat 4.8.2-15)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import numpy as np
+>>> import matplotlib.pyplot as plt
+>>> u = np.load('SeaIceDrift_20150121T065404_20150122T073534_upm.npy')
+>>> v = np.load('SeaIceDrift_20150121T065404_20150122T073534_vpm.npy')
+>>> plt.subplot(1,2,1);plt.imshow(u)
+<matplotlib.axes._subplots.AxesSubplot object at 0x7fc2af0b22e8>
+<matplotlib.image.AxesImage object at 0x7fc30d4da6a0>
+>>> plt.subplot(1,2,2);plt.imshow(v)
+<matplotlib.axes._subplots.AxesSubplot object at 0x7fc30d4da9b0>
+<matplotlib.image.AxesImage object at 0x7fc30c7b4048>
+>>> plt.show()
+>>> plt.imshow(np.hypot(u,v));plt.show()
+<matplotlib.image.AxesImage object at 0x7fc302034be0>
+>>> plt.imshow(np.hypot(u,v));plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301f94898>
+>>> plt.plot(np.hypot(u,v)[1200]);plt.show()
+[<matplotlib.lines.Line2D object at 0x7fc301f762e8>]
+>>> plt.plot(np.hypot(u,v)[1200], '.');plt.show()
+[<matplotlib.lines.Line2D object at 0x7fc301f4f198>]
+>>> plt.plot(np.hypot(u,v)[1200], '.-');plt.show()
+[<matplotlib.lines.Line2D object at 0x7fc301ea4240>]
+>>> plt.plot(v[1200], '.-');plt.show()
+[<matplotlib.lines.Line2D object at 0x7fc301e7c208>]
+>>> plt.imshow(np.gradient(u)[0]);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301e516d8>
+>>> plt.imshow(np.gradient(u)[0], clim=[-1e-5,1e-5]);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301da4d68>
+>>> plt.imshow(np.gradient(u)[0], clim=[-1e-4,1e-4]);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301debf98>
+>>> plt.imshow(np.hypot(*np.gradient(u)), clim=[0,1e-4]);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301fa82e8>
+>>> plt.imshow(np.hypot(*np.gradient(u)), clim=[0,1e-3]);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc30d4dda90>
+>>> plt.imshow(np.gradient(u)[0], clim=[-1e-4,1e-4]);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301eb0128>
+>>> h = np.load('SeaIceDrift_20150121T065404_20150122T073534_hpm.npy')
+>>> r = np.load('SeaIceDrift_20150121T065404_20150122T073534_rpm.npy')
+>>> plt.imshow(h);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301e1b7f0>
+>>> plt.imshow(r);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc301f6e0b8>
+>>> plt.imshow(r*h);plt.show()
+<matplotlib.image.AxesImage object at 0x7fc30200e6d8>
 
 
 

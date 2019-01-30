@@ -117,9 +117,9 @@ for i in range(0,len(lsc_list)):
 inpath = '../output/def_'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
-minlen = [4,2,1,.5,.2]
-maxlen = [6,3,1.5,.75,.3]
+lsc_list = [25,50,100,200,500,1000]   #not ls but number of nominal grid points
+minlen = [4,2,1,.5,.2,0]
+maxlen = [6,3,1.5,.75,.3,.15]
 
 
 for i in range(0,len(lsc_list)):
@@ -129,17 +129,27 @@ for i in range(0,len(lsc_list)):
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
+    tls = getColumn(fname,2, delimiter=',')
     td = getColumn(fname,3, delimiter=',')
     ang = getColumn(fname,4)
     ls = np.array(ls,dtype=np.float)/1000  #convert from m to km
+    tls = np.array(tls,dtype=np.float)/60/60    #convert from s to h
     td = np.array(td,dtype=np.float)
     ang = np.array(ang,dtype=np.float)
     
+    #get only 24h data
+    mask = (tls<22) | (tls>25)
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ang = np.ma.array(ang,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td)
+    ang = np.ma.compressed(ang)
     
-
-        
+    
+    
     #mask out all the acute triangles
-    mask=ang<15
+    mask = ang<15
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
@@ -214,37 +224,6 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 #no binning
 #a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sar,td_list_sar)
 
-
-##alternative fitting (MLE)
-#from mle import var, Normal
-
-## Define model
-#x = var('x', observed=True, vector=True)
-#y = var('y', observed=True, vector=True)
-
-#a = var('a')
-#k = var('k')
-#sigma = var('sigma')
-
-#model = Normal(y, a*x**k, sigma)
-
-## all data
-#xs=np.array(ls_list_sar)
-#ys=np.array(td_list_sar)
-
-
-## Fit model to data
-#result = model.fit({'x': xs, 'y': ys}, {'a': 1, 'k': -1, 'sigma': 1})
-#print(result)
-
-
-## Get data back on the original scale
-#k=result.x['k']
-#a=result.x['a']
-
-##exit()
-
-
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
 x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
@@ -252,13 +231,6 @@ x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='purple')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
-
-
-
-
-
-
-
 
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter

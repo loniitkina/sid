@@ -44,7 +44,7 @@ print(mode)
 #lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
 #minlen = [4,2,1,.5,.2]
 #maxlen = [6,3,1.5,.75,.3]
-resolution = 500
+resolution = 1000
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 outpath_drift = '../output/drift_'+str(resolution)+'/'
 outpath = '../plots/drift_'+str(resolution)+'/'
@@ -148,11 +148,37 @@ for i in range(0,len(fl)):
     uft, vft, lon1ft, lat1ft, lon2ft, lat2ft = sid.get_drift_FT()
 
     # user defined grid of points:
+    srs = '+proj=laea lat_0=%f lon_0=%f +datum=WGS84 +ellps=WGS84 +no_defs' % ((regs+regn)/2, (regw+rege)/2)
+    #d = Domain(srs, '-te -100000 -100000 100000 100000 -tr 1000 1000')
+    #lon1pm_1, lat1pm_1 = d.get_geolocation_grids()
+    lon1pm_1, lat1pm_1 = sid.n1.get_geolocation_grids()
+
+    # subsample lon,lat with even steps
+    stp = 10
+    lon1pm_1, lat1pm_1 = lon1pm_1[::stp, ::stp], lat1pm_1[::stp, ::stp] 
+    
+    # subsample around Lance
+    lonlat_shape = lon1pm_1.shape
+    lon_diff = 1
+    lat_diff = 0.3
+    near_lance_pix = ((lon1pm_1 > (Lance_lon - lon_diff )) *
+                      (lon1pm_1 < (Lance_lon + lon_diff )) * 
+                      (lat1pm_1 > (Lance_lat - lat_diff )) * 
+                      (lat1pm_1 < (Lance_lat + lat_diff )))
+    # that will return lon,lat as vectors, not as grids   
+    lon1pm_1, lat1pm_1  = lon1pm_1[near_lance_pix] , lat1pm_1[near_lance_pix] 
+    
+    
     lon1pm, lat1pm = np.meshgrid(np.linspace(regw, rege, gridp_we), np.linspace(regs, regn, gridp_sn))
 
     # apply Pattern Matching and find sea ice drift speed
     # for the given grid of points
-    upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(lon1pm, lat1pm, lon1ft, lat1ft, lon2ft, lat2ft)
+    upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(lon1pm, lat1pm, lon1ft, lat1ft, lon2ft, lat2ft, srs=srs)
+
+    # create grids from vectors
+    upm2 = np.zeros(lonlat_shape) + np.nan
+    upm2[near_lance_pix] = upm 
+
 
     #dump the PM data into numpy files
     output_name = 'SeaIceDrift_'+date1+'_'+date2

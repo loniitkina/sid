@@ -11,7 +11,7 @@ from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #select lenght scale
-lscale = [10,25,50,100,200,500][5]
+lscale = [10,25,50,100,200,500,1000][6]
 print(lscale)
 
 #-------------------------------------------------------------------
@@ -20,6 +20,8 @@ outpath_def = '../output/def_'+str(lscale)+'/'
 outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
+proj = reg
+reg = 'leg1_FYI'
 
 outname_td = 'td_'+reg+'_L'+str(lscale)+'_15km.csv'
 td_list=[]
@@ -68,7 +70,7 @@ for i in fl:
     #convert Lance position and sea ice drift array to projected coordinates
     #project the coordinates (units of distance have to be meters)
     #use QGIS for the first guess about the coordinates
-    area_def = pr.utils.load_area('area.cfg', reg)
+    area_def = pr.utils.load_area('area.cfg', proj)
     m = pr.plot.area_def2basemap(area_def)
         
     #reproject vertices
@@ -81,6 +83,9 @@ for i in fl:
     
     #reproject Lance position
     xl, yl = m(Lance_lon, Lance_lat)
+    
+    if reg == 'leg1_FYI':   #shift region 15km eastwards into the pure FYI zone
+        xl = xl+15000
 
 
     #cut out region

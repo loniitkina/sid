@@ -8,6 +8,8 @@ ax = fig1.add_subplot(111)
 title = 'ship_radar+buoys+SAR_in'
 title = 'ship_radar+buoys+SAR_short'
 title = 'ship_radar+buoys+SAR_updt'
+title = 'ship_radar+buoys+SAR_new25km'
+title = 'ship_radar+buoys+SAR_new15km'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -114,18 +116,19 @@ for i in range(0,len(lsc_list)):
     ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='k')
 
 #SAR data
-inpath = '../output/def_'
+inpath = '../output/def_full/'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-lsc_list = [25,50,100,200,500,1000]   #not ls but number of nominal grid points
-minlen = [4,2,1,.5,.2,0]
-maxlen = [6,3,1.5,.75,.3,.15]
+lsc_list = [1,2,3,5,7,10,15,25]
+#lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
+minlen = [0,.2,.3,.5,.7,1,1.5,2.5]
+maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5]
 
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
-    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+'_15km.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -155,16 +158,16 @@ for i in range(0,len(lsc_list)):
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
     
-    #throw away very high deformation rates (unrealistic values)
-    mask = td>10e-3
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    ##throw away very high deformation rates (unrealistic values)
+    #mask = td>10e-3
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)   
     
     
-    #throw away very low deformation rates (noise)
-    mask = td<10e-8
+    #throw away very low deformation rates (pixel edge noise)
+    mask = td<.5e-7
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)

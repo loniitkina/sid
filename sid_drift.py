@@ -39,6 +39,7 @@ from sea_ice_drift import SeaIceDrift
 mode = ['all', 'ee', 'el', '24h', '2d', '3d'][3]
 print(mode)
 
+
 #and number of grid points in each direction
 #used in post-processing:
 #lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
@@ -46,25 +47,26 @@ print(mode)
 #maxlen = [6,3,1.5,.75,.3]
 resolution = 1000
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-outpath_drift = '../output/drift_'+str(resolution)+'/'
-outpath = '../plots/drift_'+str(resolution)+'/'
+outpath_drift = '../output/drift_full/'
+outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
+outpath = '../plots/drift_full/'
 
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '../data/Sentinel1/'
 inpath = '/Data/sim/data/Sentinel1/'
 
-#specify region
+#specify region (for plotting)
 regn = 84
 regs = 82
 regw = 10
 rege = 25
-#and number of grid points in each direction
-#used in post-processing:
-#lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
-#minlen = [4,2,1,.5,.2]
-#maxlen = [6,3,1.5,.75,.3]
-gridp_we = resolution
-gridp_sn = gridp_we*1.5         #the region is elongated in NS direction (it needs more points to get nicer triangles/squares)
+##and number of grid points in each direction
+##used in post-processing:
+##lsc_list = [25,50,100,200,500]   #not ls but number of nominal grid points
+##minlen = [4,2,1,.5,.2]
+##maxlen = [6,3,1.5,.75,.3]
+#gridp_we = resolution
+#gridp_sn = gridp_we*1.5         #the region is elongated in NS direction (it needs more points to get nicer triangles/squares)
 
 #show Lance position
 def getColumn(filename, column):
@@ -74,7 +76,7 @@ def getColumn(filename, column):
 metfile = '../data/10minute_nounits.csv'
 
 #file list
-fl = sorted(glob.glob(inpath+'S1A_EW_GRDM_1SDH_*.zip'))
+fl = sorted(glob.glob(inpath+'S1A_EW_GRDM_1SDH_2015021*.zip'))
 print(fl)
 
 #date list
@@ -84,7 +86,6 @@ for i in range(0,len(fl)):
     date = datetime.strptime(tmp, "%Y%m%dT%H%M%S")
     dl.append(date)
 
-print(dl)
 
 for i in range(0,len(fl)):    
 
@@ -136,6 +137,10 @@ for i in range(0,len(fl)):
     date1 = datetime.strftime(dl[i], "%Y%m%dT%H%M%S")
     date2 = datetime.strftime(dl[match], "%Y%m%dT%H%M%S")
     print(date1,date2)
+    
+    #get time difference
+    timediff = (dl[match] - dl[i]).total_seconds()
+    print('Time difference: '+str(timediff)+' seconds')
 
     #uncoment to check the pairs before processing
     #continue
@@ -154,13 +159,15 @@ for i in range(0,len(fl)):
     lon1pm_1, lat1pm_1 = sid.n1.get_geolocation_grids()
 
     # subsample lon,lat with even steps
-    stp = 10
+    # full resolution (pixel spacing) is 80m (or even 40m - something to check)
+    # template for PM is set to 35x35 pixels, so at 10 step resolution, overlap is substational - how high is it sensible to go?
+    stp = 1
     lon1pm_1, lat1pm_1 = lon1pm_1[::stp, ::stp], lat1pm_1[::stp, ::stp] 
     
     # subsample around Lance
     lonlat_shape = lon1pm_1.shape
-    lon_diff = 1
-    lat_diff = 0.3
+    lon_diff = 2
+    lat_diff = 0.2      #approx. 50km
     near_lance_pix = ((lon1pm_1 > (Lance_lon - lon_diff )) *
                       (lon1pm_1 < (Lance_lon + lon_diff )) * 
                       (lat1pm_1 > (Lance_lat - lat_diff )) * 
@@ -169,68 +176,115 @@ for i in range(0,len(fl)):
     lon1pm_1, lat1pm_1  = lon1pm_1[near_lance_pix] , lat1pm_1[near_lance_pix] 
     
     
-    lon1pm, lat1pm = np.meshgrid(np.linspace(regw, rege, gridp_we), np.linspace(regs, regn, gridp_sn))
+    #lon1pm, lat1pm = np.meshgrid(np.linspace(regw, rege, gridp_we), np.linspace(regs, regn, gridp_sn))
+    
+    
+    #print(lon1pm_1)
+    #print(lon1pm)
+    #print(lon1pm_1.shape)
+    #print(lon1pm.shape)
+    
+    
+    
 
     # apply Pattern Matching and find sea ice drift speed
     # for the given grid of points
-    upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(lon1pm, lat1pm, lon1ft, lat1ft, lon2ft, lat2ft, srs=srs)
+    #if no spatial overlap this will give an error: UnboundLocalError: local variable 'lon_pm2_grd' referenced before assignment
+    try:
+        upm, vpm, apm, rpm, hpm, lon2pm, lat2pm = sid.get_drift_PM(lon1pm_1, lat1pm_1, lon1ft, lat1ft, lon2ft, lat2ft, srs=srs)
+    except:
+        continue
+
+    #calculate velocity from displacements
+    upm = upm/timediff
+    vpm = vpm/timediff
 
     # create grids from vectors
     upm2 = np.zeros(lonlat_shape) + np.nan
-    upm2[near_lance_pix] = upm 
-
+    vpm2 = np.zeros(lonlat_shape) + np.nan
+    rpm2 = np.zeros(lonlat_shape) + np.nan
+    apm2 = np.zeros(lonlat_shape) + np.nan
+    hpm2 = np.zeros(lonlat_shape) + np.nan
+    
+    lon2pm2 = np.zeros(lonlat_shape) + np.nan
+    lat2pm2 = np.zeros(lonlat_shape) + np.nan
+    
+    lon1pm2 = np.zeros(lonlat_shape) + np.nan
+    lat1pm2 = np.zeros(lonlat_shape) + np.nan
+    
+    
+    upm2[near_lance_pix] = upm
+    vpm2[near_lance_pix] = vpm
+    apm2[near_lance_pix] = apm
+    rpm2[near_lance_pix] = rpm
+    hpm2[near_lance_pix] = hpm
+    
+    lon2pm2[near_lance_pix] = lon2pm
+    lat2pm2[near_lance_pix] = lat2pm
+    
+    lon1pm2[near_lance_pix] = lon1pm_1
+    lat1pm2[near_lance_pix] = lat1pm_1
+    
+    ##print(upm2)
+    #print(upm2.shape)
+    #print(upm.shape)
+    
+    #print(lat2pm2.shape)
+    #print(lat1pm_1.shape)
+    #exit()
 
     #dump the PM data into numpy files
     output_name = 'SeaIceDrift_'+date1+'_'+date2
-    np.save(outpath_drift+output_name+'_upm',upm)
-    np.save(outpath_drift+output_name+'_vpm',vpm)
-    np.save(outpath_drift+output_name+'_apm',apm)
-    np.save(outpath_drift+output_name+'_rpm',rpm)
-    np.save(outpath_drift+output_name+'_hpm',hpm)
-    np.save(outpath_drift+output_name+'_lon1pm',lon1pm)
-    np.save(outpath_drift+output_name+'_lat1pm',lat1pm)
-    np.save(outpath_drift+output_name+'_lon2pm',lon2pm)
-    np.save(outpath_drift+output_name+'_lat2pm',lat2pm)
+    np.save(outpath_drift+output_name+'_upm',upm2)
+    np.save(outpath_drift+output_name+'_vpm',vpm2)
+    np.save(outpath_drift+output_name+'_apm',apm2)
+    np.save(outpath_drift+output_name+'_rpm',rpm2)
+    np.save(outpath_drift+output_name+'_hpm',hpm2)
+    np.save(outpath_drift+output_name+'_lon1pm',lon1pm2)
+    np.save(outpath_drift+output_name+'_lat1pm',lat1pm2)
+    np.save(outpath_drift+output_name+'_lon2pm',lon2pm2)
+    np.save(outpath_drift+output_name+'_lat2pm',lat2pm2)
 
-    # ==== PLOTTING ====
-    # get coordinates of SAR scene borders
-    lon1, lat1 = sid.n1.get_border()
-    lon2, lat2 = sid.n2.get_border()
+    ## ==== PLOTTING ====
+    ## get coordinates of SAR scene borders
+    #lon1, lat1 = sid.n1.get_border()
+    #lon2, lat2 = sid.n2.get_border()
 
-    # prepare projected images with sigma0_HV
-    sid.n1.reproject(Domain(NSR().wkt, '-te -10 82 25 84 -ts 1000 1000'))
-    s01 = sid.n1['sigma0_HV']
-    sid.n2.reproject(Domain(NSR().wkt, '-te -10 82 25 84 -ts 1000 1000'))
-    s02 = sid.n2['sigma0_HV']
+    ## prepare projected images with sigma0_HV
+    #sid.n1.reproject(Domain(NSR().wkt, '-te -10 82 25 84 -ts 1000 1000'))
+    #s01 = sid.n1['sigma0_HV']
+    #sid.n2.reproject(Domain(NSR().wkt, '-te -10 82 25 84 -ts 1000 1000'))
+    #s02 = sid.n2['sigma0_HV']
 
-    # plot the projected image from the first SAR scene
-    plt.imshow(s01, extent=[regw, rege, regs, regn], cmap='gray', aspect=12)
-    # plot vectors of sea ice drift from Feature Tracking
-    plt.quiver(lon1ft, lat1ft, uft, vft, color='r',
-            angles='xy', scale_units='xy', scale=0.5)
-    # plot border of the second SAR scene
-    plt.plot(lon2, lat2, '.-r')
-    # set X/Y limits of figure
-    plt.xlim([regw, rege])
-    plt.ylim([regs, regn])
-    plt.savefig(outpath+'SeaIceDrift_FT_img1_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
-    plt.close('all')
+    ## plot the projected image from the first SAR scene
+    #plt.imshow(s01, extent=[regw, rege, regs, regn], cmap='gray', aspect=12)
+    ## plot vectors of sea ice drift from Feature Tracking
+    #plt.quiver(lon1ft, lat1ft, uft, vft, color='r',
+            #angles='xy', scale_units='xy', scale=0.5)
+    ## plot border of the second SAR scene
+    #plt.plot(lon2, lat2, '.-r')
+    ## set X/Y limits of figure
+    #plt.xlim([regw, rege])
+    #plt.ylim([regs, regn])
+    #plt.savefig(outpath+'SeaIceDrift_FT_img1_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
+    #plt.close('all')
 
-    # plot the projected image from the second SAR scene
-    plt.imshow(s02, extent=[regw, rege, regs, regn], cmap='gray', aspect=12)
-    # filter only high quality pixels
-    gpi = rpm > 0.4
-    # plot vectors of sea ice drift from Feature Tracking, color by MCC
-    plt.quiver(lon1pm[gpi], lat1pm[gpi], upm[gpi], vpm[gpi], rpm[gpi],
-            angles='xy', scale_units='xy', scale=0.5)
-    # plot border of the first SAR scene
-    plt.plot(lon1, lat1, '.-r')
-    # set X/Y limits of figure
-    plt.xlim([regw, rege])
-    plt.ylim([regs, regn])
-    #plot Lance
-    plt.plot(Lance_lon, Lance_lat, '*', color='purple', markersize=6)
+    ## plot the projected image from the second SAR scene
+    #plt.imshow(s02, extent=[regw, rege, regs, regn], cmap='gray', aspect=12)
+    ## filter only high quality pixels
+    #gpi = rpm > 0.4
+    ## plot vectors of sea ice drift from Feature Tracking, color by MCC
+    #plt.quiver(lon1pm_1[gpi], lat1pm_1[gpi], upm[gpi], vpm[gpi], rpm[gpi],
+            #angles='xy', scale_units='xy', scale=0.5)
+    ## plot border of the first SAR scene
+    #plt.plot(lon1, lat1, '.-r')
+    ## set X/Y limits of figure
+    #plt.xlim([regw, rege])
+    #plt.ylim([regs, regn])
+    ##plot Lance
+    #plt.plot(Lance_lon, Lance_lat, '*', color='purple', markersize=6)
     
-    plt.savefig(outpath+'SeaIceDrift_PM_img2_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
-    plt.close('all')
+    #plt.savefig(outpath+'SeaIceDrift_PM_img2_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
+    #plt.close('all')
 
+    #exit()

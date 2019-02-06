@@ -23,22 +23,19 @@ ls_list_fyi=[]
 td_list_fyi=[]
 
 #SAR at Lance
-inpath = '../output/def_'
+inpath = '../output/def_full/'
 outpath = '../plots/'
-fname_start = 'td_leg1_L'
-lsc_list = [25,50,100,200,500,1000]   #not ls but number of nominal grid points
-minlen = [4,2,1,.5,.2,0]
-maxlen = [6,3,1.5,.75,.3,.15]
-
-#lsc_list = [50,100,200,500,1000]   #not ls but number of nominal grid points
-#minlen = [2,1,.5,.2,0]
-#maxlen = [3,1.5,.75,.3,.15]
+fname_start = 'td_leg1_SYI_L'
+lsc_list = [1,2,3,5,7,10,15,25]
+#lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
+minlen = [0,.2,.3,.5,.7,1,1.5,2.5]
+maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5]
 
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
-    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+'_15km.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -59,31 +56,20 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)
     ang = np.ma.compressed(ang)
     
-    
-    
     #mask out all the acute triangles
     mask = ang<15
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
-    
-    #throw away very high deformation rates (unrealistic values)
-    mask = td>10e-3
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
-    
-    
-    #throw away very low deformation rates (noise)
-    mask = td<10e-8
+        
+    #throw away very low deformation rates (pixel edge noise)
+    mask = td<.5e-7
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)   
 
-    
     #mask all very small or big triangles
     #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
     mask = (ls<minlen[i]) | (ls>maxlen[i])
@@ -106,23 +92,14 @@ for i in range(0,len(lsc_list)):
     ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
 
 #SAR in FYI
-inpath = '../output/def_'
+inpath = '../output/def_full/'
 outpath = '../plots/'
 fname_start = 'td_leg1_FYI_L'
-lsc_list = [25,50,100,200,500,1000]   #not ls but number of nominal grid points
-minlen = [4,2,1,.5,.2,0]
-maxlen = [6,3,1.5,.75,.3,.15]
-
-#lsc_list = [50,100,200,500,1000]   #not ls but number of nominal grid points
-#minlen = [2,1,.5,.2,0]
-#maxlen = [3,1.5,.75,.3,.15]
-
-
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
-    fname = inpath+str(scale)+'/'+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+'_15km.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -143,31 +120,20 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)
     ang = np.ma.compressed(ang)
     
-    
-    
     #mask out all the acute triangles
     mask = ang<15
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
-    
-    #throw away very high deformation rates (unrealistic values)
-    mask = td>10e-3
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
-    
-    
-    #throw away very low deformation rates (noise)
-    mask = td<10e-8
+        
+    #throw away very low deformation rates (template noise)
+    mask = td<.5e-7
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)   
 
-    
     #mask all very small or big triangles
     #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
     mask = (ls<minlen[i]) | (ls>maxlen[i])
@@ -186,16 +152,14 @@ for i in range(0,len(lsc_list)):
     td_list_fyi.extend(td)
         
     #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2, color='r')  # Data
-    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='r')
+    ax.scatter(ls, td, lw=0, alpha=.2, color='b')  # Data
+    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='b')
 
 
 
-#Lance
+#SYI
 #fit the line
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
-#no binning
-#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sar,td_list_sar)
 
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
@@ -208,8 +172,6 @@ ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 #FYI
 #fit the line
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_fyi,meantd_list_fyi)
-#no binning
-#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sar,td_list_sar)
 
 #dummy x data for plotting
 x = np.arange(min(meanls_list_fyi), max(meanls_list_fyi), 1)

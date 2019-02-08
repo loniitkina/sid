@@ -8,7 +8,7 @@ ax = fig1.add_subplot(111)
 title = 'ship_radar+buoys+SAR_in'
 title = 'ship_radar+buoys+SAR_short'
 title = 'ship_radar+buoys+SAR_updt'
-title = 'ship_radar+buoys+SAR_new25km'
+#title = 'ship_radar+buoys+SAR_new25km'
 title = 'ship_radar+buoys+SAR_new15km'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
@@ -59,7 +59,7 @@ for i in range(0,len(lsc_list)):
     
     #plot all the data
     ax.scatter(ls, td, lw=0, alpha=.2)  # Data
-    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='k')
+    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='w')
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
@@ -119,11 +119,17 @@ for i in range(0,len(lsc_list)):
 inpath = '../output/def_full/'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-lsc_list = [1,2,3,5,7,10,15,25]
+lsc_list = [1,2,3,5,7,10,15,25,40]
 #lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
-minlen = [0,.2,.3,.5,.7,1,1.5,2.5]
-maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5]
+minlen = [0,.2,.3,.5,.7,1,1.5,2.5,4]
+maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5,5]
 
+#create log-spaced vector and convert it to integers
+n=8 # number of samples
+stp=np.exp(np.linspace(np.log(1),np.log(45),n))
+stp = stp.astype(int)
+print(stp)
+lsc_list = stp[1:]
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
@@ -149,38 +155,27 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)
     ang = np.ma.compressed(ang)
     
-    
-    
     #mask out all the acute triangles
     mask = ang<15
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
-    
-    ##throw away very high deformation rates (unrealistic values)
-    #mask = td>10e-3
-    #ls = np.ma.array(ls,mask=mask)
-    #td = np.ma.array(td,mask=mask)
-    #ls = np.ma.compressed(ls)
-    #td = np.ma.compressed(td)   
-    
-    
-    #throw away very low deformation rates (pixel edge noise)
+        
+    #throw away very low deformation rates (pixel/template edge noise)
     mask = td<.5e-7
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)   
 
-    
-    #mask all very small or big triangles
-    #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
-    mask = (ls<minlen[i]) | (ls>maxlen[i])
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    ##mask all very small or big triangles
+    ##if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
+    #mask = (ls<minlen[i]) | (ls>maxlen[i])
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)   
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -205,7 +200,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,meantd_list_sr)
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='m')
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='royalblue')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
@@ -242,3 +237,6 @@ ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpo
 fig1.tight_layout()
 
 fig1.savefig(outpath+'power_law_24h_'+title)
+
+#make curvature plots!!!!
+#is slope increaase in moments for SH not linear?

@@ -1,4 +1,5 @@
 from sid_func import *
+from scipy import stats
 import matplotlib.pyplot as plt
 
 #plotting
@@ -8,9 +9,11 @@ ax = fig1.add_subplot(111)
 title = 'ship_radar+buoys+SAR_in'
 title = 'ship_radar+buoys+SAR_short'
 title = 'ship_radar+buoys+SAR_updt'
-#title = 'ship_radar+buoys+SAR_new25km'
-title = 'ship_radar+buoys+SAR_new15km'
-ax.set_title(title,fontsize=29, loc='left')
+title = 'ship_radar+buoys+SAR_UB_25km'
+#title = 'ship_radar+buoys+SAR_new15km'
+radius = '_15km.csv'
+name = 'ship_radar+buoys+SAR'
+ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 ax.set_xscale('log')
@@ -30,23 +33,34 @@ td_list_b=[]
 ls_list_sar=[]
 td_list_sar=[]
 
-
-
 #ship radar data
-inpath = '../data/ship_radar/24h/'
+#inpath = '../data/ship_radar/24h/'
+inpath = '../data/ship_radar/time_sliced_data/'
 outpath = '../plots/'
-fname_start = 'F1_Deformation_L'
+name1 = 'Annu Oikkonen - Period'
+name2 = '_Deformation_L'
+
 lsc_list = range(1,7)
+
+#colors
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
-    fname = inpath+fname_start+str(scale)+'_24h.txt'
     
-    ls = getColumn(fname,0, delimiter=' ')
-    td = getColumn(fname,1, delimiter=' ')
-    ls = np.array(ls,dtype=np.float)/1000  #convert from m to km
-    td = np.array(td,dtype=np.float)/3600      #convert from h to s
+    #period 1
+    fname = inpath+name1+'1'+name2+str(scale)+'_12h.txt'
+    ls1 = getColumn(fname,0, delimiter=' ')
+    td1 = getColumn(fname,1, delimiter=' ')
+    
+    #period 2
+    fname = inpath+name1+'2'+name2+str(scale)+'_12h.txt'
+    ls2 = getColumn(fname,0, delimiter=' ')
+    td2 = getColumn(fname,1, delimiter=' ')
+    
+    #combine
+    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -58,16 +72,16 @@ for i in range(0,len(lsc_list)):
 
     
     #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2)  # Data
+    ax.scatter(ls, td, marker='s', lw=0, alpha=.2)  # Data
     ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='w')
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
 inpath = '../data/buoys/'
 outpath = '../plots/'
-#fname_start = 'nice1_comb_SAR'
-fname_start = 'nice1_in_SAR'
-#fname_start = 'nice1_short_SAR'
+fname_start = 'nice1_comb_SAR'
+fname_start = 'nice1_in_SAR'        #only inner ring of the buoys
+#fname_start = 'nice1_short_SAR'    
 fname_td1 = inpath+'dr_'+fname_start+'1_'+'24h'
 fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
@@ -116,25 +130,36 @@ for i in range(0,len(lsc_list)):
     ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='k')
 
 #SAR data
-inpath = '../output/def_full/'
+inpath = '/Data/sim/polona/sid/deform/'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-lsc_list = [1,2,3,5,7,10,15,25,40]
+#lsc_list = [1,2,3,5,7,10,15,25,40]
 #lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
-minlen = [0,.2,.3,.5,.7,1,1.5,2.5,4]
-maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5,5]
+#minlen = [0,  .2,.3,.5,.7,1,  1.5,2.5,0]
+#maxlen = [.15,.3,.4,.6,.9,1.5,2,  3.5,20]
 
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
-stp=np.exp(np.linspace(np.log(1),np.log(45),n))
+stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
-lsc_list = stp[1:]
+#get a grip on the lengh scales
+print(stp*.04)
 
-for i in range(0,len(lsc_list)):
-    scale = lsc_list[i]
+##recalculate these lenghts to sqrt of area (lenght scale)
+##assume an average triangle is unilateral
+##change unit from step to 40m (.04 km) pixel size
+#ls_stp = np.sqrt(np.sqrt(3)/4*stp**2*.04)
+#print(ls_stp)
+
+#size envelope also needs to increase (from 10m to 3km)
+margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
+#print(margin)
+
+for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+    scale = stp[i]
     print(scale)
-    fname = inpath+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+radius
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -162,20 +187,25 @@ for i in range(0,len(lsc_list)):
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #throw away very low deformation rates (pixel/template edge noise)
+    #throw away very low deformation rates (pixel/template edge noise) ###this treshold has to be scale dependant too!!!
     mask = td<.5e-7
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)   
 
-    ##mask all very small or big triangles
-    ##if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
-    #mask = (ls<minlen[i]) | (ls>maxlen[i])
-    #ls = np.ma.array(ls,mask=mask)
-    #td = np.ma.array(td,mask=mask)
-    #ls = np.ma.compressed(ls)
-    #td = np.ma.compressed(td)   
+    #mask all very small or big triangles
+    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    center = np.mean(ls)
+    #center = stats.mode(ls)[0][0]                      #this takes too much time
+    print(center)
+    minlen = center-margin[i]; maxlen = center+margin[i]
+    #minlen = center-margin; maxlen = center+margin
+    mask = (ls<minlen) | (ls>maxlen)
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)

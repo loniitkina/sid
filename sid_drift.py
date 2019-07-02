@@ -32,23 +32,24 @@ from sea_ice_drift import SeaIceDrift
 #el: only image from early morning and late afteroon (same date)
 #24h: only early mornming images (2 different dates)
 #all drift files will be in same folder files with same time steps will be overwritten - finally there will be no double files!
-mode = ['all', 'ee', 'el', '24h', '2d', '3d'][3]
+mode = ['all', 'ee', 'el', '24h', '2d', '3d'][5]
 print(mode)
 
 # full resolution (pixel spacing) is 80m (or even 40m - something to check)
 # template for PM is set to 35x35 pixels, so at 10 step resolution, overlap is substational - how high is it sensible to go?
 #stp=1: only 24h mode needs such high spatial resolution.
 #stp=10: sufficient for the time scalling law
-stp = 1
+stp = 10
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 outpath_drift = '../output/drift_full/'
 outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
-outpath_drift = '/Data/sim/polona/sid/test/'
+outpath_drift = '/Data/sim/polona/sid/drift_full_time/'
+#outpath_drift = '/Data/sim/polona/sid/test/'
 outpath = '../plots/drift_full/'
+outpath = '../plots/drift_full_time/'
 
 # ==== ICE DRIFT RETRIEVAL ====
-#inpath = '../data/Sentinel1/'
 inpath = '/Data/sim/data/Sentinel1/'
 
 #show Lance position

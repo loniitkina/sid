@@ -14,21 +14,27 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 lscale = 'full'
 print(lscale)
 #steps between the image pixels (1 pixel = 40m)
-stp = [1,2,3,5,7,10,15,25,40,60]
+#stp = [1,2,3,5,7,10,15,25,40,60]
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
-stp=np.exp(np.linspace(np.log(1),np.log(45),n))
+stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
 
+#distance in m
+print(stp*40)
+#exit()
 
+##check just the largest triangles
+#stp = stp[-2:]
 
 
 #-------------------------------------------------------------------
-inpath = '../output/drift_'+str(lscale)+'/'
+#inpath = '../output/drift_'+str(lscale)+'/'
 inpath = '/Data/sim/polona/sid/drift_full_stp1/'
 #inpath = '/Data/sim/polona/sid/test/'
-outpath_def = '../output/def_'+str(lscale)+'/'
+#outpath_def = '../output/def_'+str(lscale)+'/'
+outpath_def = '/Data/sim/polona/sid/deform/'
 outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
@@ -38,7 +44,7 @@ proj = reg
 
 for j in stp:
     print('Step: '+str(j))
-    outname_td = 'td_'+reg+'_L'+str(j)+'_25km.csv'
+    outname_td = 'td_'+reg+'_L'+str(j)+'_15km.csv'
     td_list=[]
     ls_list=[]
     ang_list=[]
@@ -51,7 +57,9 @@ for j in stp:
         print(i)
         container = np.load(i)
         print(container.files)
-        u = container['upm'][::j, ::j] 
+        u = container['upm'][::j, ::j]  #this is a regular grid/matrix and such indexing produces a resonably well distributed mesh to construct non-acute triangles
+        print(u.shape)
+        #continue
         v = container['vpm'][::j, ::j] 
         rpm = container['rpm'][::j, ::j] #cross-correlation matrix
         hpm = container['hpm'][::j, ::j] #hessian
@@ -62,8 +70,8 @@ for j in stp:
         #lon2 = np.load(i.split('_upm')[0]+'_lon2pm.npy')[::j, ::j] 
         
         #get time difference
-        date1 = i.split('/')[-1].split('_')[-3]
-        date2 = i.split('/')[-1].split('_')[-2]
+        date1 = i.split('_')[-2]
+        date2 = i.split('_')[-1].split('.')[0]
         dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
         dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
         
@@ -114,7 +122,7 @@ for j in stp:
             yl = yl+10000
             
         #cut out region
-        radius = 25000
+        radius = 15000
         mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
         
         x = x[~mask]
@@ -141,6 +149,10 @@ for j in stp:
         hpm = np.ma.compressed(hpm)
         #print lon.shape
         
+        #check how many values are left in the region
+        print(u.shape)
+        #continue
+        
         #mask out all poor quality data: rpm < 0.4
         gpi = hpm > 5
         u = u[gpi]
@@ -148,7 +160,7 @@ for j in stp:
         x = x[gpi]
         y = y[gpi]
         
-        print(u)
+        print(u.shape)
 
         #triangulate betwen the points
         pts = np.zeros((len(x),2))
@@ -160,7 +172,7 @@ for j in stp:
         ##simple plot check
         #plt.triplot(pts[:,0], pts[:,1], tri.simplices.copy())
         #plt.show()
-        #exit()
+        ##exit()
         
         tripts = pts[tri.simplices]
         upts = u[tri.simplices]
@@ -187,6 +199,9 @@ for j in stp:
         minang = np.array(minang)
         area = np.array(area)
         
+        print(minang.shape)
+        print(minang)
+        #exit()
         
         div = dux + dvy
         shr = .5*np.sqrt((dux-dvy)**2+(duy+dvx)**2)
@@ -276,8 +291,9 @@ for j in stp:
             
 
             fig3.savefig(outpath+outname,bbox_inches='tight')
-            exit()
+            #exit()
 
+    #continue
     #write out lists into csv file
     tt = [date_list, ls_list, time_list, td_list, ang_list]
     table = zip(*tt)

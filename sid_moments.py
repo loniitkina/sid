@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 #plotting
 fig1 = plt.figure(figsize=(10,5))
 ax = fig1.add_subplot(121)
-title = 'moments_new'
+title = 'moments_UB'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -166,13 +166,15 @@ ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='darkred',ls=
     
 
 #SAR data
-inpath = '../output/def_full/'
+inpath = '/Data/sim/polona/sid/deform/'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-lsc_list = [1,2,3,5,7,10,15,25,40]
-#lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
-minlen = [0,.2,.3,.5,.7,1,1.5,2.5,4]
-maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5,5]
+#create log-spaced vector and convert it to integers
+n=8 # number of samples
+stp=np.exp(np.linspace(np.log(1),np.log(300),n))
+stp = stp.astype(int)
+#size envelope also needs to increase (from 10m to 3km)
+margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 
 meanls_list=[]
 meantd_list=[]
@@ -180,8 +182,8 @@ mom2_list=[]
 mom3_list=[]
 mom4_list=[]
 
-for i in range(0,len(lsc_list)):
-    scale = lsc_list[i]
+for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+    scale = stp[i]
     print(scale)
     fname = inpath+fname_start+str(scale)+'_15km.csv'
     print(fname)
@@ -219,12 +221,14 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
-    #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
-    mask = (ls<minlen[i]) | (ls>maxlen[i])
+    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    center = np.mean(ls)
+    minlen = center-margin[i]; maxlen = center+margin[i]
+    mask = (ls<minlen) | (ls>maxlen)
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -279,8 +283,8 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 bx = fig1.add_subplot(122)
 
 moms = np.arange(1,5)
-bx.plot(moms,slopes_sar,'o', label='SAR')
-bx.plot(moms,slopes_rad,'o', label='ship radar')
+bx.plot(moms,slopes_sar,'*', c='k', label='SAR')
+bx.plot(moms,slopes_rad,'s', c='.75', label='ship radar')
 
 z1 = np.polyfit(moms, slopes_sar, 2)
 z2 = np.polyfit(moms, slopes_rad, 2)
@@ -294,6 +298,15 @@ bx.plot(x,y1,'-')
 bx.plot(x,y2,'-')
 
 bx.legend()
+
+#some linear functions
+z1 = np.polyfit(moms, slopes_sar, 1)
+z2 = np.polyfit(moms, slopes_rad, 1)
+y1=z1[0]*x+z1[1]
+y2=z2[0]*x+z2[1]
+bx.plot(x,y1,'--',c='k')
+bx.plot(x,y2,'--',c='k')
+
 
 
 fig1.tight_layout()

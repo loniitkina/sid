@@ -22,9 +22,12 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 
 #ship radar data
-inpath = '../data/ship_radar/24h/'
+#inpath = '../data/ship_radar/24h/'
+inpath = '../data/ship_radar/time_sliced_data/'
 outpath = '../plots/'
-fname_start = 'F1_Deformation_L'
+name1 = 'Annu Oikkonen - Period'
+name2 = '_Deformation_L'
+
 lsc_list = range(1,7)
 
 meanls_list=[]
@@ -36,12 +39,20 @@ mom4_list=[]
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
-    fname = inpath+fname_start+str(scale)+'_24h.txt'
     
-    ls = getColumn(fname,0, delimiter=' ')
-    td = getColumn(fname,1, delimiter=' ')
-    ls = np.array(ls,dtype=np.float)/1000  #convert from m to km
-    td = np.array(td,dtype=np.float)/3600      #convert from h to s
+    #period 1
+    fname = inpath+name1+'1'+name2+str(scale)+'_24h.txt'
+    ls1 = getColumn(fname,0, delimiter=' ')
+    td1 = getColumn(fname,1, delimiter=' ')
+    
+    #period 2
+    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
+    ls2 = getColumn(fname,0, delimiter=' ')
+    td2 = getColumn(fname,1, delimiter=' ')
+    
+    #combine
+    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
     
     #calculate and store moments
     meanls=np.mean(ls)

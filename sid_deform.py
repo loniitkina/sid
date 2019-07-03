@@ -39,8 +39,8 @@ outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 proj = reg
-#reg = 'leg1_FYI'
-#reg = 'leg1_SYI'
+reg = 'leg1_FYI'
+reg = 'leg1_SYI'
 
 for j in stp:
     print('Step: '+str(j))

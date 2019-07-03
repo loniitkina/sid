@@ -49,12 +49,12 @@ for i in range(0,len(lsc_list)):
     print(scale)
     
     #period 1
-    fname = inpath+name1+'1'+name2+str(scale)+'_12h.txt'
+    fname = inpath+name1+'1'+name2+str(scale)+'_24h.txt'
     ls1 = getColumn(fname,0, delimiter=' ')
     td1 = getColumn(fname,1, delimiter=' ')
     
     #period 2
-    fname = inpath+name1+'2'+name2+str(scale)+'_12h.txt'
+    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
     ls2 = getColumn(fname,0, delimiter=' ')
     td2 = getColumn(fname,1, delimiter=' ')
     

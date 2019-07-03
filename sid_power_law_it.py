@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'SAR'
+title = 'SAR_UB'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -22,19 +22,20 @@ td_list_sar=[]
 ls_list_fyi=[]
 td_list_fyi=[]
 
-#SAR at Lance
-inpath = '../output/def_full/'
+#SYI
+inpath = '/Data/sim/polona/sid/deform/'
 outpath = '../plots/'
 fname_start = 'td_leg1_SYI_L'
-lsc_list = [1,2,3,5,7,10,15,25]
-#lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
-minlen = [0,.2,.3,.5,.7,1,1.5,2.5]
-maxlen = [.15,.3,.4,.6,.9,1.5,2,3.5]
+#create log-spaced vector and convert it to integers
+n=8 # number of samples
+stp=np.exp(np.linspace(np.log(1),np.log(300),n))
+stp = stp.astype(int)
+#size envelope also needs to increase (from 10m to 3km)
+margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 
 
-for i in range(0,len(lsc_list)):
-    scale = lsc_list[i]
-    print(scale)
+for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+    scale = stp[i]
     fname = inpath+fname_start+str(scale)+'_15km.csv'
     print(fname)
     
@@ -71,12 +72,14 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
-    #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
-    mask = (ls<minlen[i]) | (ls>maxlen[i])
+    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    center = np.mean(ls)
+    minlen = center-margin[i]; maxlen = center+margin[i]
+    mask = (ls<minlen) | (ls>maxlen)
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -91,14 +94,20 @@ for i in range(0,len(lsc_list)):
     ax.scatter(ls, td, lw=0, alpha=.2, color='k')  # Data
     ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
 
-#SAR in FYI
-inpath = '../output/def_full/'
+#FYI
+inpath = '/Data/sim/polona/sid/deform/'
 outpath = '../plots/'
 fname_start = 'td_leg1_FYI_L'
+#create log-spaced vector and convert it to integers
+n=8 # number of samples
+stp=np.exp(np.linspace(np.log(1),np.log(300),n))
+stp = stp.astype(int)
+#size envelope also needs to increase (from 10m to 3km)
+margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 
-for i in range(0,len(lsc_list)):
-    scale = lsc_list[i]
-    print(scale)
+
+for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+    scale = stp[i]
     fname = inpath+fname_start+str(scale)+'_15km.csv'
     print(fname)
     
@@ -135,12 +144,14 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
-    #if not masked the renge of the ls is big and has several clouds (expected ls, twide the ls and all kinds of smaller ls)
-    mask = (ls<minlen[i]) | (ls>maxlen[i])
+    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    center = np.mean(ls)
+    minlen = center-margin[i]; maxlen = center+margin[i]
+    mask = (ls<minlen) | (ls>maxlen)
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)

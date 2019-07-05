@@ -9,9 +9,9 @@ ax = fig1.add_subplot(111)
 title = 'ship_radar+buoys+SAR_in'
 title = 'ship_radar+buoys+SAR_short'
 title = 'ship_radar+buoys+SAR_updt'
-title = 'ship_radar+buoys+SAR_UB_25km'
+title = 'ship_radar+buoys+SAR_UB_50km_bimodal'
 #title = 'ship_radar+buoys+SAR_new15km'
-radius = '_15km.csv'
+radius = '_50km.csv'
 name = 'ship_radar+buoys+SAR'
 ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
@@ -156,7 +156,8 @@ print(stp*.04)
 margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 #print(margin)
 
-for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+#for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
     fname = inpath+fname_start+str(scale)+radius
@@ -187,12 +188,12 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #throw away very low deformation rates (pixel/template edge noise) ###this treshold has to be scale dependant too!!!
-    mask = td<.5e-7
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    ##throw away very low deformation rates (pixel/template edge noise) ###this treshold has to be scale dependant too!!!
+    #mask = td<.5e-7
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
     #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)

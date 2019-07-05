@@ -40,11 +40,11 @@ metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 proj = reg
 reg = 'leg1_FYI'
-reg = 'leg1_SYI'
+#reg = 'leg1_SYI'
 
 for j in stp:
     print('Step: '+str(j))
-    outname_td = 'td_'+reg+'_L'+str(j)+'_15km.csv'
+    outname_td = 'td_'+reg+'_L'+str(j)+'_7km.csv'
     td_list=[]
     ls_list=[]
     ang_list=[]
@@ -122,7 +122,7 @@ for j in stp:
             yl = yl+10000
             
         #cut out region
-        radius = 15000
+        radius = 7500
         mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
         
         x = x[~mask]

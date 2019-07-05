@@ -196,7 +196,7 @@ mom4_list=[]
 for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
     print(scale)
-    fname = inpath+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+'_7km.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -322,4 +322,4 @@ bx.plot(x,y2,'--',c='k')
 
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_'+title)
+fig1.savefig(outpath+'power_law_24h_7km_'+title)

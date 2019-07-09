@@ -18,6 +18,9 @@ print(lscale)
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
+#for 50km radius
+n=9
+stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 stp = stp.astype(int)
 print(stp)
 
@@ -28,6 +31,8 @@ print(stp*40)
 ##check just the largest triangles
 #stp = stp[-2:]
 
+radius = 50000
+file_name_end = '_50km_more.csv'
 
 #-------------------------------------------------------------------
 #inpath = '../output/drift_'+str(lscale)+'/'
@@ -39,12 +44,12 @@ outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 proj = reg
-reg = 'leg1_FYI'
+#reg = 'leg1_FYI'
 #reg = 'leg1_SYI'
 
 for j in stp:
     print('Step: '+str(j))
-    outname_td = 'td_'+reg+'_L'+str(j)+'_7km.csv'
+    outname_td = 'td_'+reg+'_L'+str(j)+file_name_end
     td_list=[]
     ls_list=[]
     ang_list=[]
@@ -52,6 +57,7 @@ for j in stp:
     date_list=[]
 
     fl = sorted(glob(inpath+'*.npz'))
+    fl = fl[2:]
     for i in fl:
         #read in all the data
         print(i)
@@ -93,10 +99,34 @@ for j in stp:
         #radius of 100 km
         #otherwise to much sea ice deep in the Arctic is included (reduced scaling slope)
         
-        #convert Lance position and sea ice drift array to projected coordinates
+        #convert Lance position and sea ice drift array to projected image coordinates
         #project the coordinates (units of distance have to be meters)
         #use QGIS for the first guess about the coordinates
-        area_def = pr.utils.load_area('area.cfg', proj)
+        #area_def = pr.utils.load_area('area.cfg', proj)
+        
+
+        
+        #Lance centered projection
+        from pyproj import Proj, transform
+        inProj = Proj(init='epsg:4326')
+        outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +a=6378137 +b=6356752.3142 +units=m' % (90, 10))
+        xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
+        
+        from pyresample.geometry import AreaDefinition
+        #Using a projection dictionary
+        area_id = 'around Lance'
+        description = 'North Pole LAEA Europe'
+        proj_id = 'lance'
+        proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'a':6378137, 'b':6356752.3142, 'units':'m'}
+        width = radius*2/100 #100 m spacing
+        height = radius*2/100 #100 m spacing
+        area_extent = (xlp-radius,ylp-radius,xlp+radius,ylp+radius)
+        area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+
+        print(area_def)
+        #exit()
+
+        
         m = pr.plot.area_def2basemap(area_def)
             
         #reproject vertices
@@ -122,7 +152,6 @@ for j in stp:
             yl = yl+10000
             
         #cut out region
-        radius = 7500
         mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
         
         x = x[~mask]
@@ -249,11 +278,11 @@ for j in stp:
             #cx.plot(.05, .95, 'w.', markersize=70, transform=cx.transAxes, markeredgecolor='k', markeredgewidth=2)
             #cx.text(.05, .95, title, ha='center', va='center', transform=cx.transAxes, fontdict={'color':'k','size':30})
 
-            area_def = pr.utils.load_area('area.cfg', proj)
+            #area_def = pr.utils.load_area('area.cfg', proj)  
             m = pr.plot.area_def2basemap(area_def)
             
             #scale
-            m.drawmapscale(15, 82, 25, 82, 100, units='km', barstyle='fancy',fontsize=14)
+            m.drawmapscale(Lance_lon, Lance_lat-.1, Lance_lon+10, Lance_lat-.1, 100, units='km', barstyle='fancy',fontsize=14)
             m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
             m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
@@ -291,7 +320,7 @@ for j in stp:
             
 
             fig3.savefig(outpath+outname,bbox_inches='tight')
-            #exit()
+            exit()
 
     #continue
     #write out lists into csv file

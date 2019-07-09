@@ -108,7 +108,7 @@ margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 
 for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
-    fname = inpath+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+'_7km.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -203,4 +203,4 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_it_'+title)
+fig1.savefig(outpath+'power_law_24h_it_7km_'+title)

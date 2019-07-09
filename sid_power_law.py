@@ -9,9 +9,10 @@ ax = fig1.add_subplot(111)
 title = 'ship_radar+buoys+SAR_in'
 title = 'ship_radar+buoys+SAR_short'
 title = 'ship_radar+buoys+SAR_updt'
-title = 'ship_radar+buoys+SAR_UB_50km_bimodal'
+title = 'ship_radar+buoys+SAR_UB_50km_more'
 #title = 'ship_radar+buoys+SAR_new15km'
 radius = '_50km.csv'
+radius = '_50km_more.csv'
 name = 'ship_radar+buoys+SAR'
 ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
@@ -43,6 +44,7 @@ name2 = '_Deformation_L'
 lsc_list = range(1,7)
 
 #colors
+color=iter(plt.cm.rainbow(np.linspace(0,1,len(lsc_list))))
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
@@ -72,8 +74,9 @@ for i in range(0,len(lsc_list)):
 
     
     #plot all the data
-    ax.scatter(ls, td, marker='s', lw=0, alpha=.2)  # Data
-    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='w')
+    cl = next(color)
+    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
+    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='w', color=cl)
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
@@ -156,8 +159,14 @@ print(stp*.04)
 margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 #print(margin)
 
-#for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
-for i in range(0,len(stp)):    
+##for 50km radius
+#n=9
+#stp=np.exp(np.linspace(np.log(1),np.log(800),n))
+#stp = stp.astype(int)
+#margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
+
+for i in range(0,len(stp)-1):                           #the last two steps are off the curve, try removing them
+#for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
     fname = inpath+fname_start+str(scale)+radius

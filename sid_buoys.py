@@ -15,7 +15,6 @@ from glob import glob
 import os
 from pyproj import Proj
 from scipy.spatial import Delaunay
-import pandas as pd
 
 from sid_func import *
 

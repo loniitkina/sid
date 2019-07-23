@@ -45,7 +45,8 @@ metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 proj = reg
 #reg = 'leg1_FYI'
-#reg = 'leg1_SYI'
+#reg = 'leg1_SYI
+
 
 for j in stp:
     print('Step: '+str(j))
@@ -55,9 +56,14 @@ for j in stp:
     ang_list=[]
     time_list=[]
     date_list=[]
+    date_ts=[]
+    mdiv=[]
+    mpdiv=[]
+    mndiv=[]
+    mshr=[]
 
     fl = sorted(glob(inpath+'*.npz'))
-    fl = fl[2:]
+    #fl = fl[2:]
     for i in fl:
         #read in all the data
         print(i)
@@ -253,23 +259,37 @@ for j in stp:
         time_list.extend(diff_tri.tolist())
         
         #print(len(diff_tri.tolist()))
-        #exit()
+        
+        #save the data for time series
+        date_ts.append(dt1)
+        posd = np.ma.array(div,mask=div<0)
+        negd = np.ma.array(div,mask=div>0)
+        mpdiv.append(np.mean(posd))
+        mndiv.append(np.mean(negd))
+        mdiv.append(np.mean(div))
+        mshr.append(np.mean(shr))
         
         if i == fl[0]:  #only for the first image pair
-            #Plotting 
-            deform = div*1e6
-            #print(deform)
-            outname = 'map_div'+reg+'_L'+str(j)+'_'+date1
-            label = r'Divergence (10$^6$s$^{-1}$)'
-            interval = [-5, 5]
-            cmap=plt.cm.bwr
-            #title = 'c'
+            #continue
+            ##Plotting 
+            #deform = div*1e6
+            ##print(deform)
+            #outname = 'map_div'+reg+'_L'+str(j)+'_'+date1
+            #label = r'Divergence (10$^6$s$^{-1}$)'
+            #interval = [-5, 5]
+            #cmap=plt.cm.bwr
+            ##title = 'c'
             
-            #deform = shr*1e6
-            #outname = 'map_shr_'+reg+'_L'+str(j)+'_'+date1
-            #label = r'Shear (10$^6$s$^{-1}$)'
-            #interval = [0, 50]
-            #cmap=plt.cm.Reds
+            deform = shr*1e6
+            outname = 'map_shr_'+reg+'_L'+str(j)+'_'+date1
+            label = r'Shear (10$^6$s$^{-1}$)'
+            interval = [0, 10]
+            cmap=plt.cm.Reds
+
+            speed = np.sqrt(u**2+v**2)
+            outname = 'map_speed_'+reg+'_L'+str(j)+'_'+date1
+            label = r'Speed (m/s)'
+            cmap=plt.cm.nipy_spectral
                         
             print(outname)
             #deformation plots
@@ -282,7 +302,7 @@ for j in stp:
             m = pr.plot.area_def2basemap(area_def)
             
             #scale
-            m.drawmapscale(Lance_lon, Lance_lat-.1, Lance_lon+10, Lance_lat-.1, 100, units='km', barstyle='fancy',fontsize=14)
+            m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
             m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
             m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
@@ -292,27 +312,31 @@ for j in stp:
             
             ##speed
             #speed = np.sqrt(u**2+v**2)
-            #sc = cx.scatter(x,y,s=50,c=speed,cmap=plt.cm.Reds)
+            sc = cx.scatter(x,y,s=50,c=speed,cmap=cmap, vmin=.06, vmax=.085)         #add colorbar and remove extreme values
+            #sc = ax.scatter(div_rm[:-12],ic_h[12:],c=wdir[12:],marker='o',s=50,alpha=0.6, cmap='rainbow')
+            cbar = plt.colorbar(sc)
+            cbar.ax.set_ylabel('Drift speed (m/s)',size=22)
+
             
-            #triangles
-            patches = []
-            for i in range(deform.shape[0]):
-                patch = Polygon(tripts[i,:,:], edgecolor='orchid', alpha=1, fill=False)
-                #plt.gca().add_patch(patch)
-                patches.append(patch)
+            ##triangles
+            #patches = []
+            #for i in range(deform.shape[0]):
+                #patch = Polygon(tripts[i,:,:], edgecolor='orchid', alpha=1, fill=False)
+                ##plt.gca().add_patch(patch)
+                #patches.append(patch)
             
-            #plot filled triangles
-            p = PatchCollection(patches, cmap=cmap, alpha=0.4)
-            p.set_array(np.array(deform))
-            p.set_clim(interval)
-            cx.add_collection(p)
+            ##plot filled triangles
+            #p = PatchCollection(patches, cmap=cmap, alpha=0.4)
+            #p.set_array(np.array(deform))
+            #p.set_clim(interval)
+            #cx.add_collection(p)
             
-            # create an axes on the right side of ax. The width of cax will be 5%
-            # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-            divider = make_axes_locatable(cx)
-            cax = divider.append_axes("bottom", size="5%", pad=0.1)
-            cbar = plt.colorbar(p, cax=cax, orientation='horizontal')
-            cbar.set_label(label,size=16)
+            ## create an axes on the right side of ax. The width of cax will be 5%
+            ## of ax and the padding between cax and ax will be fixed at 0.05 inch.
+            #divider = make_axes_locatable(cx)
+            #cax = divider.append_axes("bottom", size="5%", pad=0.1)
+            #cbar = plt.colorbar(p, cax=cax, orientation='horizontal')
+            #cbar.set_label(label,size=16)
 
             #Lance
             #xl, yl = m(Lance_lon, Lance_lat)
@@ -321,6 +345,7 @@ for j in stp:
 
             fig3.savefig(outpath+outname,bbox_inches='tight')
             exit()
+                
 
     #continue
     #write out lists into csv file
@@ -330,8 +355,19 @@ for j in stp:
     table = list(zip(*tt))
 
     output = outpath_def + outname_td
-
     with open(output, 'wb') as f:
         #header
         f.write(b'date, length scale, time difference, total deformation, min angle\n')
+        np.savetxt(f, table, fmt="%s", delimiter=",")
+
+    #write data for time series 
+    tt = [date_ts, mpdiv, mndiv, mdiv, mshr]
+    table = zip(*tt)
+    table = list(zip(*tt))
+
+    outname_ts = 'ts_'+reg+'_L'+str(j)+file_name_end
+    output = outpath_def + outname_ts
+    with open(output, 'wb') as f:
+        #header
+        f.write(b'date, pos. divergence, neg. divergence, mean divergence, mean shear\n')
         np.savetxt(f, table, fmt="%s", delimiter=",")

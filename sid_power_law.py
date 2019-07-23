@@ -9,10 +9,10 @@ ax = fig1.add_subplot(111)
 title = 'ship_radar+buoys+SAR_in'
 title = 'ship_radar+buoys+SAR_short'
 title = 'ship_radar+buoys+SAR_updt'
-title = 'ship_radar+buoys+SAR_UB_50km_more'
+title = 'ship_radar+buoys+SAR_UB_7km'
 #title = 'ship_radar+buoys+SAR_new15km'
-radius = '_50km.csv'
-radius = '_50km_more.csv'
+radius = '_7km.csv'
+#radius = '_50km_more.csv'
 name = 'ship_radar+buoys+SAR'
 ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
@@ -44,7 +44,7 @@ name2 = '_Deformation_L'
 lsc_list = range(1,7)
 
 #colors
-color=iter(plt.cm.rainbow(np.linspace(0,1,len(lsc_list))))
+color=iter(plt.cm.Purples_r(np.linspace(0,1,len(lsc_list)+1)))
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
@@ -76,7 +76,7 @@ for i in range(0,len(lsc_list)):
     #plot all the data
     cl = next(color)
     ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
-    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='w', color=cl)
+    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
@@ -110,6 +110,9 @@ lsc_list = [1,2,3]   #order number
 minlen = [2,4,7]
 maxlen = [4,7,10]
 
+#colors
+color=iter(plt.cm.Blues_r(np.linspace(0,1,len(lsc_list)+1)))
+
 
 for i in range(0,len(lsc_list)):
     print(i)
@@ -129,8 +132,9 @@ for i in range(0,len(lsc_list)):
 
     
     #plot all the data
-    ax.scatter(ls_class, td_class, lw=0, alpha=.2)  # Data
-    ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='k')
+    cl = next(color)
+    ax.scatter(ls_class, td_class, marker='o', lw=0, alpha=.2, color=cl)  # Data
+    ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='yellow', color=cl)
 
 #SAR data
 inpath = '/Data/sim/polona/sid/deform/'
@@ -197,12 +201,12 @@ for i in range(0,len(stp)-1):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    ##throw away very low deformation rates (pixel/template edge noise) ###this treshold has to be scale dependant too!!!
-    #mask = td<.5e-7
-    #ls = np.ma.array(ls,mask=mask)
-    #td = np.ma.array(td,mask=mask)
-    #ls = np.ma.compressed(ls)
-    #td = np.ma.compressed(td)   
+    #throw away very low deformation rates (pixel/template edge noise) ###this treshold has to be scale dependant too!!!
+    mask = td<.5e-7
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
     #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
@@ -240,7 +244,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,meantd_list_sr)
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='royalblue')
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='orange')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
@@ -252,7 +256,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_b,meantd_list_b)
 #dummy x data for plotting
 x = np.arange(min(meanls_list_b), max(meanls_list_b), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='g')
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='y')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
@@ -266,7 +270,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
 x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='purple')
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 

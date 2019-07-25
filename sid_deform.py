@@ -47,6 +47,13 @@ proj = reg
 #reg = 'leg1_FYI'
 #reg = 'leg1_SYI
 
+#virtual buoys
+out_file = outpath_def+'VB.npz'
+container = np.load(out_file)
+print(container.files)
+lon_path = container['lon_path'][:5,:,:]
+lat_path = container['lat_path'][:5,:,:]
+
 
 for j in stp:
     print('Step: '+str(j))
@@ -64,10 +71,10 @@ for j in stp:
 
     fl = sorted(glob(inpath+'*.npz'))
     #fl = fl[2:]
-    for i in fl:
+    for i in range(0,len(fl)):
         #read in all the data
-        print(i)
-        container = np.load(i)
+        print(fl[i])
+        container = np.load(fl[i])
         print(container.files)
         u = container['upm'][::j, ::j]  #this is a regular grid/matrix and such indexing produces a resonably well distributed mesh to construct non-acute triangles
         print(u.shape)
@@ -82,12 +89,13 @@ for j in stp:
         #lon2 = np.load(i.split('_upm')[0]+'_lon2pm.npy')[::j, ::j] 
         
         #get time difference
-        date1 = i.split('_')[-2]
-        date2 = i.split('_')[-1].split('.')[0]
+        date1 = fl[i].split('_')[-2]
+        date2 = fl[i].split('_')[-1].split('.')[0]
         dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
         dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
         
-        if dt1 > datetime(2015,2,12): continue
+        #if we dont want to get the 'free drift' at the end of the experiment
+        #if dt1 > datetime(2015,2,12): continue
 
         diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
         
@@ -269,7 +277,7 @@ for j in stp:
         mdiv.append(np.mean(div))
         mshr.append(np.mean(shr))
         
-        if i == fl[0]:  #only for the first image pair
+        if (i < 5) & (j==1):  #only for the first 5 image pairs and highest resolution
             #continue
             ##Plotting 
             #deform = div*1e6
@@ -286,10 +294,10 @@ for j in stp:
             interval = [0, 10]
             cmap=plt.cm.Reds
 
-            speed = np.sqrt(u**2+v**2)
-            outname = 'map_speed_'+reg+'_L'+str(j)+'_'+date1
-            label = r'Speed (m/s)'
-            cmap=plt.cm.nipy_spectral
+            #speed = np.sqrt(u**2+v**2)
+            #outname = 'map_speed_'+reg+'_L'+str(j)+'_'+date1
+            #label = r'Speed (m/s)'
+            #cmap=plt.cm.nipy_spectral
                         
             print(outname)
             #deformation plots
@@ -311,40 +319,42 @@ for j in stp:
             #cx.plot(x,y,'o',linewidth=2,color='purple')
             
             ##speed
-            #speed = np.sqrt(u**2+v**2)
-            sc = cx.scatter(x,y,s=50,c=speed,cmap=cmap, vmin=.06, vmax=.085)         #add colorbar and remove extreme values
-            #sc = ax.scatter(div_rm[:-12],ic_h[12:],c=wdir[12:],marker='o',s=50,alpha=0.6, cmap='rainbow')
-            cbar = plt.colorbar(sc)
-            cbar.ax.set_ylabel('Drift speed (m/s)',size=22)
+            #sc = cx.scatter(x,y,s=50,c=speed,cmap=cmap, vmin=.06, vmax=.085)         #add colorbar and remove extreme values
+            #cbar = plt.colorbar(sc)
+            #cbar.ax.set_ylabel('Drift speed (m/s)',size=22)
 
             
-            ##triangles
-            #patches = []
-            #for i in range(deform.shape[0]):
-                #patch = Polygon(tripts[i,:,:], edgecolor='orchid', alpha=1, fill=False)
-                ##plt.gca().add_patch(patch)
-                #patches.append(patch)
+            #triangles
+            patches = []
+            for k in range(deform.shape[0]):
+                patch = Polygon(tripts[k,:,:], edgecolor='orchid', alpha=1, fill=False)
+                #plt.gca().add_patch(patch)
+                patches.append(patch)
             
-            ##plot filled triangles
-            #p = PatchCollection(patches, cmap=cmap, alpha=0.4)
-            #p.set_array(np.array(deform))
-            #p.set_clim(interval)
-            #cx.add_collection(p)
+            #plot filled triangles
+            p = PatchCollection(patches, cmap=cmap, alpha=0.4)
+            p.set_array(np.array(deform))
+            p.set_clim(interval)
+            cx.add_collection(p)
             
-            ## create an axes on the right side of ax. The width of cax will be 5%
-            ## of ax and the padding between cax and ax will be fixed at 0.05 inch.
-            #divider = make_axes_locatable(cx)
-            #cax = divider.append_axes("bottom", size="5%", pad=0.1)
-            #cbar = plt.colorbar(p, cax=cax, orientation='horizontal')
-            #cbar.set_label(label,size=16)
+            # create an axes on the right side of ax. The width of cax will be 5%
+            # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+            divider = make_axes_locatable(cx)
+            cax = divider.append_axes("bottom", size="5%", pad=0.1)
+            cbar = plt.colorbar(p, cax=cax, orientation='horizontal')
+            cbar.set_label(label,size=16)
 
             #Lance
             #xl, yl = m(Lance_lon, Lance_lat)
             cx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
             
+            #virtual buoys
+            xb,yb = m(lon_path[i,:,:],lat_path[i,:,:])
+            cx.plot(xb,yb,'o',linewidth=2,color='purple')
+
 
             fig3.savefig(outpath+outname,bbox_inches='tight')
-            exit()
+            #exit()
                 
 
     #continue

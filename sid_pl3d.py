@@ -2,22 +2,8 @@ from sid_func import *
 from scipy import stats
 import matplotlib.pyplot as plt
 
-#plotting
-fig1 = plt.figure(figsize=(9,9))
-fig1 = plt.figure(figsize=(7.5,7))
-ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_CSU_50km'
-#title = 'ship_radar+buoys+SAR_UB_7km'
-#title = 'ship_radar+buoys+SAR_new15km'
-#title = 'ship_radar+buoys+SAR_UB_7km'
-radius = '_7km.csv'
+title = 'density'
 radius = '_50km_more.csv'
-name = 'ship_radar+buoys+SAR'
-ax.set_title(name,fontsize=29, loc='left')
-ax.set_xlabel(r"Length scale (km)",fontsize=25)
-ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
-ax.set_xscale('log')
-ax.set_yscale('log')
 
 meanls_list_sr=[]
 meantd_list_sr=[]
@@ -32,6 +18,18 @@ ls_list_b=[]
 td_list_b=[]
 ls_list_sar=[]
 td_list_sar=[]
+
+
+#Plotting
+fig1 = plt.figure(figsize=(22.5,7))
+ax = fig1.add_subplot(131)
+name = 'ship_radar'
+ax.set_title(name,fontsize=29, loc='left')
+ax.set_xlabel(r"Length scale (km)",fontsize=25)
+ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
+ax.set_xscale('log')
+ax.set_yscale('log')
+
 
 #ship radar data
 #inpath = '../data/ship_radar/24h/'
@@ -71,11 +69,23 @@ for i in range(0,len(lsc_list)):
     ls_list_sr.extend(ls)
     td_list_sr.extend(td)
 
-    
-    #plot all the data
+    #density plots
+    #x, y, z = density(ls,td)           #density classes will not be log-spaced (low td values will be all in a single wide color class)
+    x, y, z = density_lsb(ls,td,n=100)  #log-spaced ls and td bins
+    ax.scatter(x, y, c=z, s=50, edgecolor='',cmap=plt.cm.jet, alpha=.2)
+    #plot the means
     cl = next(color)
-    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
     ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
+
+
+bx = fig1.add_subplot(132)
+name = 'buoys'
+bx.set_title(name,fontsize=29, loc='left')
+bx.set_xlabel(r"Length scale (km)",fontsize=25)
+bx.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
+bx.set_xscale('log')
+bx.set_yscale('log')
+
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
@@ -129,41 +139,30 @@ for i in range(0,len(lsc_list)):
     ls_list_b.extend(ls)
     td_list_b.extend(td)
 
-    
-    #plot all the data
+    #density plots
+    x, y, z = density_lsb(ls,td,n=100)  #log-spaced ls and td bins
+    bx.scatter(x, y, c=z, s=50, edgecolor='',cmap=plt.cm.jet, alpha=.2)
     cl = next(color)
-    ax.scatter(ls_class, td_class, marker='o', lw=0, alpha=.2, color=cl)  # Data
-    ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='yellow', color=cl)
+    bx.plot(meanls,meantd,'o',markersize=7,markeredgecolor='yellow', color=cl)
+
+cx = fig1.add_subplot(133)
+name = 'SAR'
+cx.set_title(name,fontsize=29, loc='left')
+cx.set_xlabel(r"Length scale (km)",fontsize=25)
+cx.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
+cx.set_xscale('log')
+cx.set_yscale('log')
+
 
 #SAR data
 inpath = '/Data/sim/polona/sid/deform/'
 outpath = '../plots/'
 fname_start = 'td_leg1_L'
-#lsc_list = [1,2,3,5,7,10,15,25,40]
-#lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
-#minlen = [0,  .2,.3,.5,.7,1,  1.5,2.5,0]
-#maxlen = [.15,.3,.4,.6,.9,1.5,2,  3.5,20]
-
-#create log-spaced vector and convert it to integers
-n=8 # number of samples
-stp=np.exp(np.linspace(np.log(1),np.log(300),n))
-stp = stp.astype(int)
-print(stp)
-#get a grip on the lengh scales
-print(stp*.04)
-
-##recalculate these lenghts to sqrt of area (lenght scale)
-##assume an average triangle is unilateral
-##change unit from step to 40m (.04 km) pixel size
-#ls_stp = np.sqrt(np.sqrt(3)/4*stp**2*.04)
-#print(ls_stp)
-
-#size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
-#print(margin)
 
 #for 50km radius
 n=9
+#size envelope also needs to increase (from 10m to 3km)
+margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 stp = stp.astype(int)
 margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
@@ -200,13 +199,6 @@ for i in range(0,len(stp)-1):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #throw away very low deformation rates (pixel/template edge noise) ###this treshold is not scale dependant!!!
-    mask = td<.5e-7
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
-
     #mask all very small or big triangles
     #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
     center = np.mean(ls)
@@ -229,57 +221,42 @@ for i in range(0,len(stp)-1):                           #the last two steps are 
     ls_list_sar.extend(ls)
     td_list_sar.extend(td)
         
-    #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2, color='k')  # Data
-    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
+    #density plots
+    x, y, z = density_lsb(ls,td,n=100)  #log-spaced ls and td bins
+    cx.scatter(x, y, c=z, s=50, edgecolor='',cmap=plt.cm.jet, alpha=.2)
+    #means
+    cx.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
 
 
 
-#ship radar
-#fit the line
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,meantd_list_sr)
-#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sr,td_list_sr)
 
-#dummy x data for plotting
-x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
-
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='orange')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
-ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
-
-#buoys
-#fit the line to bins
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_b,meantd_list_b)
-#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_b,td_list_b)
-
-#dummy x data for plotting
-x = np.arange(min(meanls_list_b), max(meanls_list_b), 1)
-
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='y')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
-ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
-
-#and separate for SAR
-#fit the line
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
-#no binning
-#a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sar,td_list_sar)
-
-#dummy x data for plotting
-x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
-x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
-
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
-ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
-
-ax.grid('on')
+ax.grid(True)
+bx.grid(True)
+cx.grid(True)
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
-ax.xaxis.set_major_formatter(ScalarFormatter())    
-ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
+ax.xaxis.set_major_formatter(ScalarFormatter())  
+bx.xaxis.set_major_formatter(ScalarFormatter())
+cx.xaxis.set_major_formatter(ScalarFormatter())
+#ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
 fig1.savefig(outpath+'power_law_24h_'+title)
 
-#make curvature plots!!!!
-#is slope increaase in moments for SH not linear?
+##density plots
+#from scipy.stats import gaussian_kde
+
+## Generate fake data
+#x = ls
+#y = td
+
+## Calculate the point density
+#xy = np.vstack([x,y])
+#z = gaussian_kde(xy)(xy)
+
+## Sort the points by density, so that the densest points are plotted last
+#idx = z.argsort()
+#x, y, z = x[idx], y[idx], z[idx]
+
+##fig, ax = plt.subplots()
+#ax.scatter(x, y, c=z, s=50, edgecolor='')
+#plt.show()

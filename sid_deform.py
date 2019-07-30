@@ -51,8 +51,8 @@ proj = reg
 out_file = outpath_def+'VB.npz'
 container = np.load(out_file)
 print(container.files)
-lon_path = container['lon_path'][:5,:,:]
-lat_path = container['lat_path'][:5,:,:]
+lon_path = container['lon_path'][:6,:,:]   #first step is just vb grid initialization
+lat_path = container['lat_path'][:6,:,:]
 
 
 for j in stp:
@@ -70,7 +70,6 @@ for j in stp:
     mshr=[]
 
     fl = sorted(glob(inpath+'*.npz'))
-    #fl = fl[2:]
     for i in range(0,len(fl)):
         #read in all the data
         print(fl[i])
@@ -94,8 +93,8 @@ for j in stp:
         dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
         dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
         
-        #if we dont want to get the 'free drift' at the end of the experiment
-        #if dt1 > datetime(2015,2,12): continue
+        #if we want just the data until the week-long gap
+        if dt1 > datetime(2015,1,27): continue
 
         diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
         
@@ -277,84 +276,86 @@ for j in stp:
         mdiv.append(np.mean(div))
         mshr.append(np.mean(shr))
         
-        if (i < 5) & (j==1):  #only for the first 5 image pairs and highest resolution
-            #continue
-            ##Plotting 
-            #deform = div*1e6
-            ##print(deform)
-            #outname = 'map_div'+reg+'_L'+str(j)+'_'+date1
-            #label = r'Divergence (10$^6$s$^{-1}$)'
-            #interval = [-5, 5]
-            #cmap=plt.cm.bwr
-            ##title = 'c'
+        #if (i < 6) & (j==1):  #only for the first 6 image pairs and highest resolution
+            ##continue
+            ###Plotting 
+            ##deform = div*1e6
+            ###print(deform)
+            ##outname = 'map_div'+reg+'_L'+str(j)+'_'+date1
+            ##label = r'Divergence (10$^6$s$^{-1}$)'
+            ##interval = [-5, 5]
+            ##cmap=plt.cm.bwr
+            ###title = 'c'
             
-            deform = shr*1e6
-            outname = 'map_shr_'+reg+'_L'+str(j)+'_'+date1
-            label = r'Shear (10$^6$s$^{-1}$)'
-            interval = [0, 10]
-            cmap=plt.cm.Reds
+            #deform = shr*1e6
+            #outname = 'map_shr_'+reg+'_L'+str(j)+'_'+date1
+            #label = r'Shear (10$^6$s$^{-1}$)'
+            #interval = [0, 10]
+            #cmap=plt.cm.Reds
 
-            #speed = np.sqrt(u**2+v**2)
-            #outname = 'map_speed_'+reg+'_L'+str(j)+'_'+date1
-            #label = r'Speed (m/s)'
-            #cmap=plt.cm.nipy_spectral
+            ##speed = np.sqrt(u**2+v**2)
+            ##outname = 'map_speed_'+reg+'_L'+str(j)+'_'+date1
+            ##label = r'Speed (m/s)'
+            ##cmap=plt.cm.nipy_spectral
                         
-            print(outname)
-            #deformation plots
-            fig3    = plt.figure(figsize=(20,20))
-            cx      = fig3.add_subplot(111)
-            #cx.plot(.05, .95, 'w.', markersize=70, transform=cx.transAxes, markeredgecolor='k', markeredgewidth=2)
-            #cx.text(.05, .95, title, ha='center', va='center', transform=cx.transAxes, fontdict={'color':'k','size':30})
+            #print(outname)
+            ##deformation plots
+            #fig3    = plt.figure(figsize=(20,20))
+            #cx      = fig3.add_subplot(111)
+            ##cx.plot(.05, .95, 'w.', markersize=70, transform=cx.transAxes, markeredgecolor='k', markeredgewidth=2)
+            ##cx.text(.05, .95, title, ha='center', va='center', transform=cx.transAxes, fontdict={'color':'k','size':30})
 
-            #area_def = pr.utils.load_area('area.cfg', proj)  
-            m = pr.plot.area_def2basemap(area_def)
+            ##area_def = pr.utils.load_area('area.cfg', proj)  
+            #m = pr.plot.area_def2basemap(area_def)
             
-            #scale
-            m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
-            m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-            m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+            ##scale
+            #m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
+            #m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+            #m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 
-            #nods
-            #cx.plot(x,y,'o',linewidth=2,color='purple')
+            ##nods
+            ##cx.plot(x,y,'o',linewidth=2,color='purple')
             
-            ##speed
-            #sc = cx.scatter(x,y,s=50,c=speed,cmap=cmap, vmin=.06, vmax=.085)         #add colorbar and remove extreme values
-            #cbar = plt.colorbar(sc)
-            #cbar.ax.set_ylabel('Drift speed (m/s)',size=22)
+            ###speed
+            ##sc = cx.scatter(x,y,s=50,c=speed,cmap=cmap, vmin=.06, vmax=.085)         #add colorbar and remove extreme values
+            ##cbar = plt.colorbar(sc)
+            ##cbar.ax.set_ylabel('Drift speed (m/s)',size=22)
 
             
-            #triangles
-            patches = []
-            for k in range(deform.shape[0]):
-                patch = Polygon(tripts[k,:,:], edgecolor='orchid', alpha=1, fill=False)
-                #plt.gca().add_patch(patch)
-                patches.append(patch)
+            ##triangles
+            #patches = []
+            #for k in range(deform.shape[0]):
+                #patch = Polygon(tripts[k,:,:], edgecolor='orchid', alpha=1, fill=False)
+                ##plt.gca().add_patch(patch)
+                #patches.append(patch)
             
-            #plot filled triangles
-            p = PatchCollection(patches, cmap=cmap, alpha=0.4)
-            p.set_array(np.array(deform))
-            p.set_clim(interval)
-            cx.add_collection(p)
+            ##plot filled triangles
+            #p = PatchCollection(patches, cmap=cmap, alpha=0.4)
+            #p.set_array(np.array(deform))
+            #p.set_clim(interval)
+            #cx.add_collection(p)
             
-            # create an axes on the right side of ax. The width of cax will be 5%
-            # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-            divider = make_axes_locatable(cx)
-            cax = divider.append_axes("bottom", size="5%", pad=0.1)
-            cbar = plt.colorbar(p, cax=cax, orientation='horizontal')
-            cbar.set_label(label,size=16)
+            ## create an axes on the right side of ax. The width of cax will be 5%
+            ## of ax and the padding between cax and ax will be fixed at 0.05 inch.
+            #divider = make_axes_locatable(cx)
+            #cax = divider.append_axes("bottom", size="5%", pad=0.1)
+            #cbar = plt.colorbar(p, cax=cax, orientation='horizontal')
+            #cbar.set_label(label,size=16)
 
-            #Lance
-            #xl, yl = m(Lance_lon, Lance_lat)
-            cx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+            ##Lance
+            ##xl, yl = m(Lance_lon, Lance_lat)
+            #cx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
             
-            #virtual buoys
-            xb,yb = m(lon_path[i,:,:],lat_path[i,:,:])
-            cx.plot(xb,yb,'o',linewidth=2,color='purple')
+            ##virtual buoys
+            #xb,yb = m(lon_path[i,:,:],lat_path[i,:,:])
+            #cx.plot(xb,yb,'o',linewidth=2,color='purple')
 
 
-            fig3.savefig(outpath+outname,bbox_inches='tight')
-            #exit()
+            #fig3.savefig(outpath+outname,bbox_inches='tight')
+            
+        #else:
+            #exit() #just make these plots and exit
                 
 
     #continue

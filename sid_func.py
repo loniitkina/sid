@@ -111,3 +111,34 @@ def logfit(xdata,ydata):
 
 #consider this option too:
 #https://stackoverflow.com/questions/26851533/fit-a-power-law-function-to-the-data-with-both-x-and-y-errors
+
+def density(x,y):
+    from scipy.stats import gaussian_kde
+    # Calculate the point density
+    xy = np.vstack([x,y])
+    z = gaussian_kde(xy)(xy)
+
+    # Sort the points by density, so that the densest points are plotted last
+    idx = z.argsort()
+    x, y, z = x[idx], y[idx], z[idx]
+
+    return(x,y,z)
+
+
+#log-spaced bins
+def density_lsb( x,y,n=20):
+    """
+    Scatter plot colored by 2d histogram
+    """
+    from scipy.interpolate import interpn
+    vmin = np.min(x); vmax = np.max(x)
+    lsbx = np.logspace(np.log10(vmin),np.log10(vmax), n)
+    vmin = np.min(y); vmax = np.max(y)
+    lsby = np.logspace(np.log10(vmin),np.log10(vmax), n)
+    data , x_e, y_e = np.histogram2d( x, y, bins=[lsbx,lsby])
+    z = interpn( ( 0.5*(x_e[1:] + x_e[:-1]) , 0.5*(y_e[1:]+y_e[:-1]) ) , data , np.vstack([x,y]).T , method = "splinef2d", bounds_error = False )
+
+    idx = z.argsort()
+    x, y, z = x[idx], y[idx], z[idx]
+
+    return(x,y,z)

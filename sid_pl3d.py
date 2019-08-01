@@ -21,9 +21,9 @@ td_list_sar=[]
 
 
 #Plotting
-fig1 = plt.figure(figsize=(22.5,7))
+fig1 = plt.figure(figsize=(20,6.5))
 ax = fig1.add_subplot(131)
-name = 'ship_radar'
+name = 'Ship radar'
 ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -79,10 +79,10 @@ for i in range(0,len(lsc_list)):
 
 
 bx = fig1.add_subplot(132)
-name = 'buoys'
+name = 'Buoys'
 bx.set_title(name,fontsize=29, loc='left')
 bx.set_xlabel(r"Length scale (km)",fontsize=25)
-bx.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
+#bx.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 bx.set_xscale('log')
 bx.set_yscale('log')
 
@@ -149,7 +149,7 @@ cx = fig1.add_subplot(133)
 name = 'SAR'
 cx.set_title(name,fontsize=29, loc='left')
 cx.set_xlabel(r"Length scale (km)",fontsize=25)
-cx.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
+#cx.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 cx.set_xscale('log')
 cx.set_yscale('log')
 
@@ -233,6 +233,16 @@ for i in range(0,len(stp)-1):                           #the last two steps are 
 ax.grid(True)
 bx.grid(True)
 cx.grid(True)
+
+ax.set_xlim(.01,25.)
+ax.set_ylim(1e-9,5e-3)
+bx.set_xlim(.01,25.)
+bx.set_ylim(1e-9,5e-3)
+cx.set_xlim(.01,25.)
+cx.set_ylim(1e-9,5e-3)
+
+
+
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())  
 bx.xaxis.set_major_formatter(ScalarFormatter())

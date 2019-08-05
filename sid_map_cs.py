@@ -6,12 +6,79 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
-inpath = '/Data/sim/polona/sid/buoys/'
+inpath = '/Data/sim/polona/sid/cs/'
+inpath_b = '/Data/sim/polona/sid/buoys/'
 outpath = '/Data/sim/polona/sid/deform/plots/'
 metfile = '../data/10minute_nounits.csv'
-radius = 25000
+radius = 8000
 
-maptime = datetime(2015,2,1,12,0,0)
+##simple preview
+#from osgeo import gdal
+#ds = gdal.Open(inpath+'CSM_20150118.tif').ReadAsArray()
+#im = plt.imshow(ds)
+#plt.show()
+
+#based on this example: https://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
+import osr, gdal
+
+# This is the cropped tiff. The original is 2-3 times the size.
+# Read the data and metadata
+ds = gdal.Open(inpath+'CSM_20150118.tif')
+
+data = ds.ReadAsArray()
+print(data.shape)
+gt = ds.GetGeoTransform()
+proj = ds.GetProjection()
+
+xres = gt[1]
+yres = gt[5]
+print(xres,yres)
+
+# get the edge coordinates and add half the resolution 
+# to go to center coordinates
+xmin = gt[0] + xres * 0.5
+xmax = gt[0] + (xres * ds.RasterXSize) - xres * 0.5
+ymin = gt[3] + (yres * ds.RasterYSize) + yres * 0.5
+ymax = gt[3] - yres * 0.5
+
+print(xmin,ymin)
+print(xmax,ymax)
+ds = None
+
+##alternative tif
+#ds = gdal.Open(inpath+'cosmo7.tif')
+
+#data = ds.ReadAsArray()
+#print(data.shape)
+#gt = ds.GetGeoTransform()
+#proj = ds.GetProjection()
+
+#xres = gt[1]
+#yres = gt[5]
+#print(xres,yres)
+
+## get the edge coordinates and add half the resolution 
+## to go to center coordinates
+#xmin = gt[0] + xres * 0.5
+#xmax = gt[0] + (xres * ds.RasterXSize) - xres * 0.5
+#ymin = gt[3] + (yres * ds.RasterYSize) + yres * 0.5
+#ymax = gt[3] - yres * 0.5
+
+#print(xmin,ymin)
+#print(xmax,ymax)
+#ds = None
+
+#exit()
+
+# create a grid of xy coordinates in the original projection
+xy_source = np.mgrid[xmin:xmax+xres:xres, ymax+yres:ymin:yres]
+
+print(proj)
+print(xy_source)
+
+
+# Create the figure and basemap object
+maptime = datetime(2015,1,18,18,7,0)
 
 #Lance postion (from Lance's met system)
 mettime = getColumn(metfile,0)
@@ -50,13 +117,28 @@ ax      = fig1.add_subplot(111)
 m = pr.plot.area_def2basemap(area_def)
 
 #scale
-m.drawmapscale(Lance_lon-.5, Lance_lat-.08, Lance_lon+.5, Lance_lat-.1, 10, units='km', barstyle='fancy',fontsize=14)
-m.drawmeridians(np.arange(0.,360.,2.),latmax=90.,labels=[0,0,0,1,])
-m.drawparallels(np.arange(79.,90.,.5),labels=[1,0,0,0])
+m.drawmapscale(Lance_lon-.1, Lance_lat-.05, Lance_lon+.3, Lance_lat-.1, 10, units='km', barstyle='fancy',fontsize=14)
+m.drawmeridians(np.arange(0.,360.,1.),latmax=90.,labels=[0,0,0,1,])
+m.drawparallels(np.arange(79.,90.,.2),labels=[1,0,0,0])
 
 #Lance
 xl, yl = m(Lance_lon, Lance_lat)
 ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+
+# Create the projection objects for the convertion
+# original (Albers)
+inproj = osr.SpatialReference()
+inproj.ImportFromWkt(proj)
+
+# Get the target projection from the basemap object
+outproj = osr.SpatialReference()
+outproj.ImportFromProj4(m.proj4string)
+
+# Convert from source projection to basemap projection
+xx, yy = convertXY(xy_source, inproj, outproj)
+
+# plot the sat image
+im1 = m.pcolormesh(xx, yy, data.T, cmap=plt.cm.Greys_r)
 
 #box for SAR data
 #get 100km box around Lance
@@ -64,7 +146,7 @@ xbox = [xl-7500, xl+7500, xl+7500, xl-7500]
 ybox = [yl-7500, yl-7500, yl+7500, yl+7500]
 xybox = zip(xbox,ybox)
 xybox = list(xybox)     #work around of Python 3 code
-poly = Polygon( xybox, edgecolor='k', alpha=.2, fill=True, facecolor='.2', linewidth=6, label='SAR')
+poly = Polygon( xybox, edgecolor='k', alpha=1, fill=False, facecolor='.2', linewidth=10, label='SAR')
 plt.gca().add_patch(poly)
 
 #box for ship radar data
@@ -73,11 +155,11 @@ xbox = [xl-7000, xl+7000, xl+7000, xl-7000]
 ybox = [yl-7000, yl-7000, yl+7000, yl+7000]
 xybox = zip(xbox,ybox)
 xybox = list(xybox)     #work around of Python 3 code
-poly = Polygon( xybox, edgecolor='purple', alpha=.2, fill=True, facecolor='purple', linewidth=6, label='Ship radar')
+poly = Polygon( xybox, edgecolor='purple', alpha=1, fill=False, facecolor='purple', linewidth=10, label='Ship radar')
 plt.gca().add_patch(poly)
 
 #buoys
-fn = inpath+'buoys.csv'
+fn = inpath_b+'buoys.csv'
 blon = np.asarray(getColumn(fn,2),dtype=float)
 blat = np.asarray(getColumn(fn,3),dtype=float)
 print(blon,blat)
@@ -88,5 +170,5 @@ ax.plot(xb[0],yb[0],'o',markeredgewidth=2,color='royalblue',markersize=20,marker
 #legend
 ax.legend(loc=0,fancybox=True,fontsize='xx-large')
 
-fig1.savefig(outpath+'sid_map',bbox_inches='tight')
+fig1.savefig(outpath+'sid_map_cs',bbox_inches='tight')
   

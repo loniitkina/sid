@@ -2,6 +2,7 @@
 
 import numpy as np
 import csv
+import osr, gdal
 
 def deformation(vert,uvert,vvert):
 
@@ -142,3 +143,20 @@ def density_lsb( x,y,n=20):
     x, y, z = x[idx], y[idx], z[idx]
 
     return(x,y,z)
+
+
+def convertXY(xy_source, inproj, outproj):
+    # function to convert coordinates
+
+    shape = xy_source[0,:,:].shape
+    size = xy_source[0,:,:].size
+
+    # the ct object takes and returns pairs of x,y, not 2d grids
+    # so the the grid needs to be reshaped (flattened) and back.
+    ct = osr.CoordinateTransformation(inproj, outproj)
+    xy_target = np.array(ct.TransformPoints(xy_source.reshape(2, size).T))
+
+    xx = xy_target[:,0].reshape(shape)
+    yy = xy_target[:,1].reshape(shape)
+
+    return xx, yy

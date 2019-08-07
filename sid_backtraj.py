@@ -7,10 +7,12 @@ import pyresample as pr
 import matplotlib.pyplot as plt
 
 inpath = '/Data/sim/data/OSISAF_ice_drift/'
+inpath_summer = '/Data/sim/polona/sid/nsidc/'    #Downloaded as daily values for a whole year (2014) from https://nsidc.org/data/nsidc-0116
 outpath = '/Data/sim/polona/sid/deform/plots/'
 metfile = '../data/10minute_nounits.csv'
 radius = 50000
-sr = 35000  #search radius for OSI-SAF drift
+#search radius for OSI-SAF drift
+sr = 35000  #~half resolution of OSI-SAF sea ice drift product (NSIDC drift is on 25km grid)
 
 #Take corners of the SAR region area analyzed by sid_deform.py and check if based on OSI-SAF any of the corners appear to be FYI
 #Take coordinates on 18. January 2015
@@ -23,7 +25,6 @@ dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(me
 mi = np.argmin(abs(np.asarray(dtb)-maptime))
 Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
 Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
-
 print(Lance_lat,Lance_lon)
 
 #Lance centered projection
@@ -41,7 +42,7 @@ crnx[0],crny[0] = (xlp-radius,ylp-radius)
 crnx[1],crny[1] = (xlp+radius,ylp-radius)
 crnx[2],crny[2] = (xlp+radius,ylp+radius)
 crnx[3],crny[3] = (xlp-radius,ylp+radius)
-print(crnx,crny)
+#print(crnx,crny)
 
 #OSI_SAF drift grid
 fn = '/Data/sim/data/OSISAF_ice_drift/2015/01/ice_drift_nh_polstere-625_multi-oi_201501161200-201501181200.nc'
@@ -51,23 +52,39 @@ f = Dataset(fn)
 xc = f.variables['xc'][:]*1000  #convert from km to m
 yc = f.variables['yc'][:]*1000
 f.close()
-
+#make grid
 xcm,ycm = np.meshgrid(xc,yc)
+
+#NSIDC for summer
+#Tschudi, M. A., Meier, W. N., and Stewart, J. S.: An enhancement to sea ice motion and age products, The Cryosphere Discuss., https://doi.org/10.5194/tc-2019-40, in review, 2019.
+#proj4text = "+proj=laea +lat_0=90 +lon_0=0 +x_0=0 +y_0=0 +a=6371228 +b=6371228 +units=m +no_defs"
+fn = inpath_summer+'icemotion_daily_nh_25km_20140101_20141231_v4.1.nc'
+f = Dataset(fn)
+#lats = f.variables['latitude'][:]
+#lons = f.variables['longitude'][:]
+x = f.variables['x'][:]
+y = f.variables['y'][:]
+u = f.variables['u'][:]
+v = f.variables['v'][:]
+f.close()
+#keep
+nsidcProj = Proj('+proj=laea +lat_0=90 +lon_0=0 +x_0=0 +y_0=0 +a=6371228 +b=6371228 +units=m +no_defs')
+#make grid
+xcm_s,ycm_s = np.meshgrid(x,y)
 
 #Set up the plot
 fig1    = plt.figure(figsize=(20,20))
 ax      = fig1.add_subplot(111)
-area_def = pr.utils.load_area('area.cfg', 'leg1')  
+area_def = pr.utils.load_area('area.cfg', 'arctic')  
 m = pr.plot.area_def2basemap(area_def)
 m.drawmapboundary(fill_color='#9999FF')
 m.drawcoastlines()
 m.fillcontinents(color='#ddaa66',lake_color='#9999FF')
 ##Draw parallels and meridians
-m.drawparallels(np.arange(80.,86.,1),labels=[1,0,0,0], fontsize=16,latmax=85.)
-m.drawmeridians(np.arange(-5.,90.,5.),latmax=85.,labels=[0,0,0,1], fontsize=16)
+m.drawparallels(np.arange(60.,86.,5),labels=[1,0,0,0], fontsize=16,latmax=85.)
+m.drawmeridians(np.arange(-180.,180.,20.),latmax=85.,labels=[0,0,0,1], fontsize=16)
 
-
-
+#do backtrajectories for each corner point
 for i in range(0,crnx.size):
     print(i)
     ice=True
@@ -75,49 +92,93 @@ for i in range(0,crnx.size):
     lon,lat = transform(outProj,inProj,crnx[i], crny[i])
     bt_lon = [lon]
     bt_lat = [lat]
+    ex=0
+    
     while ice==True:
         #find the corresponding OSI-SAF drift file/date
         try:            #some files are missing >> in such case contine with the old displacements
             ym = datetime.strftime(date,'%Y/%m')
             ymd = datetime.strftime(date,'%Y%m%d')
             fn = glob(inpath+ym+'/ice_drift_nh_polstere*'+ymd+'1200.nc')[0]
-            print(fn)
+            #print(fn)
             f = Dataset(fn)
             dx = f.variables['dX'][0,:,:]*1000          #convert from km to m
             dy = f.variables['dY'][0,:,:]*1000
+            #lon2 = f.variables['lon1'][0,:,:]
+            #lat2 = f.variables['lat1'][0,:,:]
         except:
-            print('Use old data.')
+            print(date)
+            print('Use old data: '+fn)
+        
 
         #find closest desplacement
         mask = (xcm>crnx[i]-sr) & (xcm<crnx[i]+sr) & (ycm>crny[i]-sr) & (ycm<crny[i]+sr)
         dxm = np.mean(np.ma.masked_invalid(dx[mask]))/2         #this is displacement for 2 days
         dym = np.mean(np.ma.masked_invalid(dy[mask]))/2
+        dym = -dym           #account for the OSI-SAF sign convention
+        #print(dx[mask].shape)
         
-        print(dx[mask])
-        print(dx[mask].shape)
-        print(dxm)
+        ##alternative displacement estimate
+        #xcmm = np.ma.masked_invalid(xcm[mask])
+        #ycmm = np.ma.masked_invalid(ycm[mask])
+        #lon2m = np.ma.masked_invalid(lon2[mask])
+        #lat2m = np.ma.masked_invalid(lat2[mask])
+        #xcm2m,ycm2m = transform(inProj,outProj,lon2m, lat2m)
+        #dx2 = np.mean(xcm2m-xcmm)/2
+        #dy2 = np.mean(ycm2m-ycmm)/2
+        ##print(dxm,dym)
+        ##print(dx2,dy2)      #The distance estimate is different by ~100cm --OK, dY has inverted sign.
+        #dxm = dx2
+        #dym = -dy2           #account for the OSI-SAF sign convention
         
+        if (date.month<11) & (date.month>5):
+            summer=True
+            print('Summer: no OSI-SAF data - use alternative!')
+            #use NSIDC drift to bridge the summer
+            #get the rigt julian date
+            idx = date.timetuple().tm_yday -1   #account for python indexing
+            print(idx)
+            uj = u[idx,:,:]
+            vj = v[idx,:,:]
+            
+            #Transform coordinates
+            crnx[i],crny[i] = transform(outProj,nsidcProj,crnx[i],crny[i])
+            
+            #find closest grid point
+            mask = (xcm_s>crnx[i]-sr) & (xcm_s<crnx[i]+sr) & (ycm_s>crny[i]-sr) & (ycm_s<crny[i]+sr)
+            invalid = uj[mask]==-9999.
+            dxm = np.mean(np.ma.array(uj[mask],mask=invalid))*24*60*60/100   #convert from velocity (cm/s) to displacement (m)
+            dym = np.mean(np.ma.array(vj[mask],mask=invalid))*24*60*60/100
+            print(uj[mask].shape)
+            print(uj[mask])
+        else:
+            summer=False
+            
         #stop where no more drift data (future: concentration falls below 50%)
         if abs(dxm) > 0:
             #calculate position back in time
             crnx[i] = crnx[i] - dxm
-            crny[i] = crny[i] + dym
+            crny[i] = crny[i] - dym
             
             #transform back to latlon
-            lon,lat = transform(outProj,inProj,crnx[i], crny[i])
-            print(lon,lat)
+            if summer:
+                lon,lat = transform(nsidcProj,inProj,crnx[i], crny[i])
+            else:
+                lon,lat = transform(outProj,inProj,crnx[i], crny[i])
+            #print(lon,lat)
             bt_lon.append(lon)
             bt_lat.append(lat)
             
             #walk back in time by 1 day
             date = date - timedelta(days=1)
-        
         else:
             ice=False
+            print('No more ice!')
+            print(date)
         
     #save the backtrajectory for this corner
-    print(bt_lon)
-    print(bt_lat)
+    print(bt_lon[-1])
+    print(bt_lat[-1])
     
     #plot the trajectory
     x,y = m(bt_lon,bt_lat)

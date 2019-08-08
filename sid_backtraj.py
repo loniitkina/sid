@@ -7,12 +7,15 @@ import pyresample as pr
 import matplotlib.pyplot as plt
 
 inpath = '/Data/sim/data/OSISAF_ice_drift/'
+inpath_ic = '/Data/sim/data/OSISAF_ice_conc/polstere/'
 inpath_summer = '/Data/sim/polona/sid/nsidc/'    #Downloaded as daily values for a whole year (2014) from https://nsidc.org/data/nsidc-0116
 outpath = '/Data/sim/polona/sid/deform/plots/'
 metfile = '../data/10minute_nounits.csv'
 radius = 50000
 #search radius for OSI-SAF drift
 sr = 35000  #~half resolution of OSI-SAF sea ice drift product (NSIDC drift is on 25km grid)
+#search radius for OSI-SAF ice concentration
+sr_ic = 10000
 
 #Take corners of the SAR region area analyzed by sid_deform.py and check if based on OSI-SAF any of the corners appear to be FYI
 #Take coordinates on 18. January 2015
@@ -45,7 +48,7 @@ crnx[3],crny[3] = (xlp-radius,ylp+radius)
 #print(crnx,crny)
 
 #OSI_SAF drift grid
-fn = '/Data/sim/data/OSISAF_ice_drift/2015/01/ice_drift_nh_polstere-625_multi-oi_201501161200-201501181200.nc'
+fn = inpath+'2015/01/ice_drift_nh_polstere-625_multi-oi_201501161200-201501181200.nc'
 f = Dataset(fn)
 #lats = f.variables['lat'][:]
 #lons = f.variables['lon'][:]
@@ -54,6 +57,16 @@ yc = f.variables['yc'][:]*1000
 f.close()
 #make grid
 xcm,ycm = np.meshgrid(xc,yc)
+
+#OSI_SAF ice concentration grid
+#proj4_string = "+proj=stere +a=6378273 +b=6356889.44891 +lat_0=90 +lat_ts=70 +lon_0=-45"
+fn = inpath_ic+'2015_nh_polstere/ice_conc_nh_polstere-100_multi_201501011200.nc'
+f = Dataset(fn)
+xc = f.variables['xc'][:]*1000  #convert from km to m
+yc = f.variables['yc'][:]*1000
+f.close()
+#make grid
+xcm_ic,ycm_ic = np.meshgrid(xc,yc)
 
 #NSIDC for summer
 #Tschudi, M. A., Meier, W. N., and Stewart, J. S.: An enhancement to sea ice motion and age products, The Cryosphere Discuss., https://doi.org/10.5194/tc-2019-40, in review, 2019.
@@ -95,10 +108,31 @@ for i in range(0,crnx.size):
     ex=0
     
     while ice==True:
+        #check if this place has enough of ice at all!
+        #find the corresponding OSI-SAF ice concentration file/date
+        ymd = datetime.strftime(date,'%Y%m%d')
+        try:            #some files are missing >> in such case contine with the old displacements
+            fn_ic = glob(inpath_ic+str(date.year)+'_nh_polstere/ice_conc_nh_polstere-100_multi_*'+ymd+'1200.nc')[0]
+            #print(fn)
+            f = Dataset(fn_ic)
+            ic = f.variables['ice_conc'][0,:,:]
+        except:
+            print(date)
+            print('Use old ice concentration data: '+fn_ic)
+        
+        mask = (xcm_ic>crnx[i]-sr_ic) & (xcm_ic<crnx[i]+sr_ic) & (ycm_ic>crny[i]-sr_ic) & (ycm_ic<crny[i]+sr_ic)
+        icm = np.mean(np.ma.masked_invalid(ic[mask]))
+        print(icm)
+        #exit()
+        
+        if icm < 50:
+            print(icm)
+            ice=False
+            print('Ice concentration bellow treshold.');continue
+
         #find the corresponding OSI-SAF drift file/date
         try:            #some files are missing >> in such case contine with the old displacements
             ym = datetime.strftime(date,'%Y/%m')
-            ymd = datetime.strftime(date,'%Y%m%d')
             fn = glob(inpath+ym+'/ice_drift_nh_polstere*'+ymd+'1200.nc')[0]
             #print(fn)
             f = Dataset(fn)
@@ -108,10 +142,10 @@ for i in range(0,crnx.size):
             #lat2 = f.variables['lat1'][0,:,:]
         except:
             print(date)
-            print('Use old data: '+fn)
+            #print('Use old data: '+fn)
         
 
-        #find closest desplacement
+        #find closest displacement
         mask = (xcm>crnx[i]-sr) & (xcm<crnx[i]+sr) & (ycm>crny[i]-sr) & (ycm<crny[i]+sr)
         dxm = np.mean(np.ma.masked_invalid(dx[mask]))/2         #this is displacement for 2 days
         dym = np.mean(np.ma.masked_invalid(dy[mask]))/2
@@ -130,14 +164,17 @@ for i in range(0,crnx.size):
         ##print(dx2,dy2)      #The distance estimate is different by ~100cm --OK, dY has inverted sign.
         #dxm = dx2
         #dym = -dy2           #account for the OSI-SAF sign convention
-        
-        if (date.month<11) & (date.month>5):
+                
+        if (date.month<11) & (date.month>4):
+            if date.year<2014:
+                print('Too far back!')
+                ice=False
             summer=True
-            print('Summer: no OSI-SAF data - use alternative!')
+            #print('Summer: no OSI-SAF data - use alternative!')
             #use NSIDC drift to bridge the summer
             #get the rigt julian date
             idx = date.timetuple().tm_yday -1   #account for python indexing
-            print(idx)
+            #print(idx)
             uj = u[idx,:,:]
             vj = v[idx,:,:]
             
@@ -149,8 +186,10 @@ for i in range(0,crnx.size):
             invalid = uj[mask]==-9999.
             dxm = np.mean(np.ma.array(uj[mask],mask=invalid))*24*60*60/100   #convert from velocity (cm/s) to displacement (m)
             dym = np.mean(np.ma.array(vj[mask],mask=invalid))*24*60*60/100
-            print(uj[mask].shape)
-            print(uj[mask])
+            #print(uj[mask].shape)
+            #print(uj[mask])
+            #print(dxm,dym)
+            
         else:
             summer=False
             
@@ -160,9 +199,12 @@ for i in range(0,crnx.size):
             crnx[i] = crnx[i] - dxm
             crny[i] = crny[i] - dym
             
-            #transform back to latlon
+            #transform back to latlon and to the OSI-SAF coordinates
             if summer:
                 lon,lat = transform(nsidcProj,inProj,crnx[i], crny[i])
+                print(lon,lat)
+                crnx[i],crny[i] = transform(nsidcProj,outProj,crnx[i],crny[i])
+                #exit()
             else:
                 lon,lat = transform(outProj,inProj,crnx[i], crny[i])
             #print(lon,lat)
@@ -182,8 +224,9 @@ for i in range(0,crnx.size):
     
     #plot the trajectory
     x,y = m(bt_lon,bt_lat)
-    ax.plot(x,y,'o')
+    ax.plot(x,y,'o',label='corner %s' %(i))
 
+ax.legend()
 outname='backtraj'
 fig1.savefig(outpath+outname,bbox_inches='tight')
 plt.close()

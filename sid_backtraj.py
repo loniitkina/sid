@@ -13,9 +13,9 @@ outpath = '/Data/sim/polona/sid/deform/plots/'
 metfile = '../data/10minute_nounits.csv'
 radius = 50000
 #search radius for OSI-SAF drift
-sr = 35000  #~half resolution of OSI-SAF sea ice drift product (NSIDC drift is on 25km grid)
+sr = 34000  #~half resolution of OSI-SAF sea ice drift product (NSIDC drift is on 25km grid)
 #search radius for OSI-SAF ice concentration
-sr_ic = 10000
+sr_ic = 6000    #5km resolution data
 
 #Take corners of the SAR region area analyzed by sid_deform.py and check if based on OSI-SAF any of the corners appear to be FYI
 #Take coordinates on 18. January 2015
@@ -99,7 +99,7 @@ m.drawmeridians(np.arange(-180.,180.,20.),latmax=85.,labels=[0,0,0,1], fontsize=
 
 #do backtrajectories for each corner point
 for i in range(0,crnx.size):
-    print(i)
+    print('######################################################################### Corner: '+str(i))
     ice=True
     date = maptime
     lon,lat = transform(outProj,inProj,crnx[i], crny[i])
@@ -117,18 +117,18 @@ for i in range(0,crnx.size):
             f = Dataset(fn_ic)
             ic = f.variables['ice_conc'][0,:,:]
         except:
-            print(date)
+            #print(date)
             print('Use old ice concentration data: '+fn_ic)
         
         mask = (xcm_ic>crnx[i]-sr_ic) & (xcm_ic<crnx[i]+sr_ic) & (ycm_ic>crny[i]-sr_ic) & (ycm_ic<crny[i]+sr_ic)
         icm = np.mean(np.ma.masked_invalid(ic[mask]))
-        print(icm)
+        #print(icm)
         #exit()
         
-        if icm < 50:
-            print(icm)
+        if icm < 70:
             ice=False
-            print('Ice concentration bellow treshold.');continue
+            print(date)
+            print('Ice concentration bellow treshold: '+str(icm));continue
 
         #find the corresponding OSI-SAF drift file/date
         try:            #some files are missing >> in such case contine with the old displacements
@@ -141,8 +141,8 @@ for i in range(0,crnx.size):
             #lon2 = f.variables['lon1'][0,:,:]
             #lat2 = f.variables['lat1'][0,:,:]
         except:
-            print(date)
-            #print('Use old data: '+fn)
+            #print(date)
+            print('Use old displacement data: '+fn)
         
 
         #find closest displacement
@@ -202,7 +202,7 @@ for i in range(0,crnx.size):
             #transform back to latlon and to the OSI-SAF coordinates
             if summer:
                 lon,lat = transform(nsidcProj,inProj,crnx[i], crny[i])
-                print(lon,lat)
+                #print(lon,lat)
                 crnx[i],crny[i] = transform(nsidcProj,outProj,crnx[i],crny[i])
                 #exit()
             else:
@@ -226,7 +226,7 @@ for i in range(0,crnx.size):
     x,y = m(bt_lon,bt_lat)
     ax.plot(x,y,'o',label='corner %s' %(i))
 
-ax.legend()
+ax.legend(loc='upper left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 outname='backtraj'
 fig1.savefig(outpath+outname,bbox_inches='tight')
 plt.close()

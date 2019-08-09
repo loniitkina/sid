@@ -123,7 +123,7 @@ m.drawparallels(np.arange(79.,90.,.2),labels=[1,0,0,0])
 
 #Lance
 xl, yl = m(Lance_lon, Lance_lat)
-ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k',label='RV Lance')
 
 # Create the projection objects for the convertion
 # original (Albers)
@@ -140,32 +140,14 @@ xx, yy = convertXY(xy_source, inproj, outproj)
 # plot the sat image
 im1 = m.pcolormesh(xx, yy, data.T, cmap=plt.cm.Greys_r)
 
-#box for SAR data
-#get 100km box around Lance
+#box for ship radar data
+#get 14km box around Lance
 xbox = [xl-7500, xl+7500, xl+7500, xl-7500]
 ybox = [yl-7500, yl-7500, yl+7500, yl+7500]
 xybox = zip(xbox,ybox)
 xybox = list(xybox)     #work around of Python 3 code
-poly = Polygon( xybox, edgecolor='k', alpha=1, fill=False, facecolor='.2', linewidth=10, label='SAR')
+poly = Polygon( xybox, edgecolor='purple', alpha=1, fill=False, facecolor='purple', linewidth=10, label='Ship Radar')
 plt.gca().add_patch(poly)
-
-#box for ship radar data
-#get 14km box around Lance
-xbox = [xl-7000, xl+7000, xl+7000, xl-7000]
-ybox = [yl-7000, yl-7000, yl+7000, yl+7000]
-xybox = zip(xbox,ybox)
-xybox = list(xybox)     #work around of Python 3 code
-poly = Polygon( xybox, edgecolor='purple', alpha=1, fill=False, facecolor='purple', linewidth=10, label='Ship radar')
-plt.gca().add_patch(poly)
-
-#buoys
-fn = inpath_b+'buoys.csv'
-blon = np.asarray(getColumn(fn,2),dtype=float)
-blat = np.asarray(getColumn(fn,3),dtype=float)
-print(blon,blat)
-xb,yb = m(blon,blat)
-ax.plot(xb,yb,'o',markeredgewidth=2,color='royalblue',markersize=20,markeredgecolor='k')
-ax.plot(xb[0],yb[0],'o',markeredgewidth=2,color='royalblue',markersize=20,markeredgecolor='k', label='Buoys')
 
 #legend
 ax.legend(loc=0,fancybox=True,fontsize='xx-large')

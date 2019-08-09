@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'SAR_UB'
+title = 'SAR'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -36,7 +36,7 @@ margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
 
 for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
-    fname = inpath+fname_start+str(scale)+'_15km.csv'
+    fname = inpath+fname_start+str(scale)+'_7km.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -91,8 +91,8 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     td_list_sar.extend(td)
         
     #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2, color='k')  # Data
-    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
+    ax.scatter(ls, td, lw=0, alpha=.5, color='darkred')  # Data
+    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='brown')
 
 #FYI
 inpath = '/Data/sim/polona/sid/deform/'
@@ -163,8 +163,8 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     td_list_fyi.extend(td)
         
     #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2, color='b')  # Data
-    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='b')
+    ax.scatter(ls, td, lw=0, alpha=.5, color='gold')  # Data
+    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='darkorange')
 
 
 
@@ -176,7 +176,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
 x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='purple')
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$ (SYI)' %(a*10e6,k),c='darkred')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
@@ -188,16 +188,11 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_fyi,meantd_list_fyi)
 x = np.arange(min(meanls_list_fyi), max(meanls_list_fyi), 1)
 x = np.arange(min(ls_list_fyi), max(ls_list_fyi), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='royalblue')
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$ (FYI)' %(a*10e6,k),c='darkorange')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-
-
-
-
-
-ax.grid('on')
+ax.grid(True)
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())    
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)

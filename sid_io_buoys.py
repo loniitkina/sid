@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import numpy as np
 
 #set date/time we want to extract
-maptime = datetime(2015,2,1,12,0,0)
+maptime = datetime(2015,1,27,12,0,0)
 
 #get all files
 path = '/Data/sim/polona/sid/buoys/'
@@ -47,7 +47,7 @@ print(lons,lats)
 tt = [names, dates, lons, lats]
 table = list(zip(*tt))
 
-output = path + 'buoys.csv'
+output = path + 'buoys_fw.csv'
 with open(output, 'wb') as f:
     #header
     f.write(b'names, dates, lons, lats\n')

@@ -10,29 +10,39 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+#How long do you want it to run?
+first_week=True
+#first_week=False    #This will make it run for all the data
+
 #select lenght scale
 lscale = 'full'
 print(lscale)
-#steps between the image pixels (1 pixel = 40m)
-#stp = [1,2,3,5,7,10,15,25,40,60]
+##steps between the image pixels (1 pixel = 40m)
+##for 25km radius
+#radius = 25000
+#file_name_end = '_25km.csv'
+#for 7.5km radius
+radius = 7500
+file_name_end = '_7km.csv'
+
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
-#for 50km radius
-n=9
-stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 stp = stp.astype(int)
-print(stp)
+
+##for 50km radius
+#radius = 50000
+#file_name_end = '_50km_more.csv'
+#n=9
+#stp=np.exp(np.linspace(np.log(1),np.log(800),n))
+#stp = stp.astype(int)
 
 #distance in m
 print(stp*40)
-#exit()
 
 ##check just the largest triangles
 #stp = stp[-2:]
 
-radius = 50000
-file_name_end = '_50km_more.csv'
 
 #-------------------------------------------------------------------
 #inpath = '../output/drift_'+str(lscale)+'/'
@@ -44,8 +54,8 @@ outpath = outpath_def+'plots/'
 metfile = '../data/10minute_nounits.csv'
 reg = 'leg1'
 proj = reg
-#reg = 'leg1_FYI'
-#reg = 'leg1_SYI
+reg = 'leg1_FYI'
+reg = 'leg1_SYI'
 
 #virtual buoys
 out_file = outpath_def+'VB.npz'
@@ -94,7 +104,9 @@ for j in stp:
         dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
         
         #if we want just the data until the week-long gap
-        if dt1 > datetime(2015,1,27): continue
+        if (dt1 > datetime(2015,1,28)) & (first_week==True): continue
+
+        #if date1 != '20150126T070245': continue        #hack to give me just this one day (for plotting of Figure 1)
 
         diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
         
@@ -156,13 +168,11 @@ for j in stp:
         #reproject Lance position
         xl, yl = m(Lance_lon, Lance_lat)
         
-        if reg == 'leg1_FYI':   #shift region 30km south-eastwards into the pure FYI zone
-            xl = xl+20000
-            yl = yl-10000
+        if reg == 'leg1_FYI':   #shift region 25km southwards into the pure FYI zone
+            yl = yl-25000
 
-        if reg == 'leg1_SYI':   #shift region 30km north-westwards into the pure SYI zone
-            xl = xl-20000
-            yl = yl+10000
+        if reg == 'leg1_SYI':   #shift region 25km northwards into the pure SYI zone
+            yl = yl+25000
             
         #cut out region
         mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
@@ -275,6 +285,13 @@ for j in stp:
         mndiv.append(np.mean(negd))
         mdiv.append(np.mean(div))
         mshr.append(np.mean(shr))
+        
+        ##save for plotting of Figure 1
+        #if date1 == '20150126T070245':        #hack to give me just this one day (for plotting of Figure 1)
+            #print(date1)
+            #out_file = outpath_def+'Fig1_data_'+date1+'.npz'
+            #np.savez(out_file,tripts = tripts,shr = shr, div = div)
+            #exit()
         
         #if (i < 6) & (j==1):  #only for the first 6 image pairs and highest resolution
             ##continue

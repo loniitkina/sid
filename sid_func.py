@@ -160,3 +160,50 @@ def convertXY(xy_source, inproj, outproj):
     yy = xy_target[:,1].reshape(shape)
 
     return xx, yy
+
+def get_corners(var,step):
+    u = var[::step,::step]
+    #how to get last such not NaN values???
+    ulr = var[-1,::step]
+    ulc = var[::step,-1]
+    u = np.append(u,ulr.reshape(1,-1),axis=0)
+    #how to add now columns when the number of rows have changed???
+    ulc = np.append(ulc,var[-1,-1])
+    u = np.append(u,ulc.reshape(-1,1),axis=1)
+    return(u)
+
+def get_limits(var,j,lidx=(438,380)):
+    #u = var[::step,::step]
+    ##how to get last such not NaN values???
+    #ulr = var[-1,::step]
+    #ulc = var[::step,-1]
+    
+    #examine all columns and find first and last non-nan value
+    #we know that Lance is in the center of the array we will finally work with
+    #we can get those indexes from the first step
+    #then we know where to split the array in half to search for first and last non-nan value
+    fr = (np.isnan(var[:lidx[0],:])).sum(axis = 0)
+    print(var.shape)
+    print(fr.shape)
+    #print(fr)
+    
+    fc = (np.isnan(var[:,:lidx[1]])).sum(axis = 1)
+    
+    fr = fr.astype(int); fc = fc.astype(int)
+    u = var[fr:-1:j,fc:-1:j]
+    #append those as first and last columns
+    
+    
+    
+    
+    #do same for the rows
+    
+    #u = np.append(u,ulr.reshape(1,-1),axis=0)
+    ##how to add now columns when the number of rows have changed???
+    #ulc = np.append(ulc,var[-1,-1])
+    #u = np.append(u,ulc.reshape(-1,1),axis=1)
+    
+    print(u)
+    exit()
+    return(u)
+    

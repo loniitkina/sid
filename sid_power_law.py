@@ -6,12 +6,13 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_CSU_50km'
-#title = 'ship_radar+buoys+SAR_UB_7km'
-#title = 'ship_radar+buoys+SAR_new15km'
-#title = 'ship_radar+buoys+SAR_UB_7km'
+title = 'ship_radar+buoys+SAR_UiT_50km'
+title = 'ship_radar+buoys+SAR_UiT_120km'
+title = 'ship_radar+buoys+SAR_UiT_120km_new'
+#title = 'ship_radar+buoys+SAR_UiT_7km_new'
 radius = '_7km.csv'
-radius = '_50km_more.csv'
+#radius = '_50km.csv'
+radius = '_120km.csv'
 name = 'ship_radar+buoys+SAR'
 ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
@@ -35,8 +36,7 @@ td_list_sar=[]
 
 #ship radar data
 #inpath = '../data/ship_radar/24h/'
-inpath = '../data/ship_radar/time_sliced_data/'
-outpath = '../plots/'
+inpath = '../sidrift/data/ship_radar/time_sliced_data/'
 name1 = 'Annu Oikkonen - Period'
 name2 = '_Deformation_L'
 
@@ -79,8 +79,7 @@ for i in range(0,len(lsc_list)):
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
-inpath = '../data/buoys/'
-outpath = '../plots/'
+inpath = '../sidrift/data/buoys/'
 fname_start = 'nice1_comb_SAR'
 fname_start = 'nice1_in_SAR'        #only inner ring of the buoys
 #fname_start = 'nice1_short_SAR'    
@@ -89,8 +88,8 @@ fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
 fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
  
-td = np.append(np.load(fname_td1,encoding='latin1'),np.load(fname_td2,encoding='latin1'))/24/60/60      #convert from days to s
-ls = np.append(np.load(fname_ls1,encoding='latin1'),np.load(fname_ls2,encoding='latin1'))
+td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
 
 #throw away very high deformation rates (unrealistic values)
 mask = td>10e-3
@@ -136,8 +135,12 @@ for i in range(0,len(lsc_list)):
     ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='yellow', color=cl)
 
 #SAR data
-inpath = '/Data/sim/polona/sid/deform/'
-outpath = '../plots/'
+inpath = '../sidrift/data/whole_series_10stp_factor_def/data/'
+outpath = '../sidrift/data/whole_series_10stp_factor_def/plots/'
+
+inpath = '../sidrift/data/40m_combo/'
+outpath = inpath
+
 fname_start = 'td_leg1_L'
 #lsc_list = [1,2,3,5,7,10,15,25,40]
 #lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
@@ -159,16 +162,21 @@ print(stp*.04)
 #print(ls_stp)
 
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
+margin = np.exp(np.linspace(np.log(1),np.log(5),n))
 #print(margin)
 
 #for 50km radius
 n=9
 stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 stp = stp.astype(int)
-margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
+margin = np.exp(np.linspace(np.log(.2),np.log(3),n))
 
-for i in range(0,len(stp)-1):                           #the last two steps are off the curve, try removing them
+
+#colors
+color=iter(plt.cm.Greens_r(np.linspace(0,1,len(stp)+1)))
+
+
+for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -200,18 +208,21 @@ for i in range(0,len(stp)-1):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #throw away very low deformation rates (pixel/template edge noise) ###this treshold is not scale dependant!!!
-    mask = td<.5e-7
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    ##throw away very low deformation rates (pixel/template edge noise)
+    ##only for smallest scales, where we have underdetected deformation
+    #mask = (td<.5e-7) #& (ls < 1)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
     #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
     center = np.mean(ls)
     #center = stats.mode(ls)[0][0]                      #this takes too much time
+    print('mean lenght')
     print(center)
+    print(margin[i])
     minlen = center-margin[i]; maxlen = center+margin[i]
     #minlen = center-margin; maxlen = center+margin
     mask = (ls<minlen) | (ls>maxlen)
@@ -230,8 +241,9 @@ for i in range(0,len(stp)-1):                           #the last two steps are 
     td_list_sar.extend(td)
         
     #plot all the data
-    ax.scatter(ls, td, lw=0, alpha=.2, color='k')  # Data
-    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
+    cl = next(color)
+    ax.scatter(ls, td, lw=0, alpha=.2, color=cl)  # Data
+    ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color=cl)
 
 
 
@@ -281,5 +293,4 @@ fig1.tight_layout()
 
 fig1.savefig(outpath+'power_law_24h_'+title)
 
-#make curvature plots!!!!
-#is slope increaase in moments for SH not linear?
+

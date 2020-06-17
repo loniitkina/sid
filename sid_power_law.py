@@ -6,13 +6,15 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_UiT_50km'
-title = 'ship_radar+buoys+SAR_UiT_120km'
-title = 'ship_radar+buoys+SAR_UiT_120km_new'
+title = 'ship_radar+buoys+SAR_UiT_seed_f'
+#title = 'ship_radar+buoys+SAR_UiT_120km'
+#title = 'ship_radar+buoys+SAR_UiT_120km_new'
 #title = 'ship_radar+buoys+SAR_UiT_7km_new'
-radius = '_7km.csv'
-#radius = '_50km.csv'
-radius = '_120km.csv'
+#radius = '_7km.csv'
+#radius = '_20kmFW.csv'
+radius = '_20km.csv'
+#radius = '_100km.csv'
+#radius = '_120km.csv'
 name = 'ship_radar+buoys+SAR'
 ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
@@ -135,13 +137,15 @@ for i in range(0,len(lsc_list)):
     ax.plot(meanls,meantd,'o',markersize=7,markeredgecolor='yellow', color=cl)
 
 #SAR data
-inpath = '../sidrift/data/whole_series_10stp_factor_def/data/'
-outpath = '../sidrift/data/whole_series_10stp_factor_def/plots/'
+#inpath = '../sidrift/data/whole_series_10stp_factor_def/data/'
+#outpath = '../sidrift/data/whole_series_10stp_factor_def/plots/'
 
 inpath = '../sidrift/data/40m_combo/'
 outpath = inpath
 
 fname_start = 'td_leg1_L'
+fname_start = 'td_seed_leg1_L'
+fname_start = 'td_seed_f_leg1_L'
 #lsc_list = [1,2,3,5,7,10,15,25,40]
 #lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
 #minlen = [0,  .2,.3,.5,.7,1,  1.5,2.5,0]
@@ -152,8 +156,13 @@ n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
-#get a grip on the lengh scales
-print(stp*.04)
+
+##for 50km radius
+#n=9
+#stp=np.exp(np.linspace(np.log(1),np.log(800),n))
+#stp = stp.astype(int)
+#margin = np.exp(np.linspace(np.log(.2),np.log(3),n))
+
 
 ##recalculate these lenghts to sqrt of area (lenght scale)
 ##assume an average triangle is unilateral
@@ -162,21 +171,16 @@ print(stp*.04)
 #print(ls_stp)
 
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(1),np.log(5),n))
+margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
 #print(margin)
 
-#for 50km radius
-n=9
-stp=np.exp(np.linspace(np.log(1),np.log(800),n))
-stp = stp.astype(int)
-margin = np.exp(np.linspace(np.log(.2),np.log(3),n))
 
 
 #colors
 color=iter(plt.cm.Greens_r(np.linspace(0,1,len(stp)+1)))
 
 
-for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-5):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -193,7 +197,7 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     ang = np.array(ang,dtype=np.float)
     
     #get only 24h data
-    mask = (tls<22) | (tls>25)
+    mask = (tls<23) | (tls>25)
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ang = np.ma.array(ang,mask=mask)
@@ -210,26 +214,26 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
         
     ##throw away very low deformation rates (pixel/template edge noise)
     ##only for smallest scales, where we have underdetected deformation
-    #mask = (td<.5e-7) #& (ls < 1)
+    #mask = (td<1e-8) #& (ls < 1)
     #ls = np.ma.array(ls,mask=mask)
     #td = np.ma.array(td,mask=mask)
     #ls = np.ma.compressed(ls)
     #td = np.ma.compressed(td)   
 
-    #mask all very small or big triangles
-    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    center = np.mean(ls)
-    #center = stats.mode(ls)[0][0]                      #this takes too much time
-    print('mean lenght')
-    print(center)
-    print(margin[i])
-    minlen = center-margin[i]; maxlen = center+margin[i]
-    #minlen = center-margin; maxlen = center+margin
-    mask = (ls<minlen) | (ls>maxlen)
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)    
+    ##mask all very small or big triangles
+    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    #center = np.mean(ls)
+    ##center = stats.mode(ls)[0][0]                      #this takes too much time
+    #print('mean lenght')
+    #print(center)
+    #print(margin[i])
+    #minlen = center-margin[i]; maxlen = center+margin[i]
+    ##minlen = center-margin; maxlen = center+margin
+    #mask = (ls<minlen) | (ls>maxlen)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -291,6 +295,7 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_'+title)
+rr = radius.split('.')[0]
+fig1.savefig(outpath+'power_law_24h_'+title+rr)
 
 

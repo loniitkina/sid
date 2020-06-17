@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 title = 'density'
 radius = '_20km.csv'
 radius = '_20kmFW.csv'
+#radius = '_50kmFW.csv'
 
 meanls_list_sr=[]
 meantd_list_sr=[]
@@ -212,9 +213,9 @@ stp = stp.astype(int)
 #stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 #stp = stp.astype(int)
 
-margin = np.exp(np.linspace(np.log(0.1),np.log(5),n))
+margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
 
-for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)

@@ -41,27 +41,34 @@ print(mode)
 #stp=10: sufficient for the time scalling law
 stp = 1
 stp = 10
+stp = 50
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
-#outpath_drift = '/Data/sim/polona/sid/drift_full_time/'
-outpath = '../plots/drift_full/'
-#outpath = '../plots/drift_full_time/'
+#outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
+##outpath_drift = '/Data/sim/polona/sid/drift_full_time/'
+#outpath = '../plots/drift_full/'
+##outpath = '../plots/drift_full_time/'
+
+outpath_drift = '../sidrift/data/'
+outpath = '../sidrift/plots/'
+
 
 # ==== ICE DRIFT RETRIEVAL ====
-inpath = '/Data/sim/data/Sentinel1/'
+#inpath = '/Data/sim/data/Sentinel1/'
+
+inpath = '../sidrift/data/Sentinel1/'
 
 #show Lance position
 def getColumn(filename, column):
     results = csv.reader(open(filename))
     next(results, None)
     return [result[column] for result in results]
-metfile = '../data/10minute_nounits.csv'
+metfile = '../sidrift/data/10minute_nounits.csv'
 
 #file list
 fl = sorted(glob.glob(inpath+'S1A_EW_GRDM_1SDH_*.zip'))
 print(fl)
-fl = fl[40:]    #process only part of the files
+#fl = fl[40:]    #process only part of the files
 print(fl)
 #exit()
 
@@ -106,15 +113,15 @@ for i in range(0,len(fl)):
     else:
         match = i+1
     
-    #find where Lance is
-    mettime = getColumn(metfile,0)
-    dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
-    if dtb[0]>dt1: continue
-    if dtb[-1]<dt1: continue
-    mi = np.argmin(abs(np.asarray(dtb)-dt1))
-    Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
-    Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
-    if np.isnan(Lance_lon): continue
+    ##find where Lance is
+    #mettime = getColumn(metfile,0)
+    #dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
+    #if dtb[0]>dt1: continue
+    #if dtb[-1]<dt1: continue
+    #mi = np.argmin(abs(np.asarray(dtb)-dt1))
+    #Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
+    #Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
+    #if np.isnan(Lance_lon): continue
 
     # open files, read 'sigma0_HV' band and convert to UInt8 image
     f1 = fl[i]

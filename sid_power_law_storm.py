@@ -31,7 +31,7 @@ n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
+margin = np.exp(np.linspace(np.log(1),np.log(5),n))
 
 
 for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
@@ -160,29 +160,29 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
 
 
 
-#first week
-#fit the line
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
+##first week
+##fit the line
+#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 
-#dummy x data for plotting
-x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
-x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
+##dummy x data for plotting
+#x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
+#x = np.arange(min(ls_list_sar), max(ls_list_sar), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$ (FW)' %(a*10e6,k),c='darkred')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
-ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$ (FW)' %(a*10e6,k),c='darkred')
+#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-#after storm
-#fit the line
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_fyi,meantd_list_fyi)
+##after storm
+##fit the line
+#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_fyi,meantd_list_fyi)
 
-#dummy x data for plotting
-x = np.arange(min(meanls_list_fyi), max(meanls_list_fyi), 1)
-x = np.arange(min(ls_list_fyi), max(ls_list_fyi), 1)
+##dummy x data for plotting
+#x = np.arange(min(meanls_list_fyi), max(meanls_list_fyi), 1)
+#x = np.arange(min(ls_list_fyi), max(ls_list_fyi), 1)
 
-ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$ (AS)' %(a*10e6,k),c='darkorange')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
-ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$ (AS)' %(a*10e6,k),c='darkorange')
+#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
+#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 ax.grid(True)
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter

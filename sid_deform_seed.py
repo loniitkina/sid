@@ -27,8 +27,8 @@ image=True
 parcel=True
 
 #select lenght scale
-radius = 20000
-file_name_end = '_20km'
+radius = 100000
+file_name_end = '_100km'
 
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
@@ -101,7 +101,7 @@ ma.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
 ma.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #get all drift pair files
-fl = sorted(glob(inpath+'*.npz'))
+fl = sorted(glob(inpath+'SeaIceDrift*.npz'))
 #colors for overview map
 color=iter(plt.cm.jet_r(np.linspace(0,1,len(fl)+1)))
 

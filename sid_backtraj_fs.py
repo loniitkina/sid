@@ -13,6 +13,7 @@ outpath = '../sidrift/plots/'
 
 #search radius for OSI-SAF drift (in km)
 sr = 34  #~half resolution of OSI-SAF sea ice drift product
+sr = 64  #full resolution will get more data
 #search radius for OSI-SAF ice concentration
 sr_ic = 6    #5km resolution data
 
@@ -82,19 +83,16 @@ for yr in years:
                 print('Ice concentration bellow treshold: '+str(icm));continue
 
             #find the corresponding OSI-SAF drift file/date
-            #dx = ds_drift.dX.sel(time=date,method='nearest').sel(xc=xmoor[i],yc=ymoor[i],method='pad')
-            dx = ds_drift.dX.sel(time=date,xc=xmoor[i],yc=ymoor[i],method='bfill')
-            
-            #print(dx)
+            #this will get only one value (if that value is nan, there is nothing to mask for average calculation)
+            #dx = ds_drift.dX.sel(time=date,xc=xmoor[i],yc=ymoor[i],method='bfill')
+            #this will get several inside the spatial slice
+            #the interval at yc has to be turned around!!!
+            dx = ds_drift.dX.sel(time=date,method='nearest').sel(xc=slice(xmoor[i]-sr,xmoor[i]+sr),yc=slice(ymoor[i]+sr,ymoor[i]-sr))   #IS THIS INTERVAL FOR YC ONLY SUCH UNTIL 2016???
             #print(dx.values)
-            #exit()
-            
-            
             dxm = np.mean(np.ma.masked_invalid(dx.values))/2         #this is displacement for 2 days
             
-            dy = ds_drift.dY.sel(time=date,method='bfill',xc=xmoor[i],yc=ymoor[i])
-            #dy = ds_drift.dX.sel(time=slice(date - timedelta(days=3),date - timedelta(days=3)))\
-                #.sel(xc=xmoor[i],yc=ymoor[i],method='pad')
+            #dy = ds_drift.dY.sel(time=date,method='bfill',xc=xmoor[i],yc=ymoor[i])
+            dy = ds_drift.dY.sel(time=date,method='nearest').sel(xc=slice(xmoor[i]-sr,xmoor[i]+sr),yc=slice(ymoor[i]+sr,ymoor[i]-sr))
             dym = np.mean(np.ma.masked_invalid(dy.values))/2         #this is displacement for 2 days
             
             #the early version had different sign, data was never reprocessed
@@ -125,6 +123,8 @@ for yr in years:
                 ice=False
                 print('No more ice!')
                 print(date)
+                print(dx.values)
+                exit()
             
         #check the end coordinates
         print(ice); print(xmoor)

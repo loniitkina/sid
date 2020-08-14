@@ -2,10 +2,10 @@ from sid_func import *
 from scipy import stats
 import matplotlib.pyplot as plt
 
-title = 'density'
+title = 'density_lkf'
 radius = '_20km.csv'
 radius = '_20kmFW.csv'
-#radius = '_50kmFW.csv'
+#radius = '_7kmFW.csv'
 
 meanls_list_sr=[]
 meantd_list_sr=[]
@@ -77,17 +77,17 @@ for i in range(0,len(lsc_list)):
     ls1 = getColumn(fname,0, delimiter=' ')
     td1 = getColumn(fname,1, delimiter=' ')
     
-    #period 2
-    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
-    ls2 = getColumn(fname,0, delimiter=' ')
-    td2 = getColumn(fname,1, delimiter=' ')
+    ##period 2
+    #fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
+    #ls2 = getColumn(fname,0, delimiter=' ')
+    #td2 = getColumn(fname,1, delimiter=' ')
     
-    #combine
-    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
-    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
+    ##combine
+    #ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    #td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
     
-    #ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
-    #td = np.array(td1,dtype=np.float)/3600  #convert from h to s
+    ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
+    td = np.array(td1,dtype=np.float)/3600  #convert from h to s
     
     
     #calculate and store averages
@@ -134,11 +134,12 @@ fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
 fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
  
-td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
-ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
+#td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+#ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
 
-#td = (np.load(fname_td1,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
-#ls = (np.load(fname_ls1,encoding='latin1',allow_pickle=True))
+#use only first part
+td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
+ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
 
 
 #throw away very high deformation rates (unrealistic values)
@@ -202,6 +203,7 @@ cx.set_yscale('log')
 inpath = '../sidrift/data/40m_combo/'
 outpath = inpath
 fname_start = 'td_leg1_L'
+fname_start = 'td_seed_f_Lance_L'
 
 n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
@@ -215,7 +217,7 @@ stp = stp.astype(int)
 
 margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
 
-for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-5):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -247,21 +249,21 @@ for i in range(0,len(stp)-4):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #mask all very small or big triangles
-    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    center = np.mean(ls)
-    #center = stats.mode(ls)[0][0]                      #this takes too much time
-    print(center)
-    minlen = center-margin[i]; maxlen = center+margin[i]
-    #minlen = center-margin; maxlen = center+margin
-    mask = (ls<minlen) | (ls>maxlen)
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td) #*1e6   
+    ##mask all very small or big triangles
+    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    #center = np.mean(ls)
+    ##center = stats.mode(ls)[0][0]                      #this takes too much time
+    #print(center)
+    #minlen = center-margin[i]; maxlen = center+margin[i]
+    ##minlen = center-margin; maxlen = center+margin
+    #mask = (ls<minlen) | (ls>maxlen)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td) #*1e6   
     
     ##throw away very low deformation rates (template noise)
-    #mask = td<1e-8
+    #mask = td<.6e-6
     #ls = np.ma.array(ls,mask=mask)
     #td = np.ma.array(td,mask=mask)
     #ls = np.ma.compressed(ls)
@@ -324,7 +326,7 @@ fig1.savefig(outpath+'power_law_24h_'+title)
 zx.legend()
 xx.legend()
 yx.legend()
-fig2.savefig(outpath+'power_law_pdf')
+fig2.savefig(outpath+'power_law_pdf_lkf')
 
 
 

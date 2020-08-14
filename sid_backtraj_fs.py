@@ -14,6 +14,7 @@ outpath = '../sidrift/plots/'
 #search radius for OSI-SAF drift (in km)
 sr = 34  #~half resolution of OSI-SAF sea ice drift product
 sr = 64  #full resolution will get more data
+sr = 100 #get even more data
 #search radius for OSI-SAF ice concentration
 sr_ic = 6    #5km resolution data
 
@@ -27,9 +28,9 @@ outProj = Proj('+proj=stere +a=6378273 +b=6356889.44891 +lat_0=90 +lat_ts=70 +lo
 moor_lat = [80,80,80,80,80]; moor_lon = [-8,-6,-4,-2,0]
 xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
 
-#N-ICE region
-moor_lat = [82,82,82,82]; moor_lon = [5,10,15,20]
-xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
+##N-ICE region
+#moor_lat = [82,82,82,82]; moor_lon = [5,10,15,20]
+#xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
 
 
 print(xmoor_start,ymoor_start)
@@ -54,6 +55,7 @@ m.drawmeridians(np.arange(-180.,180.,20.),latmax=85.,labels=[0,0,0,1], fontsize=
 
 years = np.arange(2010,2021)
 #years = [2020]
+months = [1,2,3,4,5]
 cls = iter(plt.cm.rainbow_r(np.linspace(0,1,len(years)+1)))
 
 for yr in years:
@@ -124,7 +126,6 @@ for yr in years:
                 print('No more ice!')
                 print(date)
                 print(dx.values)
-                exit()
             
         #check the end coordinates
         print(ice); print(xmoor)
@@ -140,6 +141,6 @@ for yr in years:
             ax.plot(x,y,'o',c=cl,alpha=0.2)
 
 ax.legend(loc='upper left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
-outname='backtraj_nice_2010-2020'
+outname='backtraj_fs_2010-2020'
 fig1.savefig(outpath+outname,bbox_inches='tight')
 plt.close()

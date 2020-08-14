@@ -173,8 +173,8 @@ area_id = 'around Lance'
 description = 'North Pole LAEA Europe'
 proj_id = 'lance'
 proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'a':6378137, 'b':6356752.3142, 'units':'m'}
-width = radius_proj*2/100 #100 m spacing
-height = radius_proj*2/100 #100 m spacing
+width = radius_proj*2/400 #100 m spacing
+height = radius_proj*2/400 #100 m spacing
 area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj)
 area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 
@@ -241,8 +241,6 @@ ax      = fig2.add_subplot(111)
 
 m = pr.plot.area_def2basemap(area_def)
 
-#scale
-#m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
 m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
 m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
@@ -264,6 +262,8 @@ Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
 xl, yl = m(Lance_lon, Lance_lat)
 ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
+#scale
+m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
 
 
 outname='virtual_buoys_damage_21-26Jan2015'

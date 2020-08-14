@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_UiT_seed_f'
+title = 'ship_radar+buoys+SAR_UiT_seed_f_masked'
 #title = 'ship_radar+buoys+SAR_UiT_120km'
 #title = 'ship_radar+buoys+SAR_UiT_120km_new'
 #title = 'ship_radar+buoys+SAR_UiT_7km_new'
-#radius = '_7km.csv'
+radius = '_7kmFW.csv'
 #radius = '_20kmFW.csv'
-radius = '_20km.csv'
+#radius = '_20km.csv'
 #radius = '_100km.csv'
 #radius = '_120km.csv'
 name = 'ship_radar+buoys+SAR'
@@ -21,6 +21,8 @@ ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 ax.set_xscale('log')
 ax.set_yscale('log')
+
+#ax.set_xlim(.1,10)
 
 meanls_list_sr=[]
 meantd_list_sr=[]
@@ -56,14 +58,18 @@ for i in range(0,len(lsc_list)):
     ls1 = getColumn(fname,0, delimiter=' ')
     td1 = getColumn(fname,1, delimiter=' ')
     
-    #period 2
-    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
-    ls2 = getColumn(fname,0, delimiter=' ')
-    td2 = getColumn(fname,1, delimiter=' ')
+    ##period 2
+    #fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
+    #ls2 = getColumn(fname,0, delimiter=' ')
+    #td2 = getColumn(fname,1, delimiter=' ')
     
-    #combine
-    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
-    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
+    ##combine
+    #ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    #td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
+    
+    #use only first part
+    ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
+    td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -90,8 +96,14 @@ fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
 fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
  
-td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
-ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
+#td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+#ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
+
+#use only first part
+td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
+ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
+
+
 
 #throw away very high deformation rates (unrealistic values)
 mask = td>10e-3
@@ -141,11 +153,12 @@ for i in range(0,len(lsc_list)):
 #outpath = '../sidrift/data/whole_series_10stp_factor_def/plots/'
 
 inpath = '../sidrift/data/40m_combo/'
+inpath = '../sidrift/data/80m_stp10/'
 outpath = inpath
 
 fname_start = 'td_leg1_L'
 fname_start = 'td_seed_leg1_L'
-fname_start = 'td_seed_f_leg1_L'
+fname_start = 'td_seed_f_Lance_L'
 #lsc_list = [1,2,3,5,7,10,15,25,40]
 #lsc_list = [1,2,3,5,7,10,15,25,40,60]  #large steps dont have enough triangles to be representative
 #minlen = [0,  .2,.3,.5,.7,1,  1.5,2.5,0]
@@ -180,7 +193,7 @@ margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
 color=iter(plt.cm.Greens_r(np.linspace(0,1,len(stp)+1)))
 
 
-for i in range(0,len(stp)-5):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-3):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -214,7 +227,7 @@ for i in range(0,len(stp)-5):                           #the last two steps are 
         
     ##throw away very low deformation rates (pixel/template edge noise)
     ##only for smallest scales, where we have underdetected deformation
-    #mask = (td<1e-8) #& (ls < 1)
+    #mask = (td<.2e-6) #& (ls < 1)
     #ls = np.ma.array(ls,mask=mask)
     #td = np.ma.array(td,mask=mask)
     #ls = np.ma.compressed(ls)
@@ -249,6 +262,27 @@ for i in range(0,len(stp)-5):                           #the last two steps are 
     ax.scatter(ls, td, lw=0, alpha=.2, color=cl)  # Data
     ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color=cl)
 
+
+    ##plot example threshold
+    #ax.axhline(y=2.1040826060411214e-06)
+    ##why are there values bellow this line at L=1 ??????????????????????
+    ##low values due to shear...
+    #ax.axhline(y=4.0344082184489904e-07)
+    #ax.axhline(y=7.827424274136162e-09)
+
+#put dummy values (detection limits) on the scatter plots
+fname = inpath+'dummy_Lance'+radius
+print(fname)
+
+dum1 = getColumn(fname,0, delimiter=',')
+dum2 = getColumn(fname,1, delimiter=',')
+dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
+dum2 = np.array(dum2,dtype=np.float)
+
+print(dum1)
+print(dum2)
+
+ax.scatter(dum1, dum2, color='r', alpha=.2)
 
 
 #ship radar

@@ -26,6 +26,8 @@ td_list_fyi=[]
 inpath = '../sidrift/data/40m_combo/'
 outpath = inpath
 fname_start = 'td_leg1_SYI_L'
+fname_start = 'td_seed_f_leg1_SYI_L'
+
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
@@ -38,7 +40,7 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     scale = stp[i]
     fname = inpath+fname_start+str(scale)+'_7km.csv'
     fname = inpath+fname_start+str(scale)+'_25kmFW.csv'
-    fname = inpath+fname_start+str(scale)+'_20km.csv'
+    fname = inpath+fname_start+str(scale)+'_20kmFW.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -73,15 +75,17 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     #ls = np.ma.compressed(ls)
     #td = np.ma.compressed(td)   
 
-    #mask all very small or big triangles
-    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    center = np.mean(ls)
-    minlen = center-margin[i]; maxlen = center+margin[i]
-    mask = (ls<minlen) | (ls>maxlen)
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)    
+
+
+    ##mask all very small or big triangles
+    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    #center = np.mean(ls)
+    #minlen = center-margin[i]; maxlen = center+margin[i]
+    #mask = (ls<minlen) | (ls>maxlen)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -98,13 +102,14 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
 
 #FYI
 fname_start = 'td_leg1_FYI_L'
+fname_start = 'td_seed_f_leg1_FYI_L'
 
 
 for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
     fname = inpath+fname_start+str(scale)+'_7km.csv'
     fname = inpath+fname_start+str(scale)+'_25kmFW.csv'
-    fname = inpath+fname_start+str(scale)+'_20km.csv'
+    fname = inpath+fname_start+str(scale)+'_20kmFW.csv'
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -138,16 +143,24 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     #td = np.ma.array(td,mask=mask)
     #ls = np.ma.compressed(ls)
     #td = np.ma.compressed(td)   
-
-    #mask all very small or big triangles
-    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    center = np.mean(ls)
-    minlen = center-margin[i]; maxlen = center+margin[i]
-    mask = (ls<minlen) | (ls>maxlen)
+    
+    #throw away very high deformation rates (MIZ???)
+    mask = td>.1e-3
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)    
+    td = np.ma.compressed(td)   
+
+
+    ##mask all very small or big triangles
+    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    #center = np.mean(ls)
+    #minlen = center-margin[i]; maxlen = center+margin[i]
+    #mask = (ls<minlen) | (ls>maxlen)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -194,5 +207,5 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_it_20km_'+title)
+fig1.savefig(outpath+'power_law_24h_it_20km_seed_f_FW'+title)
 #fig1.savefig(outpath+'power_law_24h_it_7km_'+title)

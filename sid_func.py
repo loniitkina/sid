@@ -5,6 +5,9 @@ import csv
 import osr, gdal
 import matplotlib.pyplot as plt
 import pyresample as pr
+from scipy import stats
+from scipy.stats import gaussian_kde
+from scipy.interpolate import interpn
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -92,7 +95,6 @@ def logfit(xdata,ydata):
     # now calculate confidence intervals for new test x-series
     mean_x = np.mean(logx)         # mean of x
     n = len(logx)              # number of samples in origional fit
-    from scipy import stats
     tval = stats.t.ppf(1-0.005, n)		# appropriate t value for 2-tailed distribution
     s_err = np.sum(np.power(y_err,2))   # sum of the squares of the residuals
 
@@ -120,7 +122,6 @@ def logfit(xdata,ydata):
 #https://stackoverflow.com/questions/26851533/fit-a-power-law-function-to-the-data-with-both-x-and-y-errors
 
 def density(x,y):
-    from scipy.stats import gaussian_kde
     # Calculate the point density
     xy = np.vstack([x,y])
     z = gaussian_kde(xy)(xy)
@@ -137,7 +138,7 @@ def density_lsb( x,y,n=20):
     """
     Scatter plot colored by 2d histogram
     """
-    from scipy.interpolate import interpn
+    
     vmin = np.min(x); vmax = np.max(x)
     lsbx = np.logspace(np.log10(vmin),np.log10(vmax), n)
     vmin = np.min(y); vmax = np.max(y)
@@ -219,21 +220,6 @@ def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_
     xl, yl = m(Lance_lon, Lance_lat)
     cx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
     
-    ##virtual buoys
-    #xb,yb = m(lon_path[i,:,:],lat_path[i,:,:])
-    #cx.plot(xb,yb,'o',linewidth=2,color='purple')
-    
-    ##mark most frequent values (estimated by sid_pl3d.py)
-    #interval = [.1,1]   #rhomboids on 21/1/2015 at L1
-    #comm = PatchCollection(patches, cmap=plt.cm.Greens, alpha=0.4)
-    #cv = td*1e6
-    #mask = (cv<interval[0]) |  (cv > interval[1])
-    #cv = np.ma.array(cv,mask=mask)
-    #comm.set_array(cv)
-    ##comm.set_clim(interval)
-    #cx.add_collection(comm)
-    #outname = 'map_shr_'+reg+'_L'+str(j)+'_'+date1+'common'
-
     fig3.savefig(outname,bbox_inches='tight')
     plt.close('all')
     
@@ -246,11 +232,12 @@ def coarse_grain(tripts,tripts_seed,div,shr):
     from shapely.geometry import Polygon
     from shapely.strtree import STRtree            
     polys = [Polygon(tt) for tt in tripts[:]]
-    print(len(polys)); print(len(div))
+    #print(len(polys)); print(len(div))
     s = STRtree(polys)
     
     #indexes for each trangle in the tree
     index_by_id = dict((id(pt), i)for i, pt in enumerate(polys))
+    
             
     div_seed = []
     shr_seed = []
@@ -259,7 +246,7 @@ def coarse_grain(tripts,tripts_seed,div,shr):
     for t in range(0,len(tripts_seed)): 
         qg = Polygon(tripts_seed[t])
         ars = qg.area
-        area_seed.append(ars)
+        #area_seed.append(ars)                   #this is the full area of the seed triangle - instead it should be the sum of areas of all triangles in the weighted mean of deformation
         mas = minang_tri(tripts_seed[t])
         minang_seed.append(mas)
         #get list of interection area
@@ -273,26 +260,27 @@ def coarse_grain(tripts,tripts_seed,div,shr):
         #extract deformation values for weighted means
         dd = div[idxs]
         ss = shr[idxs]
-        #check we have min 50% coverage
-        coverage = np.sum(np.ma.array(weights,mask=dd.mask))
-        if coverage < 0.5:
-            #print('too small area: '+str(coverage))
-            div_seed.append(np.nan); shr_seed.append(np.nan)
-            continue
-        #get weighted means
-        ds = np.sum(weights*dd)
-        sss = np.sum(weights*ss)
         
-        div_seed.append(ds)
-        shr_seed.append(sss)
-        
+        #check that at least 50% of the seeded triangle is covered by the original small triangles (their intersections)
+        #get total area covered by small triangles in this seeded traingle
+        aas = np.sum(aa)
+        coverage = aas/ars 
+        if coverage > .5:
+            
+            #get area as sum of all seeded area covered by all small intersections
+            area_seed.append(aas)
+            
+            #get weighted means
+            ds = np.sum(weights*dd)
+            sss = np.sum(weights*ss)
+                        
+            div_seed.append(ds)
+            shr_seed.append(sss)
+
     div_seed = np.array(div_seed)
     shr_seed = np.array(shr_seed)
     area_seed = np.array(area_seed)
     minang_seed = np.array(minang_seed)
-    
-    div_seed = np.ma.masked_invalid(div_seed)
-    shr_seed = np.ma.masked_invalid(shr_seed)
 
     return(div_seed,shr_seed,area_seed,minang_seed)
 
@@ -351,6 +339,7 @@ def save_geotiff(raster_array, area_def, export_path):
     gtiff_band = gtiff_dataset.GetRasterBand(1)
 
     # Write the layer (your raster array) data into the geotiff dataset
+    raster_array = np.flipud(raster_array)
     gtiff_band.WriteArray(raster_array)
 
     gtiff_dataset = None

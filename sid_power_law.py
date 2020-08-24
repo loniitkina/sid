@@ -6,12 +6,14 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_UiT_seed_f_masked'
+title = 'ship_radar+buoys+SAR_UiT_seed_f_masked_kernel6_cl'
 #title = 'ship_radar+buoys+SAR_UiT_120km'
 #title = 'ship_radar+buoys+SAR_UiT_120km_new'
 #title = 'ship_radar+buoys+SAR_UiT_7km_new'
 radius = '_7kmFW.csv'
+#radius = '_7km.csv'
 #radius = '_20kmFW.csv'
+#radius = '_50kmFW.csv'
 #radius = '_20km.csv'
 #radius = '_100km.csv'
 #radius = '_120km.csv'
@@ -123,7 +125,7 @@ minlen = [2,4,7]
 maxlen = [4,7,10]
 
 #colors
-color=iter(plt.cm.Blues_r(np.linspace(0,1,len(lsc_list)+1)))
+color=iter(plt.cm.Greens_r(np.linspace(0,1,len(lsc_list)+1)))
 
 
 for i in range(0,len(lsc_list)):
@@ -185,15 +187,11 @@ print(stp)
 
 #size envelope also needs to increase (from 10m to 3km)
 margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
-#print(margin)
-
-
 
 #colors
-color=iter(plt.cm.Greens_r(np.linspace(0,1,len(stp)+1)))
+color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
 
-
-for i in range(0,len(stp)-3):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -208,6 +206,9 @@ for i in range(0,len(stp)-3):                           #the last two steps are 
     tls = np.array(tls,dtype=np.float)/60/60    #convert from s to h
     td = np.array(td,dtype=np.float)
     ang = np.array(ang,dtype=np.float)
+    
+    #what about the date? 
+    #this could help us filtering out days with bad data...
     
     #get only 24h data
     mask = (tls<23) | (tls>25)
@@ -233,20 +234,20 @@ for i in range(0,len(stp)-3):                           #the last two steps are 
     #ls = np.ma.compressed(ls)
     #td = np.ma.compressed(td)   
 
-    ##mask all very small or big triangles
-    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    #center = np.mean(ls)
-    ##center = stats.mode(ls)[0][0]                      #this takes too much time
-    #print('mean lenght')
-    #print(center)
-    #print(margin[i])
-    #minlen = center-margin[i]; maxlen = center+margin[i]
-    ##minlen = center-margin; maxlen = center+margin
-    #mask = (ls<minlen) | (ls>maxlen)
-    #ls = np.ma.array(ls,mask=mask)
-    #td = np.ma.array(td,mask=mask)
-    #ls = np.ma.compressed(ls)
-    #td = np.ma.compressed(td)    
+    #mask all very small or big triangles
+    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    center = np.mean(ls)
+    #center = stats.mode(ls)[0][0]                      #this takes too much time
+    print('mean lenght')
+    print(center)
+    print(margin[i])
+    minlen = center-margin[i]; maxlen = center+margin[i]
+    #minlen = center-margin; maxlen = center+margin
+    mask = (ls<minlen) | (ls>maxlen)
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -259,7 +260,7 @@ for i in range(0,len(stp)-3):                           #the last two steps are 
         
     #plot all the data
     cl = next(color)
-    ax.scatter(ls, td, lw=0, alpha=.2, color=cl)  # Data
+    ax.scatter(ls, td, lw=0, alpha=.1, color=cl)  # Data
     ax.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color=cl)
 
 
@@ -279,10 +280,10 @@ dum2 = getColumn(fname,1, delimiter=',')
 dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
 dum2 = np.array(dum2,dtype=np.float)
 
-print(dum1)
-print(dum2)
+#print(dum1)
+#print(dum2)
 
-ax.scatter(dum1, dum2, color='r', alpha=.2)
+ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
 
 
 #ship radar

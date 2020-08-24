@@ -29,8 +29,8 @@ parcel=True
 parcel=False
 
 #select lenght scale
-radius = 7000
-file_name_end = '_7km'
+radius = 75000
+file_name_end = '_75km'
 
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
@@ -217,7 +217,19 @@ for i in range(0,len(fl)):
     #u = u/diff
     #v = v/diff
                 
-    #reproject Lance position
+    #reproject Lance position    ##mask all very small or big triangles
+    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    #center = np.mean(ls)
+    ##center = stats.mode(ls)[0][0]                      #this takes too much time
+    #print(center)
+    #minlen = center-margin[i]; maxlen = center+margin[i]
+    ##minlen = center-margin; maxlen = center+margin
+    #mask = (ls<minlen) | (ls>maxlen)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td) #*1e6   
+
     xl, yl = m(Lance_lon, Lance_lat)
     xla, yla = ma(Lance_lon, Lance_lat)
     
@@ -354,12 +366,6 @@ for i in range(0,len(fl)):
         dummy_td_all.append(dummy_td)
         dummy_ls_all.append(dummy_ls)
     
-    ##store for filtering/masking
-    #print(dummy_td_all)
-    #print(dummy_td_all[0])
-    #exit()
-    
-    
     #store in a file
     tt = [dummy_ls_all, dummy_td_all]
     table = zip(*tt)
@@ -408,7 +414,8 @@ for i in range(0,len(fl)):
     shr = .5*np.sqrt((dux-dvy)**2+(duy+dvx)**2)
     
     #use threshold and triangle size criteria to detect noise due to step function in speed
-    threshold = (np.abs(div)<abs(dummy_div)) #| (area <= (distance)**2/2)
+    #too large triangles are in the MIZ and they mess up the LKF filter...
+    threshold = (np.abs(div)<abs(dummy_div)) | (area > (distance*1.5)**2/2)
     
     print(dummy_div)
     
@@ -536,7 +543,8 @@ for i in range(0,len(fl)):
                 used.append(nn in n_list)
             nmask = (n == -1) | (div_f.mask[n]) | used | (minang[n] < 15)
             n = np.ma.array(n,mask=nmask); n = np.ma.compressed(n)
-            if len(n) > 0:
+            #also define max size of kernel - len(lkf) = originally this should be the number of boundaries that can be crossed for a single LKF mean value
+            if (len(n) > 0) & (len(lkf)<7):
                 for i in n:
                     lkf.append(tripts[i])
                     lkf_div.append(div[i])
@@ -676,9 +684,11 @@ for i in range(0,len(fl)):
             ###exit()
             
             
-            #mask with threshold that depends on the lenght scale
+            #mask with threshold that depends on the lenght scale (mask out large triangles)
+            #this is done in the plotting, so not necessary here...
             dyn_dummy = dummy_td_all[ddidx]
-            threshold_seed = (np.abs(div_seed)<abs(dyn_dummy))
+            ls_dummy = dummy_ls_all[ddidx]
+            threshold_seed = (np.abs(div_seed)<abs(dyn_dummy)) #| (area_seed > ls_dummy**2)
             ddidx = ddidx + 1
             
             div_seed = np.ma.array(div_seed,mask=threshold_seed)

@@ -6,6 +6,9 @@ title = 'density_lkf'
 radius = '_20km.csv'
 radius = '_20kmFW.csv'
 #radius = '_7kmFW.csv'
+radius = '_50kmFW.csv'
+
+#radius = '_7km.csv'
 
 meanls_list_sr=[]
 meantd_list_sr=[]
@@ -201,6 +204,8 @@ cx.set_yscale('log')
 
 #SAR data
 inpath = '../sidrift/data/40m_combo/'
+inpath = '../sidrift/data/80m_stp10/'
+
 outpath = inpath
 fname_start = 'td_leg1_L'
 fname_start = 'td_seed_f_Lance_L'
@@ -217,7 +222,7 @@ stp = stp.astype(int)
 
 margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
 
-for i in range(0,len(stp)-5):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -249,18 +254,18 @@ for i in range(0,len(stp)-5):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    ##mask all very small or big triangles
-    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    #center = np.mean(ls)
-    ##center = stats.mode(ls)[0][0]                      #this takes too much time
-    #print(center)
-    #minlen = center-margin[i]; maxlen = center+margin[i]
-    ##minlen = center-margin; maxlen = center+margin
-    #mask = (ls<minlen) | (ls>maxlen)
-    #ls = np.ma.array(ls,mask=mask)
-    #td = np.ma.array(td,mask=mask)
-    #ls = np.ma.compressed(ls)
-    #td = np.ma.compressed(td) #*1e6   
+    #mask all very small or big triangles
+    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    center = np.mean(ls)
+    #center = stats.mode(ls)[0][0]                      #this takes too much time
+    print(center)
+    minlen = center-margin[i]; maxlen = center+margin[i]
+    #minlen = center-margin; maxlen = center+margin
+    mask = (ls<minlen) | (ls>maxlen)
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td) #*1e6   
     
     ##throw away very low deformation rates (template noise)
     #mask = td<.6e-6

@@ -6,8 +6,8 @@ fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
 #title = 'ship_radar+buoys+SAR_faithful'
-title = 'ship_radar+buoys+SAR_bold2'
-#title = 'sar'
+#title = 'ship_radar+buoys+SAR_bold2'
+title = 'ship_radar+buoys+SAR_filter'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Time scale (h)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -20,19 +20,20 @@ meantd_list_sr=[]
 meantd_list_b=[]
 
 #ship radar data
-inpath = '../data/ship_radar/L6/'
-outpath = '../plots/'
-fname_start = 'F1_Deformation_L6_'
+inpath = '../sidrift/data/ship_radar/time_sliced_data/'
+name1 = 'Annu Oikkonen - Period'
+name2 = '_Deformation_L6_'
 lsc_list = [1,3,6,12,24]
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
-    fname = inpath+fname_start+str(scale)+'h.txt'
-    
-    ls = scale
+
+    #period 1
+    fname = inpath+name1+'1'+name2+str(scale)+'h.txt'
     td = getColumn(fname,1, delimiter=' ')
-    #ls = np.array(ls,dtype=np.float)/1000  #convert from m to km
+
+    ls = scale
     td = np.array(td,dtype=np.float)/3600      #convert from h to s
     
     #calculate and store averages
@@ -47,7 +48,7 @@ for i in range(0,len(lsc_list)):
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
-inpath = '../data/buoys/'
+inpath = '../sidrift/data/buoys/'
 fname_start = 'nice1_in_SAR'
 lsc_list = [1,3,6,12,24]
 
@@ -57,11 +58,9 @@ for i in lsc_list:
     
     fname_td1 = inpath+'dr_'+fname_start+'1_'+str(scale)+'h'
     fname_ls1 = inpath+'ls_'+fname_start+'1_'+str(scale)+'h'
-    fname_td2 = inpath+'dr_'+fname_start+'2_'+str(scale)+'h'
-    fname_ls2 = inpath+'ls_'+fname_start+'2_'+str(scale)+'h'
     
-    td = np.append(np.load(fname_td1,encoding='latin1'),np.load(fname_td2,encoding='latin1'))/24/60/60      #convert from days to s
-    ls = np.append(np.load(fname_ls1,encoding='latin1'),np.load(fname_ls2,encoding='latin1'))
+    td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
+    ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
     
     print(len(ls))
     
@@ -99,9 +98,10 @@ for i in lsc_list:
 
 #SAR data
 reg = 'leg1'
-lscale = 25
-inpath = '../output/def_'+str(lscale)+'/'
-outpath = '../plots/'
+lscale = 26
+inpath = '../sidrift/data/80m_stp10_time/'
+outpath = inpath
+fname_start = 'td_seed_f_Lance_L'
 
 minlen=0
 maxlen=10
@@ -122,7 +122,7 @@ meantd_list_sar=[]
 
 
 
-f = inpath+'td_'+reg+'_L'+str(lscale)+'_15km.csv'
+f = inpath+fname_start+str(lscale)+'_7kmFW.csv'
 #f = inpath+'td_'+reg+'_L'+str(lscale)+'_25km.csv'
 #print(f)
 
@@ -148,18 +148,18 @@ sls = sls[mask]/1000  #convert from m to km
 #print(ls)
 #exit()
 
-#mask outliers
-mask = td<1
-ls = ls[mask]
-td = td[mask]
-sls = sls[mask]
+##mask outliers
+#mask = td<1
+#ls = ls[mask]
+#td = td[mask]
+#sls = sls[mask]
 
-#mask all very small or big triangles
-#if not masked the renge of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-mask = (sls>minlen) & (sls<maxlen)
-ls = ls[mask]
-td = td[mask]
-sls = sls[mask]
+##mask all very small or big triangles
+##if not masked the renge of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+#mask = (sls>minlen) & (sls<maxlen)
+#ls = ls[mask]
+#td = td[mask]
+#sls = sls[mask]
 
 #print(ls)
 #print(sls)
@@ -214,9 +214,9 @@ ax.loglog(x[1:],a*x[1:]**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-#sar 
-#fit the line
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
+##sar 
+##fit the line
+#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 
 
 

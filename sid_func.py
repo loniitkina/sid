@@ -65,9 +65,10 @@ def deformation(vert,uvert,vvert):
   
   return dux,duy,dvx,dvy,minang,area
 
-def getColumn(filename, column, delimiter=','):
+def getColumn(filename, column, delimiter=',', header=True):
     results = csv.reader(open(filename),delimiter=delimiter)
-    next(results, None)
+    if header==True:
+        next(results, None)
     return [result[column] for result in results]
 
 def logfit(xdata,ydata):
@@ -245,10 +246,9 @@ def coarse_grain(tripts,tripts_seed,div,shr):
     minang_seed = []
     for t in range(0,len(tripts_seed)): 
         qg = Polygon(tripts_seed[t])
+        #get area and minangle for the seeded triangle
         ars = qg.area
-        #area_seed.append(ars)                   #this is the full area of the seed triangle - instead it should be the sum of areas of all triangles in the weighted mean of deformation
         mas = minang_tri(tripts_seed[t])
-        minang_seed.append(mas)
         #get list of interection area
         aa = [o.intersection(qg).area for o in s.query(qg) if o.intersects(qg)] #this is a list
         aa = np.array(aa)
@@ -267,8 +267,9 @@ def coarse_grain(tripts,tripts_seed,div,shr):
         coverage = aas/ars 
         if coverage > .5:
             
-            #get area as sum of all seeded area covered by all small intersections
+            #store area and minang
             area_seed.append(aas)
+            minang_seed.append(mas)
             
             #get weighted means
             ds = np.sum(weights*dd)

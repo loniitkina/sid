@@ -15,7 +15,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #How long do you want it to run?
 first_week=True
-#first_week=False    #This will make it run for all the data
+first_week=False    #This will make it run for all the data
 
 #after_storm=True
 after_storm=False
@@ -28,9 +28,13 @@ image=True
 parcel=True
 parcel=False
 
+#
+LKF_filter=True
+#LKF_filter=False
+
 #select lenght scale
-radius = 75000
-file_name_end = '_75km'
+radius = 100000
+file_name_end = '_100km_hes9'
 
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
@@ -50,15 +54,23 @@ file_name_end = file_name_end+'.csv'
 #also set step aand factor for each input data
 
 inpath = '../sidrift/data/40m_combo/'
-outpath_def = '../sidrift/data/80m_stp10/'
+outpath_def = '../sidrift/data/80m_stp10_single_filter/'
+#outpath_def = '../sidrift/data/80m_stp10_nofilter/'
 step = 10
 factor = 40    #(factor in sid_drift 0.5)
+#factor = 40*5
 
-#inpath = '/media/polona/Polona/s1data/data/stp1_afternoon/'
+##inpath = '/media/polona/Polona/s1data/data/stp1_afternoon/'
 #outpath_def = '../sidrift/data/80m_stp1/'
-#step = 1
-#factor = 80     #(factor in sid_drift 0.5)
+#inpath = outpath_def
+#step = 2
+#factor = 40     #(factor in sid_drift 0.5)
 
+
+#inpath = '../sidrift/data/drift_full_time/'
+#outpath_def = '../sidrift/data/80m_stp10_time/'
+#step = 10
+#factor = 40    #(factor in sid_drift 0.5)
 
 
 #outpath = '../sidrift/plots/'
@@ -132,7 +144,7 @@ for i in range(0,len(fl)):
     #read in all the data
     print(fl[i])
     container = np.load(fl[i])
-    u = container['upm']#[::5,::5]
+    u = container['upm']#[::5,::5]     
     v = container['vpm']#[::5,::5]
     hpm = container['hpm']#[::5,::5]    #hessian
     lat = container['lat1']#[::5,::5]
@@ -190,16 +202,16 @@ for i in range(0,len(fl)):
     
     if reg == 'FYI':   #shift region into the pure FYI zone
         ylp = ylp-5000
-        xlp = xlp+25000
+        xlp = xlp+20000
 
     if reg == 'SYI':   #shift region into the pure SYI zone
         ylp = ylp+5000
-        xlp = xlp-25000
+        xlp = xlp-20000
 
     
     ##Using a projection dictionary (same stuff is same as above)
-    width = radius*2/40 # m spacing
-    height = radius*2/40 # m spacing
+    width = radius*2/factor # m spacing
+    height = radius*2/factor # m spacing
     area_extent = (xlp-radius,ylp-radius,xlp+radius,ylp+radius)
     area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
     
@@ -237,11 +249,11 @@ for i in range(0,len(fl)):
     #needs to be cut out from projected space again or coordinates run far beyond the image boundaries and slow down the calculation!
     if reg == 'FYI':   #shift region southwards into the pure FYI zone
         yl = yl-5000
-        xl = xl+25000
+        xl = xl+20000
 
     if reg == 'SYI':   #shift region northwards into the pure SYI zone
         yl = yl+5000
-        xl = xl-25000
+        xl = xl-20000
 
     #cut out region
     mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
@@ -270,9 +282,9 @@ for i in range(0,len(fl)):
     lats = lat.filled()
     
     #mask out all poor quality data: rpm < 0.4
-    gpi = hpms > 4    #this maskes out artefacts like images edges and wierd lines on scenes, but still leaves in in the 'rhomboids'
+    gpi = hpms > 9    #this maskes out artefacts like images edges and wierd lines on scenes, but still leaves in in the 'rhomboids'
     us = us[gpi]      #it also removes nods at LKFs and makes mesh less dense there >> very few small triangles are left
-    vs = vs[gpi]      #9 is very high value, 4 is quite low
+    vs = vs[gpi]      #9 is very high value, 4 is quite low, 4 was used for all initial runs
     xs = xs[gpi]
     ys = ys[gpi]
     lons = lons[gpi]
@@ -293,7 +305,7 @@ for i in range(0,len(fl)):
     #check how many values are left in the region
     #print('Values left for this step:')
     #print(us.size)
-    if us.size < 500: continue
+    if us.size < 100: print(us.size);continue
     
     #################################################################3
     #plot on overview map
@@ -349,8 +361,8 @@ for i in range(0,len(fl)):
     dummy_td_all = []
     dummy_ls_all = []
     for j in stp:
+        #print(j)
         distance = dst*j
-        #print(distance)
         
         dummy_vert = np.array([[0,0],[distance,0],[0,distance]])
         dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+factor)/diff])      #here use exact grid spacing
@@ -387,9 +399,56 @@ for i in range(0,len(fl)):
     dummy_a,dummy_b,dummy_c,dummy_d,dummy_e,dummy_f=deformation(dummy_vert,dummy_uvert,dummy_vvert)
     dummy_div = dummy_a+dummy_b
 
+    print(dummy_div)
+    
+    #compare this value to the strain rate error (noise/signal ratio < 0.5)
+    sigma_x = factor
+    mean_area = distance**2/2
+    mean_area2 = (distance*5)**2/2
+    sigma_area = 2*np.sqrt(2)*3*np.sqrt(mean_area2)*sigma_x
+    limit_area = 8*3**2*sigma_x**2
+    mean_displacement = np.sqrt(dxmean**2+dymean**2)
+    print(mean_area)            #this area is way too small to give reliable results (400 m spacing)
+    print(mean_area2)    #but it becomes much better at the next step        (800 m spacing)
+    print(sigma_area)
+    print(limit_area)
+    print(mean_displacement)
+    
+    
+    #time error is negligable
+    noise_ratio = 2*np.sqrt((4*(sigma_x**2)/mean_area) + (2*(sigma_x**2)/(mean_displacement**2)) + (sigma_area**2/mean_area**2))
+    
+    
+    noise_ratio = 2*np.sqrt((4*sigma_x**2/mean_area2) + (2*sigma_x**2/mean_displacement**2) + (sigma_area**2/mean_area2**2))
+    
+    #only at step=5, noise to signal ration falls bellow 0.5 >> lenght scales over 1 km
+    #(for the first image average drift that is comparable to the rest, typical for the before strom)
+    #twice larger drift doesnt make much difference
+    print(noise_ratio)
+    
+    print(4*(sigma_x**2)/mean_area2)
+    print(2*(sigma_x**2)/(mean_displacement**2))
+    print(sigma_area**2/mean_area2**2)                   #this is the problematic term!
+    
+    #but actually - positioning error is low, 40m is resolution not GPS error
+    #the problematic error is velocity
+    #then:
+    sigma_x=10
+    sigma_x2=40
+    sigma_area = 2*np.sqrt(2)*3*np.sqrt(mean_area)*sigma_x
+    noise_ratio = 2*np.sqrt((4*(sigma_x**2)/mean_area) + (2*(sigma_x2**2)/(mean_displacement**2)) + (sigma_area**2/mean_area**2))
+    print(noise_ratio)
+    
+    print(4*(sigma_x**2)/mean_area)
+    print(2*(sigma_x**2)/(mean_displacement**2))
+    print(sigma_area**2/mean_area**2)                   #this is the problematic term!
+    
+    
+    exit()
 
 
     #***************************************************************************************
+    #altrnative for quad  mesh generation: https://scicomp.stackexchange.com/questions/530/unstructured-quad-mesh-generation
     #calculate deformation - calculating for triangles one by one
     dux=[];duy=[];dvx=[];dvy=[];minang=[];area=[]
     for t in range(0,len(tripts)):
@@ -414,10 +473,23 @@ for i in range(0,len(fl)):
     shr = .5*np.sqrt((dux-dvy)**2+(duy+dvx)**2)
     
     #use threshold and triangle size criteria to detect noise due to step function in speed
-    #too large triangles are in the MIZ and they mess up the LKF filter...
-    threshold = (np.abs(div)<abs(dummy_div)) | (area > (distance*1.5)**2/2)
+    #hessian filter got rid of the image artifacts and bad data in the shattered zones (MIZ etc), all large triangle left are of good qualities
+    #step function artefacts are all small traingles
+    threshold = ~((np.abs(div)>abs(dummy_div)) | (area > (distance*1.1)**2/2))
     
-    print(dummy_div)
+    #for high resolution data only:
+    #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
+    #threshold = ~((np.abs(div)>abs(dummy_div)) | (area > (distance*2.5)**2/2))
+    
+    #
+    
+    
+    
+    
+    
+    
+    
+    
     
     #threshold = 0
         
@@ -448,155 +520,172 @@ for i in range(0,len(fl)):
 
     ##apply LKF filter
     #prepare place to store filtered data
-    
     div_f = np.ma.array(div, mask=threshold)
     shr_f = np.ma.array(shr, mask=threshold)
     
-    ##fill with some value or coarse graining will not work
-    ##get mean values bellow threshold for mask and use that as fill_value
-    #low_div = np.ma.array(div,mask=~threshold)
-    #low_mean_div = np.mean(low_div)
+    div_f2 = div.copy()
+    shr_f2 = shr.copy()
     
-    #low_shr = np.ma.array(shr,mask=~threshold)
-    #low_mean_shr = np.mean(low_shr)
-    
-    ##or use zeros
-    #low_mean_div = 0; low_mean_shr = 0
-    
-    #print('Fill value bellow threshold:')
-    #print(low_mean_div)
-    #div_f2 = np.ones_like(div)*low_mean_div
-    #shr_f2 = np.ones_like(div)*low_mean_shr
-    
-    #or just dont touch the low values
-    div_f2 = div
-    shr_f2 = shr
-    
-    ##non-masked triangles
-    pindex = np.arange(0,len(tri.vertices))
-    pindex = np.ma.array(pindex, mask=threshold)
-    pindex = np.ma.compressed(pindex)
-    
-    #plot LKF##################################################################################################3
-    fig5    = plt.figure(figsize=(20,10))
-    
-    #plot original divergence field
-    nx      = fig5.add_subplot(121)
-    m = pr.plot.area_def2basemap(area_def)
-    m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-    m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-    
-    patches = []
-    for k in range(div.shape[0]):
-        patch = Polygon(tripts[k,:,:])
-        patches.append(patch)
+    if LKF_filter==True:
+        ##non-masked triangles
+        pindex = np.arange(0,len(tri.vertices))
+        pindex = np.ma.array(pindex, mask=threshold)
+        pindex = np.ma.compressed(pindex)
+        
+        #plot LKF##################################################################################################3
+        fig5    = plt.figure(figsize=(20,10))
+        
+        #plot original divergence field
+        nx      = fig5.add_subplot(121)
+        m = pr.plot.area_def2basemap(area_def)
+        m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+        m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+        
+        patches_all = []
+        for k in range(div.shape[0]):
+            patch = Polygon(tripts[k,:,:])
+            patches_all.append(patch)
 
-    #plot filled triangles
-    p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
-    p.set_array(div*1e6)
-    interval = [-5, 5]
-    p.set_clim(interval)
-    nx.add_collection(p)
-    
-    #set up the plot for the flitered field
-    lx      = fig5.add_subplot(122)
-    m = pr.plot.area_def2basemap(area_def)
-    m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-    m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-    #plot basic field
-    p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
-    p.set_array(div*1e6)
-    interval = [-5, 5]
-    p.set_clim(interval)
-    lx.add_collection(p)
-    ###########################################################################################################3
-    
-    n_list = []
-    for p in pindex:
-        #get a seed triangle
-        #check if this triangle was already part of some other LKF
-        if p in n_list: continue
+        #plot filled triangles
+        p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=1)
+        p.set_array(div*1e6)
+        interval = [-10, 10]
+        p.set_clim(interval)
+        nx.add_collection(p)
         
-        #start new LKF group
-        lkf = []
-        lkf_div = []
-        lkf_shr = []
-        lkf_idx = []
-                
-        lkf.append(tripts[p])
-        lkf_div.append(div[p])
-        lkf_shr.append(shr[p])  
-        lkf_idx.append(p)
-        n_list.append(p)                #use pop function of list instead!!!
+        ##check what we are filtering
+        #patches_p = []
+        #for k in pindex:
+            #patch = Polygon(tripts[k])
+            #patches_p.append(patch)
+
+        ##plot filled triangles
+        #p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
+        #nx.add_collection(p)
         
-        #get neighbors of this seed, max number is 3 - it should be much more if single vertice neighbours were taken into account
-        #use vertex_neighbor_vertices
-        #This is not necessary if resolution is higer. Then all triengles in LKF should have a connection along a side.
-        n = tri.neighbors[p]
+        #set up the plot for the flitered field
+        lx      = fig5.add_subplot(122)
+        m = pr.plot.area_def2basemap(area_def)
+        m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+        m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])        
+        ###########################################################################################################3
         
-        #cycle through the neighbors until no more new are found
-        same_lkf = True
-        while same_lkf:
-            #no neighbor (-1), bellow threshold, already used elements and acute triangles will be masked  
-            used=[]
-            for nn in n:
-                used.append(nn in n_list)
-            nmask = (n == -1) | (div_f.mask[n]) | used | (minang[n] < 15)
+        #n_list = []
+        for p in pindex:
+            #start new LKF group for each seed triangle
+            n_list = []
+            lkf = []
+            lkf_div = []
+            lkf_shr = []
+            lkf_idx = []
+                    
+            lkf.append(tripts[p])
+            lkf_div.append(div[p])
+            lkf_shr.append(shr[p])  
+            lkf_idx.append(p)
+            n_list.append(p)                #use pop function of list instead!!!
+            
+            #get neighbors of this seed
+            n = tri.neighbors[p]
+            
+            #get number of sides of seed triangle occupied by neighbors (max 3) - this will be used to limit the kernel size
+            nmask = (n == -1) | (div_f.mask[n]) | (minang[n] < 10)
             n = np.ma.array(n,mask=nmask); n = np.ma.compressed(n)
-            #also define max size of kernel - len(lkf) = originally this should be the number of boundaries that can be crossed for a single LKF mean value
-            if (len(n) > 0) & (len(lkf)<7):
-                for i in n:
-                    lkf.append(tripts[i])
-                    lkf_div.append(div[i])
-                    lkf_div.append(shr[i])
-                    lkf_idx.append(i)
-                    n_list.append(i)
-                
-                #get next neighbors
-                n = tri.neighbors[n]
-                #flatten
-                n = list(itertools.chain.from_iterable(n))
-                #get rid of doubles
-                n = list(dict.fromkeys(n))
-            else:
-               same_lkf = False
-                
-        #problems in the MIZ: whole belts of LKFs at the image edges...
-        #MIZ is area where there is no small triangles... can we filter that out?
-                
-        #make LKF mean value
-        if len(lkf) < 2: 
-            #print('Single triangle LKF')
-            #these are mainly frame edges (somehow minang does not filter them out)
-            #print(minang[lkf_idx])
-            #add these triangles to the mask
-            threshold[lkf_idx] = True
-        else:
-            lkf_mdiv = np.mean(lkf_div)
-            lkf_mshr = np.mean(lkf_shr)
-            #print('Triangle # in LKF: '); print(len(lkf)); print(lkf_mdiv)
             
-            #get data to the arrays
-            div_f2[lkf_idx] = lkf_mdiv
-            shr_f2[lkf_idx] = lkf_mshr
-        
-            #plot LKF###########################################################################################################3
-            patches = []
-            for k in range(0,len(lkf)):
-                patch = Polygon(lkf[k])
-                patches.append(patch)
-            
-            #plot filled triangles
-            p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k')
-            lkf_ma = np.ones((len(lkf_div)))*lkf_mdiv*1e6
-            p.set_array(lkf_ma)
-            interval = [-5, 5]
-            p.set_clim(interval)
-            lx.add_collection(p)
+            #for each side of the seed triangle that has a neighbor
+            for nn in n:
+                same_side = True
+                side = []; side.append(tripts[nn])
+                side_div = []; side_div.append(div[nn])
+                side_shr = []; side_shr.append(shr[nn])
+                side_idx = []; side_idx.append(nn)
+                n_list.append(nn)
+                
+                while same_side:                    
+                    #get next neighbors
+                    #nn is growing in every step of the while loop
+                    nn = tri.neighbors[nn]
+                    #flatten if list of lists
+                    try: 
+                        nn = list(itertools.chain.from_iterable(nn))
+                    except:
+                        print('Not list of lists')
+                    #get rid of doubles
+                    nn = list(dict.fromkeys(nn))
+                        
+                    #mask
+                    #no neighbor (-1), bellow threshold, already used elements and acute triangles (near coplanar at the region edge) will be masked  
+                    used=[]
+                    for nnn in nn:
+                        used.append(nnn in n_list)
+                    nmask = (nn == -1) | (div_f.mask[nn]) | used | (minang[nn] < 10)
+                    nn = np.ma.array(nn,mask=nmask); nn = np.ma.compressed(nn)
+                    
+                    #store values
+                    for j in nn:
+                        #check if we still did not reach the max size of kernel for this side
+                        #and if we still have some unused neighbors
+                        #3 is recommended max value by Buollion
+                        #use < 3 to get to at least 3 (at least one more will be added after this)
+                        if (len(side)<3) & (len(nn)>0):
+                            side.append(tripts[j])
+                            side_div.append(div[j])
+                            side_shr.append(shr[j])
+                            side_idx.append(j)
+                            n_list.append(j)
+                    else:
+                        same_side = False
+                        
+                #collect all values from this side
+                lkf.extend(side)
+                lkf_div.extend(side_div)
+                lkf_shr.extend(side_shr)
+                lkf_idx.extend(side_idx)
 
-    fig5.savefig(outpath+'test',bbox_inches='tight')
-    #print('Figure saved!')###########################################################################################################3
-    #exit()   
+            ##check what we have:
+            #print(div[p])
+            #print(lkf_div)
+            #print(lkf_idx)
+            
+                    
+            #make LKF mean value
+            if len(lkf) < 2: 
+                #print('Too short LKF')
+                #these are mainly frame edges (somehow minang does not filter them out) and crossings of two step-function artefacts
+                #if not filtered out, they will stick out as very high values compared to the averaged ones
+                #add these triangles to the mask
+                threshold[p] = True
+            else:
+                lkf_mdiv = np.mean(lkf_div)
+                lkf_mshr = np.mean(lkf_shr)
+                print('Triangle # in LKF: '); print(len(lkf)); print(lkf_mdiv)
+                #get data to the arrays
+                div_f2[p] = lkf_mdiv
+                shr_f2[p] = lkf_mshr
+                
+                #plot LKF###########################################################################################################3   
+                
+                patches = []
+                #for k in lkf_idx:
+                patch = Polygon(tripts[p])
+                patches.append(patch)
+                
+                ##plot filled triangles
+                pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k')
+                pc.set_array(np.ones((1))*lkf_mdiv*1e6)
+                pc.set_clim(interval)
+                lx.add_collection(pc)
+                
+        ##plot all (filtered and bellow threshold) triangles
+        #pc = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=1)
+        #pc.set_array(div_f2*1e6)
+        #interval = [-5, 5]
+        #pc.set_clim(interval)
+        #lx.add_collection(pc)
+
+        fig5.savefig(outpath+'test',bbox_inches='tight')
+        print('Figure saved!')###########################################################################################################3
+        #exit()   
     
     #div = div_f2
     #shr = shr_f2
@@ -669,21 +758,6 @@ for i in range(0,len(fl)):
             #do area-weighted coarse-graining
             div_seed,shr_seed,area_seed,minang_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2)
             
-            #print(np.min(np.abs(div_seed)))
-            ##print(np.min(area_seed))
-            ##print(np.min(minang_seed))
-            
-            
-            ##this will mask out all the long scales...
-            ##now mask the triangles that have values exactly like the threshold/all traingles incoming traingles have this threshold value
-            #threshold_seed = (np.abs(div_seed)==abs(dummy_div)) #& (area <= (410)**2/2)
-            #div_seed = np.ma.array(div_seed,mask=threshold_seed)
-            #shr_seed = np.ma.array(shr_seed,mask=threshold_seed)
-            
-            #print(np.min(np.abs(div_seed)))
-            ###exit()
-            
-            
             #mask with threshold that depends on the lenght scale (mask out large triangles)
             #this is done in the plotting, so not necessary here...
             dyn_dummy = dummy_td_all[ddidx]
@@ -735,16 +809,7 @@ for i in range(0,len(fl)):
             plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,Lance_lon,Lance_lat)
         #####################################################################3
 
-        #do I still need to mask out everything that is bellow the threshold???
-        
-        #should threshold depend on the lenght scale???
-        #otherwise some deformation values will be masked too 
-        #this will not help, they merge anyway as seen on the scatter plots...
-        
-        #what about if seeding detects how much values bellow threshold were in the triangle
-        #for example, if WHOLE triangle is masked, then keep masked
-        
-                #write out lists into csv file
+        #write out lists into csv file
         tt = [date_list, ls_list, time_list, td_list, ang_list]
         table = zip(*tt)
         #adjusted to python3:
@@ -758,33 +823,16 @@ for i in range(0,len(fl)):
 
         #this will cause artificially too steep slope as we gradually incorporate more and more low values into the averages of large triangles...
         
-        #this can not be fixed by up-sampling. The values of detectable and un-detectable deformation will still be separate clouds (artificially!)
-        #just the threshold will be better and there will be no noise, just where we have really high deformation
-        #and no real relativelly low deformtion will be masked out as noise (LKFs will be better connected)
-        #this is important for parcel tracking!!!
+        #at high resolution deformation data we cant avoid of having two separate clouds (detectable and un-detectable deformation) - that happens when our method cant detect deformation anymore
         
-        #so this is perfect for maps or location of LKFs, but not for the values and power law
-        #except for the relative comparions (not accros products)
+        #this can not be fixed by filtering and the line in power law will break even if we use the Sylvain filter
         
-        #FYI and SYI could still be compared...
-        #the scalling could be different if deformation at highest spatial scale is different or if generally drift speed is different (different threshold value)
-        #threshold values should be recored!!!
+        #still the filter removes the artifical opening-clossing mess in shear zones (and removes some high values in that zones), so it makes it useful for the mapping of larger features such as LKFs and leads.
         
-        #what happens if we start at much coarser resolution? E.g. 2km???
-        
-        #The means of values bellow thershold are too low, because there is still motion/deformation inside those, but is completelly undetected=close to zero
-        #the step function detects only resultant cumulative motion/deformation. If averaged with near zero values for the rest of the triangles, that is too low.
-        #The only way is to analyze sepatatelly places resolutions where we can separate these two (bellow 2km)
-        #and resolutions where we can analyze separatelly completelly merged values (over 10km)
-        #but values over 10km are very few as we have to work with image pairs...
 
 
 
         #storing data for the scatter plots
-        #mask = div_seed.mask
-        
-        
-        
         
         td = np.sqrt(div_seed**2 + shr_seed**2)
         ls = np.sqrt(area_seed)

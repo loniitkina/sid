@@ -21,7 +21,9 @@ from sea_ice_drift import SeaIceDrift
 #in QGIS: create layer - new temporary scratch layer - draw point - save as
 #create user on scihub: https://scihub.copernicus.eu/
 #download data to the data partition!
+#create custom geojson by http://geojson.io/#map=2/45.0/4.2
 #sentinelsat --user polona --password jank0vna --geometry /mnt/data/sea_ice_drift/lance.geojson --sentinel 1 --producttype GRD --start 20150128 --end 20150202 --download --path /mnt/data/sea_ice_drift/Sentinel1
+#sentinelsat --user polona --password jank0vna --geometry nice.geojson --sentinel 1 --producttype GRD --start 20150128 --end 20150202 --download --path ../sidrift/data/Sentinel1_new
 
 #retrieve drift
 #plot drift and write text output

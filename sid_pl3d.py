@@ -7,7 +7,7 @@ radius = '_20km.csv'
 radius = '_20kmFW.csv'
 #radius = '_7kmFW.csv'
 radius = '_50kmFW.csv'
-
+radius = '_100kmFW.csv'
 #radius = '_7km.csv'
 
 meanls_list_sr=[]
@@ -205,6 +205,7 @@ cx.set_yscale('log')
 #SAR data
 inpath = '../sidrift/data/40m_combo/'
 inpath = '../sidrift/data/80m_stp10/'
+inpath = '../sidrift/data/80m_stp10_canberra/'
 
 outpath = inpath
 fname_start = 'td_leg1_L'
@@ -220,9 +221,9 @@ stp = stp.astype(int)
 #stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 #stp = stp.astype(int)
 
-margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
+margin = np.exp(np.linspace(np.log(.1),np.log(5),n))
 
-for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-0):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -314,7 +315,7 @@ ax.set_xlim(.01,25.)
 ax.set_ylim(1e-10,1e-3)
 bx.set_xlim(.01,25.)
 bx.set_ylim(1e-10,1e-3)
-cx.set_xlim(.01,25.)
+cx.set_xlim(.01,100.)
 cx.set_ylim(1e-10,1e-3)
 #cx.set_ylim(1e-10*1e6,1e-3*1e6)
 

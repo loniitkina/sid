@@ -6,16 +6,17 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_UiT_seed_f_masked_kernel6_cl'
-#title = 'ship_radar+buoys+SAR_UiT_120km'
-#title = 'ship_radar+buoys+SAR_UiT_120km_new'
-#title = 'ship_radar+buoys+SAR_UiT_7km_new'
-radius = '_7kmFW.csv'
-#radius = '_7km.csv'
+title = 'ship_radar+buoys+SAR_UiT_seed_f_n5'
+#title = 'ship_radar+buoys+SAR_UiT_seed_nofilter'
+#radius = '_7km_hes9FW.csv'
+radius = '_7km_hes9.csv'
 #radius = '_20kmFW.csv'
+radius = '_20km_hes9.csv'
+radius = '_20km_hes9_1km.csv'
 #radius = '_50kmFW.csv'
 #radius = '_20km.csv'
-#radius = '_100km.csv'
+#radius = '_100kmFW.csv'
+radius = '_100km_hes9_1km.csv'
 #radius = '_120km.csv'
 name = 'ship_radar+buoys+SAR'
 ax.set_title(name,fontsize=29, loc='left')
@@ -60,18 +61,18 @@ for i in range(0,len(lsc_list)):
     ls1 = getColumn(fname,0, delimiter=' ')
     td1 = getColumn(fname,1, delimiter=' ')
     
-    ##period 2
-    #fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
-    #ls2 = getColumn(fname,0, delimiter=' ')
-    #td2 = getColumn(fname,1, delimiter=' ')
+    #period 2
+    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
+    ls2 = getColumn(fname,0, delimiter=' ')
+    td2 = getColumn(fname,1, delimiter=' ')
     
-    ##combine
-    #ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
-    #td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
+    #combine
+    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
     
-    #use only first part
-    ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
-    td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
+    ##use only first part
+    #ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
+    #td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -98,12 +99,12 @@ fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
 fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
  
-#td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
-#ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
+td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
 
-#use only first part
-td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
-ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
+##use only first part
+#td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
+#ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
 
 
 
@@ -156,6 +157,9 @@ for i in range(0,len(lsc_list)):
 
 inpath = '../sidrift/data/40m_combo/'
 inpath = '../sidrift/data/80m_stp10/'
+inpath = '../sidrift/data/80m_stp10_canberra/'
+inpath = '../sidrift/data/80m_stp10_nofilter/'
+inpath = '../sidrift/data/80m_stp10_single_filter/'
 outpath = inpath
 
 fname_start = 'td_leg1_L'
@@ -168,7 +172,7 @@ fname_start = 'td_seed_f_Lance_L'
 
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
-stp=np.exp(np.linspace(np.log(1),np.log(300),n))
+stp=np.exp(np.linspace(np.log(0.2),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
 
@@ -186,12 +190,23 @@ print(stp)
 #print(ls_stp)
 
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.1),np.log(3),n))
+margin = np.exp(np.linspace(np.log(1),np.log(3),n))
 
 #colors
 color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
 
-for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
+#put dummy values (detection limits) on the scatter plots
+fname = inpath+'dummy_Lance'+radius
+print(fname)
+
+dum1 = getColumn(fname,0, delimiter=',', header=False)
+dum2 = getColumn(fname,1, delimiter=',', header=False)
+dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
+dum2 = np.array(dum2,dtype=np.float)
+
+ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
+
+for i in range(0,len(stp)-0):                           
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -206,10 +221,7 @@ for i in range(0,len(stp)-4):                           #the last two steps are 
     tls = np.array(tls,dtype=np.float)/60/60    #convert from s to h
     td = np.array(td,dtype=np.float)
     ang = np.array(ang,dtype=np.float)
-    
-    #what about the date? 
-    #this could help us filtering out days with bad data...
-    
+        
     #get only 24h data
     mask = (tls<23) | (tls>25)
     ls = np.ma.array(ls,mask=mask)
@@ -226,28 +238,36 @@ for i in range(0,len(stp)-4):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    ##throw away very low deformation rates (pixel/template edge noise)
-    ##only for smallest scales, where we have underdetected deformation
-    #mask = (td<.2e-6) #& (ls < 1)
+    #throw away very low deformation rates (pixel/template edge noise)
+    #only for smallest scales, where we have underdetected deformation
+    mask = (td<dum2[i]) #& (ls < 1)
+    ls = np.ma.array(ls,mask=mask)
+    td = np.ma.array(td,mask=mask)
+    ls = np.ma.compressed(ls)
+    td = np.ma.compressed(td)  
+    
+    ###throw away very high deformation rates (image edges and other artifacts)
+    #mask = td>1.5e-4
     #ls = np.ma.array(ls,mask=mask)
     #td = np.ma.array(td,mask=mask)
     #ls = np.ma.compressed(ls)
     #td = np.ma.compressed(td)   
 
-    #mask all very small or big triangles
-    #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-    center = np.mean(ls)
-    #center = stats.mode(ls)[0][0]                      #this takes too much time
-    print('mean lenght')
-    print(center)
-    print(margin[i])
-    minlen = center-margin[i]; maxlen = center+margin[i]
-    #minlen = center-margin; maxlen = center+margin
-    mask = (ls<minlen) | (ls>maxlen)
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)    
+
+    ##mask all very small or big triangles
+    ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+    #center = np.mean(ls)
+    ##center = stats.mode(ls)[0][0]                      #this takes too much time
+    #print('mean lenght')
+    #print(center)
+    #print(margin[i])
+    #minlen = center-margin[i]; maxlen = center+margin[i]
+    ##minlen = center-margin; maxlen = center+margin
+    #mask = (ls<minlen) | (ls>maxlen)
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)    
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -271,19 +291,6 @@ for i in range(0,len(stp)-4):                           #the last two steps are 
     #ax.axhline(y=4.0344082184489904e-07)
     #ax.axhline(y=7.827424274136162e-09)
 
-#put dummy values (detection limits) on the scatter plots
-fname = inpath+'dummy_Lance'+radius
-print(fname)
-
-dum1 = getColumn(fname,0, delimiter=',')
-dum2 = getColumn(fname,1, delimiter=',')
-dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
-dum2 = np.array(dum2,dtype=np.float)
-
-#print(dum1)
-#print(dum2)
-
-ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
 
 
 #ship radar
@@ -332,5 +339,6 @@ fig1.tight_layout()
 
 rr = radius.split('.')[0]
 fig1.savefig(outpath+'power_law_24h_'+title+rr)
+print(outpath+'power_law_24h_'+title+rr)
 
 

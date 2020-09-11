@@ -13,9 +13,9 @@ ax.set_xlabel(r"Time scale (h)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 ax.set_xscale('log')
 ax.set_yscale('log')
+ax.set_ylim(1e-10,1e-3)
 
 meanls_list=[]
-
 meantd_list_sr=[]
 meantd_list_b=[]
 
@@ -98,13 +98,13 @@ for i in lsc_list:
 
 #SAR data
 reg = 'leg1'
-lscale = 26
+lscale = 5
 inpath = '../sidrift/data/80m_stp10_time/'
 outpath = inpath
 fname_start = 'td_seed_f_Lance_L'
 
-minlen=0
-maxlen=10
+minlen=2
+maxlen=3
 
 tc_min = [1,2,15,20,25,50]
 tc_max = [2,9,20,25,50,80]
@@ -123,6 +123,7 @@ meantd_list_sar=[]
 
 
 f = inpath+fname_start+str(lscale)+'_7kmFW.csv'
+f = inpath+fname_start+str(lscale)+'_7km.csv'
 #f = inpath+'td_'+reg+'_L'+str(lscale)+'_25km.csv'
 #print(f)
 
@@ -144,26 +145,18 @@ ls = ls[mask]/60/60  #convert from s to h
 td = td[mask]
 sls = sls[mask]/1000  #convert from m to km
 
-#np.set_printoptions(threshold=np.nan)
-#print(ls)
-#exit()
-
-##mask outliers
-#mask = td<1
-#ls = ls[mask]
-#td = td[mask]
-#sls = sls[mask]
-
-##mask all very small or big triangles
-##if not masked the renge of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
-#mask = (sls>minlen) & (sls<maxlen)
-#ls = ls[mask]
-#td = td[mask]
-#sls = sls[mask]
-
-#print(ls)
+##check that we have the right spatial scale here
+#np.set_printoptions(threshold=100)
 #print(sls)
 #exit()
+
+#mask all very small or big triangles
+#if not masked the renge of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
+mask = (sls>minlen) & (sls<maxlen)
+ls = ls[mask]
+td = td[mask]
+sls = sls[mask]
+
 
 
 #plot all the data
@@ -214,12 +207,9 @@ ax.loglog(x[1:],a*x[1:]**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='g')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-##sar 
-##fit the line
-#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
-
-
-
+#sar 
+#fit the line
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='royalblue')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)

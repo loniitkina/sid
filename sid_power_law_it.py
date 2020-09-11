@@ -25,6 +25,7 @@ td_list_fyi=[]
 #SYI
 inpath = '../sidrift/data/40m_combo/'
 inpath = '../sidrift/data/80m_stp10/'
+inpath = '../sidrift/data/80m_stp10_single_filter/'
 
 outpath = inpath
 fname_start = 'td_leg1_SYI_L'
@@ -40,7 +41,7 @@ margin = np.exp(np.linspace(np.log(.15),np.log(3),n))
 
 for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
-    fname = inpath+fname_start+str(scale)+'_7kmFW.csv'
+    fname = inpath+fname_start+str(scale)+'_7km_n9.csv'
     #fname = inpath+fname_start+str(scale)+'_25kmFW.csv'
     #fname = inpath+fname_start+str(scale)+'_20kmFW.csv'
     print(fname)
@@ -115,7 +116,7 @@ fname_start = 'td_seed_f_FYI_L'
 
 for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
-    fname = inpath+fname_start+str(scale)+'_7kmFW.csv'
+    fname = inpath+fname_start+str(scale)+'_7km_n9.csv'
     #fname = inpath+fname_start+str(scale)+'_25kmFW.csv'
     #fname = inpath+fname_start+str(scale)+'_20kmFW.csv'
     print(fname)
@@ -215,5 +216,5 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_it_20kmFW_seed_f_masked_kernel6_cl'+title)
+fig1.savefig(outpath+'power_law_24h_it_7km_seed_f_masked_n9'+title)
 #fig1.savefig(outpath+'power_law_24h_it_7km_'+title)

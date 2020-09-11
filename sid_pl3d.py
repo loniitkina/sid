@@ -3,12 +3,15 @@ from scipy import stats
 import matplotlib.pyplot as plt
 
 title = 'density_lkf'
-radius = '_20km.csv'
-radius = '_20kmFW.csv'
-#radius = '_7kmFW.csv'
-radius = '_50kmFW.csv'
-radius = '_100kmFW.csv'
-#radius = '_7km.csv'
+#radius = '_20km.csv'
+#radius = '_20kmFW.csv'
+###radius = '_7kmFW.csv'
+#radius = '_50kmFW.csv'
+#radius = '_100kmFW.csv'
+#radius = '_100km_n9.csv'
+radius = '_7km_test.csv'
+
+#radius = '_100km_ttd.csv'
 
 meanls_list_sr=[]
 meantd_list_sr=[]
@@ -51,12 +54,6 @@ yx.set_title('SAR')
 
 logbins = np.logspace(np.log10(1e-10),np.log10(1e-3), 100)
 
-#ymax=.1
-#ax.set_ylim(0,ymax)
-#ax.set_xlabel('Snow depth (m)')
-#srbins = np.arange(0,.8,.01)
-
-
 
 #ship radar data
 #inpath = '../data/ship_radar/24h/'
@@ -80,17 +77,17 @@ for i in range(0,len(lsc_list)):
     ls1 = getColumn(fname,0, delimiter=' ')
     td1 = getColumn(fname,1, delimiter=' ')
     
-    ##period 2
-    #fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
-    #ls2 = getColumn(fname,0, delimiter=' ')
-    #td2 = getColumn(fname,1, delimiter=' ')
+    #period 2
+    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
+    ls2 = getColumn(fname,0, delimiter=' ')
+    td2 = getColumn(fname,1, delimiter=' ')
     
-    ##combine
-    #ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
-    #td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
+    #combine
+    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
     
-    ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
-    td = np.array(td1,dtype=np.float)/3600  #convert from h to s
+    #ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
+    #td = np.array(td1,dtype=np.float)/3600  #convert from h to s
     
     
     #calculate and store averages
@@ -137,12 +134,12 @@ fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
 fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
  
-#td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
-#ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
+td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
 
-#use only first part
-td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
-ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
+##use only first part
+#td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
+#ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
 
 
 #throw away very high deformation rates (unrealistic values)
@@ -206,6 +203,8 @@ cx.set_yscale('log')
 inpath = '../sidrift/data/40m_combo/'
 inpath = '../sidrift/data/80m_stp10/'
 inpath = '../sidrift/data/80m_stp10_canberra/'
+inpath = '../sidrift/data/80m_stp10_single_filter/'
+#inpath = '../sidrift/data/80m_stp10_nofilter/'
 
 outpath = inpath
 fname_start = 'td_leg1_L'
@@ -221,9 +220,9 @@ stp = stp.astype(int)
 #stp=np.exp(np.linspace(np.log(1),np.log(800),n))
 #stp = stp.astype(int)
 
-margin = np.exp(np.linspace(np.log(.1),np.log(5),n))
+margin = np.exp(np.linspace(np.log(.2),np.log(10),n))
 
-for i in range(0,len(stp)-0):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)-4):                           #the last two steps are off the curve, try removing them
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -287,16 +286,6 @@ for i in range(0,len(stp)-0):                           #the last two steps are 
         
     #density plots
     x, y, z = density_lsb(ls,td,n=100)  #log-spaced ls and td bins
-    #x = np.ma.masked_where(~(np.isfinite(z)),x)
-    #x = np.ma.compressed(x)
-    #y = np.ma.masked_where(~(np.isfinite(z)),y)
-    #y = np.ma.compressed(y)
-    #z = np.ma.masked_where(~(np.isfinite(z)),z)
-    #z = np.ma.compressed(z)
-    #print(z.shape)
-    #print(np.max(z))
-    #print(np.min(z))    #how can z have negative value??? - this is just a random interval of number in which histogram is scaled? not number of hits?
-    #exit()
     cx.scatter(x, y, c=z, s=50, edgecolor='',cmap=plt.cm.jet, alpha=.2)
     #means
     cx.plot(meanls,meantd,'*',markersize=10,markeredgecolor='w',color='k')
@@ -328,11 +317,12 @@ cx.xaxis.set_major_formatter(ScalarFormatter())
 fig1.tight_layout()
 
 fig1.savefig(outpath+'power_law_24h_'+title)
+print(outpath+'power_law_24h_'+title)
 
 zx.legend()
 xx.legend()
 yx.legend()
-fig2.savefig(outpath+'power_law_pdf_lkf')
+fig2.savefig(outpath+'power_law_pdf_lkf'+title)
 
 
 

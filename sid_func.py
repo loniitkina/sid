@@ -226,7 +226,7 @@ def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_
     
     return
     
-def coarse_grain(tripts,tripts_seed,div,shr):
+def coarse_grain(tripts,tripts_seed,div,shr,lkf_id):
     #make area-weighted mean of all triangles that are in these triangles
     #weighted-mean deformation - calculating for triangles one by one
     #https://stackoverflow.com/questions/14697442/faster-way-of-polygon-intersection-with-shapely/14804366
@@ -244,6 +244,7 @@ def coarse_grain(tripts,tripts_seed,div,shr):
     shr_seed = []
     area_seed = []
     minang_seed = []
+    id_seed = []
     for t in range(0,len(tripts_seed)): 
         qg = Polygon(tripts_seed[t])
         #get area and minangle for the seeded triangle
@@ -261,15 +262,26 @@ def coarse_grain(tripts,tripts_seed,div,shr):
         dd = div[idxs]
         ss = shr[idxs]
         
+        #collect all lkf IDs of triangles
+        idd = lkf_id[idxs]
+        #get rid of doubles
+        iddd = list(dict.fromkeys(idd))
+        #print(iddd)
+        #get 
+        #print(len(iddd))
+        #exit()
+        
         #check that at least 50% of the seeded triangle is covered by the original small triangles (their intersections)
         #get total area covered by small triangles in this seeded traingle
+        #none of these values are masked
         aas = np.sum(aa)
         coverage = aas/ars 
         if coverage > .5:
             
-            #store area and minang
+            #store area, minang and number of different LKFs contributing to this seed triangle
             area_seed.append(aas)
             minang_seed.append(mas)
+            id_seed.append(len(iddd))
             
             #get weighted means
             ds = np.sum(weights*dd)
@@ -282,8 +294,11 @@ def coarse_grain(tripts,tripts_seed,div,shr):
     shr_seed = np.array(shr_seed)
     area_seed = np.array(area_seed)
     minang_seed = np.array(minang_seed)
+    id_seed = np.array(id_seed)
+    
+    
 
-    return(div_seed,shr_seed,area_seed,minang_seed)
+    return(div_seed,shr_seed,area_seed,minang_seed,id_seed)
 
 #find in triangle centroid
 def centroid(vertexes):
@@ -293,6 +308,59 @@ def centroid(vertexes):
     _x = sum(_x_list) / _len
     _y = sum(_y_list) / _len
     return(_x, _y)
+
+def get_lkf_id(tri,threshold,pindex):
+    n_list = [] #hold record of all triangles that were used in the region
+    lkf_id = np.zeros_like(threshold,dtype=np.int)
+    #print(lkf_id.shape)
+    
+    lkf_counter = 1
+    
+    for p in pindex:
+        if p in n_list: #if we used this seed before, just skip to next
+            continue
+        
+        else:
+            n_list.append(p)
+            #start new LKF group for this seed
+            lkf_idx = []  #hold record of all triangles used in this LKF
+            lkf_idx.append(p)
+
+            #get neighbors of this seed
+            n = tri.neighbors[p]
+            
+            #iterate until neighbors of neighbors are found
+            same_lkf=True
+            while same_lkf:
+                #just use the ones above threshold and never used before
+                used=[]
+                for nn in n:
+                    used.append(nn in n_list)
+                n = np.array(n)
+                nmask = (n == -1) | used | threshold[n]
+                n = np.ma.array(n,mask=nmask); n = np.ma.compressed(n)
+        
+                if len(n)>0:
+                    ni=[]
+                    for i in n:
+                        lkf_idx.append(i)
+                        n_list.append(i)
+                        #accummulate next neighbors of all current ones                       
+                        ni.extend(tri.neighbors[i])
+                    n = ni
+                else:
+                    same_lkf=False
+                
+                    
+        #assign same ID to all triangles in this LKF group
+        #take only really long ones
+        if len(lkf_idx)>10:
+            lkf_id[lkf_idx] = lkf_counter
+            #print(lkf_idx, lkf_counter)
+            #increase the counter by one
+            lkf_counter = lkf_counter+1
+        
+    return(lkf_id)
 
 def save_geotiff(raster_array, area_def, export_path):
     # set manually the number of bands to one, because we know you have only one layer

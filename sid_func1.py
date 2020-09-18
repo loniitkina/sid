@@ -170,7 +170,7 @@ def convertXY(xy_source, inproj, outproj):
     return xx, yy
 
 
-def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_lat,radius):
+def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_lat):
     from matplotlib.patches import Polygon
     fig3    = plt.figure(figsize=(20,20))
     cx      = fig3.add_subplot(111)
@@ -182,9 +182,16 @@ def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_
     
     #scale
     #should be at the lower edge of the plot and have relative coordinates (not fixed lat,lon)
-    #size depends on radius (in km)
-    lonll,latll = area_def.get_lonlat(-1,0)
-    m.drawmapscale(lonll, latll, lonll, latll, radius/1000, units='km', barstyle='fancy',fontsize=14)
+    #print(area_def)
+    boundary = area_def.outer_boundary_corners
+    print(boundary)
+    print(boundary[0].__eq__)
+    print(boundary[0].__str__)
+    
+    aaaa = area_def.get_lonlat(0,0)
+    exit()
+
+    m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
     m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
     m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 

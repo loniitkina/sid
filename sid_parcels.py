@@ -6,13 +6,15 @@ from sid_func import *
 import matplotlib.pyplot as plt
 
 
-radius = 100000
+radius = 7000
 
 
 #-------------------------------------------------------------------
-inpath = '../sidrift/data/40m_combo/'
+inpath_drift = '../sidrift/data/40m_combo/'
+inpath = '../sidrift/data/80m_stp10_single_filter/'
 outpath_data = inpath
 outpath = '../sidrift/plots/'
+outpath = inpath
 metfile = '../sidrift/data/10minute_nounits.csv'
 
 #get Lance location and seed the parcels
@@ -32,12 +34,12 @@ xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
 
 #create a grid of spacing of 400m in each direction in the radius from the ship
 #Lance will be in the center
-xbf = np.arange(xlp-radius, xlp+radius, 400)
-ybf = np.arange(ylp-radius, ylp+radius, 400)
+xbf = np.arange(xlp-radius, xlp+radius, 100)
+ybf = np.arange(ylp-radius, ylp+radius, 100)
 x_buoy,y_buoy = np.meshgrid(xbf,ybf)
 
 #read in the drift product and calculate displacements from starting point until the first break in the SAR data (1 week)
-fl = sorted(glob(inpath+'SeaIceDrift*.npz'))
+fl = sorted(glob(inpath_drift+'SeaIceDrift*.npz'))
 
 fl_dmg = sorted(glob(inpath+'Damage*.npz'))
 
@@ -189,51 +191,51 @@ m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 color=iter(plt.cm.rainbow(np.linspace(0,1,lon_path.shape[0])))
    
-#for i in range(0,lon_path.shape[0]):
-    #print(i)
-    #fig1    = plt.figure(figsize=(10,10))
-    #ax      = fig1.add_subplot(111)
+for i in range(0,lon_path.shape[0]):
+    print(i)
+    fig1    = plt.figure(figsize=(10,10))
+    ax      = fig1.add_subplot(111)
 
-    ##x,y = m(lon_path[i,:,:],lat_path[i,:,:])
-    ##ax.pcolormesh(x,y,damage[i])
+    #x,y = m(lon_path[i,:,:],lat_path[i,:,:])
+    #ax.pcolormesh(x,y,damage[i])
     
     
     
-    #dd = np.ma.masked_where(~(np.isfinite(lat_path[i,:,:])),damage[i]); dd = np.ma.compressed(dd)
-    #lop = np.ma.masked_where(~(np.isfinite(lat_path[i,:,:])),lon_path[i,:,:]); lop = np.ma.compressed(lop)
-    #print(lop)
-    #lap = np.ma.masked_invalid(lat_path[i,:,:]); lap = np.ma.compressed(lap)
-    #print(lap)
-    #print(lop.size,lap.size)
-    #x,y = m(lop,lap)
-    #print(x)
-    #print(lap)
-    #print(dd)
-    #ax.scatter(x,y,c=dd)
+    dd = np.ma.masked_where(~(np.isfinite(lat_path[i,:,:])),damage[i]); dd = np.ma.compressed(dd)
+    lop = np.ma.masked_where(~(np.isfinite(lat_path[i,:,:])),lon_path[i,:,:]); lop = np.ma.compressed(lop)
+    print(lop)
+    lap = np.ma.masked_invalid(lat_path[i,:,:]); lap = np.ma.compressed(lap)
+    print(lap)
+    print(lop.size,lap.size)
+    x,y = m(lop,lap)
+    print(x)
+    print(lap)
+    print(dd)
+    ax.scatter(x,y,c=dd)
 
 
 
-    #cl = next(color)
-    ###Lance initial position
-    ##xl, yl = m(Lance_lon, Lance_lat)
-    ##ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-    
-    ##Lance moving with the VBs
-    #mi = np.argmin(abs(np.asarray(dtb)-date[i]))
-    #Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
-    #Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
+    cl = next(color)
+    ##Lance initial position
     #xl, yl = m(Lance_lon, Lance_lat)
-    #ax.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
+    #ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+    
+    #Lance moving with the VBs
+    mi = np.argmin(abs(np.asarray(dtb)-date[i]))
+    Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
+    Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
+    xl, yl = m(Lance_lon, Lance_lat)
+    ax.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
 
-    #outname='virtual_buoys_'+str(i)
-    #fig1.savefig(outpath+outname,bbox_inches='tight')
-    #plt.close()
+    outname='virtual_buoys_'+str(i)
+    fig1.savefig(outpath+outname,bbox_inches='tight')
+    plt.close()
 
 
 #total damage plot
-date = date[-2]
+date = date[1]
 damage = np.ma.masked_invalid(damage).filled(fill_value=0)
-dtotal = np.sum(damage[:-1,:,:],axis=0)
+dtotal = np.sum(damage[:2,:,:],axis=0)
 
 fig2    = plt.figure(figsize=(10,10))
 ax      = fig2.add_subplot(111)
@@ -248,9 +250,9 @@ m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 #ax.pcolormesh(x,y,dtotal)
 
 
-dd = np.ma.masked_where(~(np.isfinite(lat_path[-2,:,:])),dtotal); dd = np.ma.compressed(dd)
-lop = np.ma.masked_where(~(np.isfinite(lat_path[-2,:,:])),lon_path[-2,:,:]); lop = np.ma.compressed(lop)
-lap = np.ma.masked_invalid(lat_path[-2,:,:]); lap = np.ma.compressed(lap)
+dd = np.ma.masked_where(~(np.isfinite(lat_path[1,:,:])),dtotal); dd = np.ma.compressed(dd)
+lop = np.ma.masked_where(~(np.isfinite(lat_path[1,:,:])),lon_path[1,:,:]); lop = np.ma.compressed(lop)
+lap = np.ma.masked_invalid(lat_path[1,:,:]); lap = np.ma.compressed(lap)
 x,y = m(lop,lap)
 ax.scatter(x,y,c=dd)
 
@@ -262,8 +264,8 @@ Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
 xl, yl = m(Lance_lon, Lance_lat)
 ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
-#scale
-m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
+##scale
+#m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
 
 
 outname='virtual_buoys_damage_21-26Jan2015'

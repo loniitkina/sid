@@ -12,15 +12,17 @@ title = 'ship_radar+buoys+SAR_UiT_seed_f_test'
 #radius = '_7km_hes9.csv'
 #radius = '_7km_ttdFW.csv'
 #radius = '_7km_n9.csv'
-#radius = '_20kmFW.csv'
+radius = '_7km_test5.csv'
+#radius = '_20km.csv'
 #radius = '_20km_hes9.csv'
 #radius = '_20km_hes9_1km.csv'
-#radius = '_20km_testFW.csv'
+#radius = '_20km_test.csv'
+radius = '_20km_test6.csv'
 #radius = '_50kmFW.csv'
 #radius = '_20km.csv'
 #radius = '_100kmFW.csv'
 #radius = '_100km_hes9_1km.csv'
-radius = '_100km_ttd.csv'
+#radius = '_100km_ttd.csv'
 #radius = '_100km_n9.csv'
 #radius = '_120km.csv'
 rr = radius.split('.')[0]
@@ -68,7 +70,7 @@ fname_start = 'td_seed_f_Lance_L'
 #maxlen = [.15,.3,.4,.6,.9,1.5,2,  3.5,20]
 
 #create log-spaced vector and convert it to integers
-n=8 # number of samples
+n=9 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
@@ -93,6 +95,7 @@ margin = np.exp(np.linspace(np.log(.2),np.log(10),n))
 color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
 
 #put dummy values (detection limits) on the scatter plots
+#radius = '_7km_test1.csv'               #use dummy values from different run
 fname = inpath+'dummy_Lance'+radius
 print(fname)
 
@@ -102,6 +105,13 @@ dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
 dum2 = np.array(dum2,dtype=np.float)
 
 ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
+
+#get a power law fit on these dummy values
+a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
+x = np.arange(0.1, 100, 1)
+ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
+
+
 
 ##for the LKF plot
 #fig2 = plt.figure(figsize=(9,9))
@@ -143,13 +153,26 @@ for i in range(0,len(stp)-0):
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #throw away very low deformation rates (pixel/template edge noise)
-    #only for smallest scales, where we have underdetected deformation
-    mask = (td<dum2[i]) #& (ls < 1)
+    ##throw away very low deformation rates (pixel/template edge noise)
+    no_all = len(td)
+    #mask = (td<dum2[i])                 #this is only from the first image pair!
+    mask = td < a_dum*ls**k_dum
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)  
+    td = np.ma.compressed(td)
+    no_part = len(td)
+    fraction = no_part/no_all
+    print('fraction: '+str(fraction))
+    
+    ##replace low deformation rates by averages
+    #mask = (td<dum2[i])
+    #fv = np.mean(np.ma.array(td,mask=~mask))
+    #print('replacing bellow', str(dum2[i]), 'by', str(fv) )
+    #td[mask] = fv
+    
+    
+    
     
     ###throw away very high deformation rates (image edges and other artifacts)
     #mask = td>1.5e-4
@@ -176,7 +199,7 @@ for i in range(0,len(stp)-0):
     
     #calculate and store averages
     meanls=np.mean(ls)
-    meantd=np.mean(td); print(meantd)
+    meantd=np.mean(td); print('mean td :',meantd, 'from', td.shape[0], 'values')
     meanls_list_sar.append(meanls)
     meantd_list_sar.append(meantd)
     
@@ -245,11 +268,16 @@ for i in range(0,len(lsc_list)):
     #td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
     
     #mask with the dummy values from SAR
-    mask = (td<dum2r[i])
+    no_all = len(td)
+    #mask = (td<dum2r[i])
+    mask = td < a_dum*ls**k_dum
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
+    no_part = len(td)
+    fraction = no_part/no_all
+    print('fraction: '+str(fraction))
     
     #calculate and store averages
     meanls=np.mean(ls)
@@ -318,7 +346,8 @@ for i in range(0,len(lsc_list)):
     td_class = np.ma.compressed(td_class) 
     
     #mask with the dummy values from SAR
-    mask = (td_class<dum2b[i])
+    #mask = (td_class<dum2b[i])
+    mask = td_class < a_dum*ls_class**k_dum
     ls_class = np.ma.array(ls_class,mask=mask)
     td_class = np.ma.array(td_class,mask=mask)
     ls_class = np.ma.compressed(ls_class)
@@ -365,12 +394,12 @@ ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #and separate for SAR
-#fit the line
+##fit the line
 #a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 #no binning
 #a,k,cix,ciy_upp,ciy_low = logfit(ls_list_sar,td_list_sar)
 #skip the last 2 lenghts
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[:-4],meantd_list_sar[:-4])
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[:-3],meantd_list_sar[:-3])
 
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)

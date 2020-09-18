@@ -6,7 +6,7 @@ from pyproj import Proj, transform
 from pyresample.geometry import AreaDefinition
 from scipy.spatial import Delaunay
 from scipy.spatial import ConvexHull
-from sid_func import *
+from sid_func import * 
 import itertools
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
@@ -15,7 +15,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #How long do you want it to run?
 first_week=True
-#first_week=False    #This will make it run for all the data
+first_week=False    #This will make it run for all the data
 
 #after_storm=True
 after_storm=False
@@ -26,7 +26,7 @@ image=True
 
 #just save level 1 data and exit
 parcel=True
-parcel=False
+#parcel=False
 
 #
 #no_threshold=True
@@ -38,7 +38,7 @@ LKF_filter=True
 
 #select lenght scale
 radius = 7000
-file_name_end = '_7km_test'
+file_name_end = '_7km_parcel'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -62,7 +62,7 @@ outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 #outpath_def = '../sidrift/data/80m_stp10_nofilter/'
 step = 10
 factor = 40    #(factor in sid_drift 1)
-extra_margin = 10
+extra_margin = 20   #20 in test5 gace best results so far (also lets in the last artifacts in LKF filter)
 
 ##inpath = '/media/polona/Polona/s1data/data/stp1_afternoon/'
 #outpath_def = '../sidrift/data/80m_stp1/'
@@ -261,12 +261,6 @@ for i in range(0,len(fl)):
     #cut out region
     mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
     
-    #find corners
-    idcr1 = np.unravel_index(np.argmin(np.sqrt((x-(xl-radius))**2+(y-(yl-radius))**2)),x.shape)
-    idcr2 = np.unravel_index(np.argmin(np.sqrt((x-(xl-radius))**2+(y-(yl+radius))**2)),x.shape)
-    idcr3 = np.unravel_index(np.argmin(np.sqrt((x-(xl+radius))**2+(y-(yl+radius))**2)),x.shape)
-    idcr4 = np.unravel_index(np.argmin(np.sqrt((x-(xl+radius))**2+(y-(yl-radius))**2)),x.shape)
-
     #mask the region and fill in nans
     x = np.ma.array(x,mask=mask,fill_value=np.nan)
     y = np.ma.array(y,mask=mask,fill_value=np.nan)
@@ -292,6 +286,12 @@ for i in range(0,len(fl)):
     ys = ys[gpi]
     lons = lons[gpi]
     lats = lats[gpi]
+    
+    #find corners
+    idcr1 = np.unravel_index(np.argmin(np.sqrt((x-(xl-radius))**2+(y-(yl-radius))**2)),x.shape)
+    idcr2 = np.unravel_index(np.argmin(np.sqrt((x-(xl-radius))**2+(y-(yl+radius))**2)),x.shape)
+    idcr3 = np.unravel_index(np.argmin(np.sqrt((x-(xl+radius))**2+(y-(yl+radius))**2)),x.shape)
+    idcr4 = np.unravel_index(np.argmin(np.sqrt((x-(xl+radius))**2+(y-(yl-radius))**2)),x.shape)
     
     #get rid of all the nans, the resulting arrays are flattened
     xs = np.ma.masked_where(~(np.isfinite(us)),xs)
@@ -366,10 +366,11 @@ for i in range(0,len(fl)):
     for j in stp:
         #print(j)
         distance = dst*j
+        exag_fac = factor+extra_margin
         
         dummy_vert = np.array([[0,0],[distance,0],[0,distance]])
-        dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+factor)/diff])      #here use exact grid spacing
-        dummy_vvert = np.array([dymean/diff,dymean/diff,dymean/diff])             #this will take out also cases with step with v direction and motion at several nods
+        dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac)/diff])      #because this is only one nod, there will be divergence (increase in area) and shearing (change in shape, angles)
+        dummy_vvert = np.array([dymean/diff,dymean/diff,dymean/diff])             
         
         dummy_a,dummy_b,dummy_c,dummy_d,dummy_e,dummy_f=deformation(dummy_vert,dummy_uvert,dummy_vvert)
         
@@ -385,6 +386,11 @@ for i in range(0,len(fl)):
     
         dummy_td_all.append(dummy_td)
         dummy_ls_all.append(dummy_ls)
+        
+        #print(dummy_div)
+        #print(dummy_shr)
+        #print(dummy_td) #little higher than div, because shr is low
+        #exit()
     
     #store in a file
     tt = [dummy_ls_all, dummy_td_all]
@@ -477,26 +483,6 @@ for i in range(0,len(fl)):
     #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
     #threshold = ~((np.abs(div)>abs(dummy_div)) | (area > (distance*2.5)**2/2))
                 
-    #store all this for parcel tracking!
-    if parcel:
-        #find in triangle centroid
-        ctrdx = np.zeros_like(div);ctrdy = np.zeros_like(div) 
-        for i in range(0,len(tripts)):
-            ctrdx[i],ctrdy[i] = centroid(tripts[i])
-            
-        #convert to lat,lon
-        ctrd_lon,ctrd_lat = m(ctrdx,ctrdy,inverse=True)
-        
-        #get 0,1 array with all damaged triangles as 1
-        damage = np.where(~threshold,1,0)
-        
-        #dump damage data into numpy file
-        out_file = outpath_def+'Damage_'+date1+'_'+date2+'.npz'
-        np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage)
-
-        print('Storing data: ',out_file)
-        continue
-
     ##apply LKF filter
     #prepare place to store filtered data
     div_f2 = div.copy()
@@ -554,17 +540,12 @@ for i in range(0,len(fl)):
         #n_list = []
         for p in pindex:
             #start new LKF group for each seed triangle
-            n_list = []
-            lkf = []
-            lkf_div = []
-            lkf_shr = []
-            lkf_idx = []
-                    
-            lkf.append(tripts[p])
-            lkf_div.append(div[p])
-            lkf_shr.append(shr[p])  
-            lkf_idx.append(p)
-            n_list.append(p)                #use pop function of list instead!!!
+            n_list = []; n_list.append(p)
+            lkf = []; lkf.append(tripts[p])
+            lkf_div = []; lkf_div.append(div[p])
+            lkf_shr = []; lkf_shr.append(shr[p])
+            lkf_area = []; lkf_area.append(area[p])
+            lkf_idx = []; lkf_idx.append(p)
             
             #get neighbors of this seed
             n = tri.neighbors[p]
@@ -579,6 +560,7 @@ for i in range(0,len(fl)):
                 side = []; side.append(tripts[nn])
                 side_div = []; side_div.append(div[nn])
                 side_shr = []; side_shr.append(shr[nn])
+                side_area = []; side_area.append(area[nn])
                 side_idx = []; side_idx.append(nn)
                 n_list.append(nn)
                 
@@ -617,6 +599,7 @@ for i in range(0,len(fl)):
                                 side.append(tripts[j])
                                 side_div.append(div[j])
                                 side_shr.append(shr[j])
+                                side_area.append(area[j])
                                 side_idx.append(j)
                                 n_list.append(j)
                             else:
@@ -626,6 +609,7 @@ for i in range(0,len(fl)):
                 lkf.extend(side)
                 lkf_div.extend(side_div)
                 lkf_shr.extend(side_shr)
+                lkf_area.extend(side_area)
                 lkf_idx.extend(side_idx)
 
             ##check what we have:
@@ -642,8 +626,10 @@ for i in range(0,len(fl)):
                 #add these triangles to the mask
                 threshold[p] = True
             else:
-                lkf_mdiv = np.mean(lkf_div)
-                lkf_mshr = np.mean(lkf_shr)
+                #scale all values so that they correspond to the the size of the 'p' triangle
+                weights = np.array(lkf_area)/lkf_area[0]    #this is a Q&D way of scaling, ideally we need to use the Oikkonen power law
+                lkf_mdiv = np.mean(lkf_div*weights)
+                lkf_mshr = np.mean(lkf_shr*weights)
                 #print('Triangle # in LKF: '); print(len(lkf)); print(lkf_mdiv)
                 #get data to the arrays
                 div_f2[p] = lkf_mdiv
@@ -673,6 +659,28 @@ for i in range(0,len(fl)):
         print('Figure saved!')###########################################################################################################3
         #exit()   
     
+    #store all this for parcel tracking!
+    if parcel:
+        #find in triangle centroid
+        ctrdx = np.zeros_like(div);ctrdy = np.zeros_like(div) 
+        for i in range(0,len(tripts)):
+            ctrdx[i],ctrdy[i] = centroid(tripts[i])
+            
+        #convert to lat,lon
+        ctrd_lon,ctrd_lat = m(ctrdx,ctrdy,inverse=True)
+        
+        #get 0,1 array with all damaged triangles as 1
+        damage = np.where(~threshold,1,0)
+        lead = np.where((div_f2>0)&(~threshold),1,0)
+        ridge = np.where((div_f2<0)&(~threshold),1,0)
+        
+        #dump damage data into numpy file
+        out_file = outpath_def+'Damage_'+date1+'_'+date2+'.npz'
+        np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage)
+
+        print('Storing data: ',out_file)
+        continue
+
     
     #get LKF IDs
     #result is an array same shape as div, with ID=0 for all sub-threshold triangles and unique ID for each individual LKF 
@@ -730,7 +738,7 @@ for i in range(0,len(fl)):
             
             #mask out all poor quality data
             #5 is sufficient as these are just the seeding polygons
-            gpi = hpms > 5    
+            gpi = hpms > 9    
             xs = xs[gpi]
             ys = ys[gpi]
             
@@ -773,18 +781,25 @@ for i in range(0,len(fl)):
             
             #mask with threshold that depends on the lenght scale (mask out large triangles)
             #this is done in the plotting, so not necessary here...
+            td_seed = np.sqrt(div_seed**2 + shr_seed**2)
             dyn_dummy = dummy_td_all[ddidx]
             ls_dummy = dummy_ls_all[ddidx]
             if no_threshold==True:
                 dyn_dummy = 0
-            threshold_seed = (np.abs(div_seed)<abs(dyn_dummy)) #| (area_seed > ls_dummy**2)
+            #threshold_seed = (td_seed<dyn_dummy) #| (area_seed > ls_dummy**2)
+            threshold_seed = (td_seed<dyn_dummy)
             ddidx = ddidx + 1
             
+            #masking
             div_seed = np.ma.array(div_seed,mask=threshold_seed)
             shr_seed = np.ma.array(shr_seed,mask=threshold_seed)            
             area_seed = np.ma.array(area_seed, mask=threshold_seed)
             minang_seed = np.ma.array(minang_seed, mask=threshold_seed)            
             id_seed = np.ma.array(id_seed,mask=threshold_seed)
+            
+            #keep all the data
+            
+            
 
         else:
             div_seed=np.ma.array(div_f2, mask=threshold)
@@ -794,11 +809,13 @@ for i in range(0,len(fl)):
             minang_seed = np.ma.array(minang, mask=threshold)
             id_seed = np.ma.array(lkf_id,mask=threshold)
             
+            ##keep all the data
             #div_seed=div_f2
             #shr_seed=shr_f2
             #tripts_seed=tripts
             #area_seed = area
             #minang_seed = minang
+            #id_seed = lkf_id
             
         
         ####################################################################3
@@ -822,7 +839,7 @@ for i in range(0,len(fl)):
 
             
             #print(outname)
-            plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,Lance_lon,Lance_lat)
+            plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,Lance_lon,Lance_lat,radius)
         #####################################################################3
 
         #write out lists into csv file

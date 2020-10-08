@@ -15,7 +15,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #How long do you want it to run?
 first_week=True
-first_week=False    #This will make it run for all the data
+#first_week=False    #This will make it run for all the data
 
 #after_storm=True
 after_storm=False
@@ -24,6 +24,7 @@ after_storm=False
 image=True
 #image=False
 
+##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 #just save level 1 data and exit
 parcel=True
 #parcel=False
@@ -37,8 +38,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 7000
-file_name_end = '_7km_parcel'
+radius = 75000
+file_name_end = '_75km_parcel'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -58,8 +59,17 @@ file_name_end = file_name_end+'.csv'
 #also set step aand factor for each input data
 
 inpath = '../sidrift/data/40m_combo/'
+#inpath = '../sidrift/data/40m_stp1_afternoon/' #files too big to open???
+
 outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 #outpath_def = '../sidrift/data/80m_stp10_nofilter/'
+#outpath_def = '../sidrift/data/40m_parcels/'
+
+#parcels 
+inpath = '../sidrift/data/stp10_parcels_f1/'
+inpath = '../sidrift/data/stp10_parcels_f1_rs2/'
+outpath_def = inpath
+
 step = 10
 factor = 40    #(factor in sid_drift 1)
 extra_margin = 20   #20 in test5 gace best results so far (also lets in the last artifacts in LKF filter)
@@ -141,6 +151,7 @@ ma.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #get all drift pair files
 fl = sorted(glob(inpath+'SeaIceDrift*.npz'))
+#fl = fl[5:6]
 #colors for overview map
 color=iter(plt.cm.jet_r(np.linspace(0,1,len(fl)+1)))
 
@@ -148,11 +159,11 @@ for i in range(0,len(fl)):
     #read in all the data
     print(fl[i])
     container = np.load(fl[i])
-    u = container['upm']#[::5,::5]     
-    v = container['vpm']#[::5,::5]
-    hpm = container['hpm']#[::5,::5]    #hessian
-    lat = container['lat1']#[::5,::5]
-    lon = container['lon1']#[::5,::5]
+    u = container['upm']#[::10,::10]     
+    v = container['vpm']#[::10,::10]
+    hpm = container['hpm']#[::10,::10]    #hessian
+    lat = container['lat1']#[::10,::10]
+    lon = container['lon1']#[::10,::10]
     
     #print('Size of input matrix:')
     #print(u.size)
@@ -164,7 +175,7 @@ for i in range(0,len(fl)):
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
     
     #if we want just the data until the week-long gap
-    if (dt1 > datetime(2015,1,28)) & (first_week==True): print('First week only'); break
+    if (dt1 > datetime(2015,1,27)) & (first_week==True): print('First week only'); break
 
     diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
     
@@ -676,7 +687,7 @@ for i in range(0,len(fl)):
         
         #dump damage data into numpy file
         out_file = outpath_def+'Damage_'+date1+'_'+date2+'.npz'
-        np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage)
+        np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge)
 
         print('Storing data: ',out_file)
         continue

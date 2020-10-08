@@ -383,7 +383,7 @@ def save_geotiff(raster_array, area_def, export_path):
                                                 bands_number,
                                                 gtiff_format,
                                                 gtiff_options)
-
+          
     # Define area extent for the Geotiff dataset        
     geometry_list = (area_def.area_extent[0],
                             area_def.pixel_size_x,
@@ -400,8 +400,9 @@ def save_geotiff(raster_array, area_def, export_path):
     #srs.ImportFromProj4(area_def.proj4_string.encode('ascii'))
     
     
-    tmp='+proj=laea +lat_0=90 +lon_0=10 +x_0=0 +y_0=0 +a=6378137 +b=6356752.3142 +units=m +no_defs +type=crs'
-    srs.ImportFromProj4(tmp)
+    #tmp='+proj=laea +lat_0=90 +lon_0=0 +x_0=0 +y_0=0 +a=6378137 +b=6356752.3142 +units=m +no_defs +type=crs'
+    #srs.ImportFromProj4(tmp)
+    srs.ImportFromProj4(area_def.proj4_string)
     
     gtiff_dataset.SetProjection(srs.ExportToWkt())
 
@@ -409,7 +410,7 @@ def save_geotiff(raster_array, area_def, export_path):
     gtiff_band = gtiff_dataset.GetRasterBand(1)
 
     # Write the layer (your raster array) data into the geotiff dataset
-    raster_array = np.flipud(raster_array)
+    #raster_array = np.flipud(raster_array)
     gtiff_band.WriteArray(raster_array)
 
     gtiff_dataset = None

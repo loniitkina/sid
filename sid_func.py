@@ -415,3 +415,51 @@ def save_geotiff(raster_array, area_def, export_path):
 
     gtiff_dataset = None
 
+#from https://gist.github.com/dwyerk/10561690
+
+from shapely.ops import cascaded_union, polygonize
+from scipy.spatial import Delaunay
+from shapely import geometry
+def alpha_shape(points, alpha):
+    """
+    Compute the alpha shape (concave hull) of a set
+    of points.
+    @param points: Iterable container of points.
+    @param alpha: alpha value to influence the
+        gooeyness of the border. Smaller numbers
+        don't fall inward as much as larger numbers.
+        Too large, and you lose everything!
+    """
+    if len(points) < 4:
+        # When you have a triangle, there is no sense
+        # in computing an alpha shape.
+        return geometry.MultiPoint(points).convex_hull
+
+    #coords = np.array([point.coords[0] for point in points])
+    coords = np.zeros((len(points),2))
+    xs = [ c[0] for c in points ]
+    ys = [ c[1] for c in points ]
+    coords[:,0]=xs; coords[:,1]=ys
+    #print(coords)
+    
+    tri = Delaunay(coords)
+    
+    triangles = coords[tri.vertices]
+    a = ((triangles[:,0,0] - triangles[:,1,0]) ** 2 + (triangles[:,0,1] - triangles[:,1,1]) ** 2) ** 0.5
+    b = ((triangles[:,1,0] - triangles[:,2,0]) ** 2 + (triangles[:,1,1] - triangles[:,2,1]) ** 2) ** 0.5
+    c = ((triangles[:,2,0] - triangles[:,0,0]) ** 2 + (triangles[:,2,1] - triangles[:,0,1]) ** 2) ** 0.5
+    s = ( a + b + c ) / 2.0
+    areas = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+    circums = a * b * c / (4.0 * areas)
+    
+    #print(circums)
+    #print(1.0 / alpha)
+    
+    filtered = triangles[circums < (1.0 / alpha)]
+    edge1 = filtered[:,(0,1)]
+    edge2 = filtered[:,(1,2)]
+    edge3 = filtered[:,(2,0)]
+    edge_points = np.unique(np.concatenate((edge1,edge2,edge3)), axis = 0).tolist()
+    m = geometry.MultiLineString(edge_points)
+    triangles = list(polygonize(m))
+    return cascaded_union(triangles), edge_points

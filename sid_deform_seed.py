@@ -24,10 +24,14 @@ after_storm=False
 image=True
 #image=False
 
+#active floe size
+afs=True
+#afs=False
+
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 #just save level 1 data and exit
-parcel=True
-#parcel=False
+#parcel=True
+parcel=False
 
 #
 #no_threshold=True
@@ -38,8 +42,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 75000
-file_name_end = '_75km_parcel'
+radius = 7000
+file_name_end = '_7km_afs'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -460,7 +464,7 @@ for i in range(0,len(fl)):
 
 
     #***************************************************************************************
-    #altrnative for quad  mesh generation: https://scicomp.stackexchange.com/questions/530/unstructured-quad-mesh-generation
+    #alternative for quad  mesh generation: https://scicomp.stackexchange.com/questions/530/unstructured-quad-mesh-generation
     #calculate deformation - calculating for triangles one by one
     dux=[];duy=[];dvx=[];dvy=[];minang=[];area=[]
     for t in range(0,len(tripts)):
@@ -670,6 +674,171 @@ for i in range(0,len(fl)):
         print('Figure saved!')###########################################################################################################3
         #exit()   
     
+    #update pindex (triangle index) for afs and lkf_id
+    pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
+    #index of all the other triangles
+    oindex = np.arange(0,len(tri.vertices));oindex = np.ma.array(oindex, mask=~threshold); oindex = np.ma.compressed(oindex)
+
+    #estimate active floe size
+    if afs:
+        
+        #get all nods of triangles in lkfs
+        lkf_tri = [ tripts[p] for p in pindex ]
+        lkf_nods = [val for sublist in lkf_tri for val in sublist]
+        #print(lkf_nods) 
+        lkf_nods_extra = lkf_nods.copy()
+        
+        #other nods
+        other_tri = [ tripts[o] for o in oindex ]
+        other_nods = [val for sublist in other_tri for val in sublist]
+        
+        #some nods will be in both sets!
+        
+        #buffer size in m
+        bf = 3000
+        
+        #alpha for triangulation in concave hull
+        alpha = 0.0005
+        print('triangle radius up to',1/alpha)
+        
+        #for every nod draw a buffer around (~1km)
+        extra_nods=[]
+        for i in lkf_nods:
+            #print(i)
+            from shapely.geometry import Point
+            from shapely.geometry import Polygon as Shapely_Polygon
+            point = Point(i)
+            #print(point)
+            circle = Shapely_Polygon(point.buffer(bf).exterior)
+            #print(circle)
+            
+        
+        
+            #check if any other points are inside this buffer
+            close_nods=[i]
+            for j in lkf_nods:
+                if circle.contains(Point(j)):
+                    close_nods.append(j)
+            
+            
+            from shapely.geometry import MultiPoint
+            poly2 = MultiPoint(close_nods).convex_hull
+            #print(poly2)
+            
+            #concave_hull should be better as it wont fill in bends in lkf shape (otherwise same)
+            poly3, edge_points = alpha_shape(close_nods, alpha)
+            #print(poly3)
+            
+            
+            
+            
+            
+            #check if there are other (non-lkf) points inside that polygon
+            extra_nods = []
+            for k in other_nods:
+                if poly3.contains(Point(k)):
+                    #check if there are same as close nods
+                    #print(k)
+                    #print(close_nods)
+                    cx = [ c[0] for c in close_nods ]
+                    if k[0] in cx:
+                        #print('exists')
+                        continue
+                    else:
+                        extra_nods.append(k)
+            
+            
+            if len(extra_nods) > 0:
+                #print(i)
+                #print(extra_nods)
+            
+                ###plot this
+                #fig6    = plt.figure(figsize=(10,10))
+                #px      = fig6.add_subplot(111)
+                
+                ##main point
+                #px.plot(i[0],i[1],'x',ms=10, label='center')
+                
+                ##LKF nods
+                #x = [p[0] for p in close_nods]
+                #y = [p[1] for p in close_nods]
+                #px.plot(x,y,'o',label='lkf nods')
+                
+                ##extra nods
+                #x = [p[0] for p in extra_nods]
+                #y = [p[1] for p in extra_nods]
+                #px.plot(x,y,'o',label='extra nods')
+                
+                #px.plot(*poly2.exterior.xy,label='poly2')
+                #px.plot(*poly3.exterior.xy,label='poly3')
+                #px.plot(*circle.exterior.xy,label='circle')
+                
+                #px.legend()
+                #plt.show()
+                
+                #exit()
+        
+                #add extra nods to LKF nods
+                lkf_nods_extra.extend(extra_nods)
+        
+        #check what we got
+        fig6    = plt.figure(figsize=(10,10))
+        px      = fig6.add_subplot(111)
+        
+        #all nods
+        xe = [p[0] for p in lkf_nods_extra]
+        ye = [p[1] for p in lkf_nods_extra]
+        px.plot(xe,ye,'o',label='extra nods')
+        
+        #LKF nods
+        x = [p[0] for p in lkf_nods]
+        y = [p[1] for p in lkf_nods]
+        px.plot(x,y,'o',label='lkf nods')
+        
+        px.legend()
+        plt.show()        
+        
+        
+        
+        #Take all remaining points
+        xe = np.array(xe)
+        lkf_nods_mask = np.isin(xs, xe)
+        x_afs = np.ma.array(xs,mask=lkf_nods_mask); x_afs = np.compressed(x_afs)
+        y_afs = np.ma.array(ys,mask=lkf_nods_mask); y_afs = np.compressed(y_afs)
+        
+        #triangulate
+        pts_afs = np.zeros((len(x_afs),2))
+        pts_afs[:,0]=x_afs; pts_afs[:,1]=y_afs
+        tri_afs = Delaunay(pts_afs)       
+        tripts_afs = pts_afs[tri_afs.simplices]
+        
+        #remove all large triangles (resulting from points removed in LKFs)
+        area_afs
+        threshold_afs
+        
+        #plot filtered/remaining triangles
+        #check if they are dis/connected
+        
+        
+        
+        
+        
+        
+        #search for neighbors
+        #make cascaded unions of each neighbor set (floe)
+        
+        #calculate area, diameter etc. of those polygons/floes
+        
+        
+        
+        
+
+        
+        
+        
+        exit()
+    
+    
     #store all this for parcel tracking!
     if parcel:
         #find in triangle centroid
@@ -695,8 +864,6 @@ for i in range(0,len(fl)):
     
     #get LKF IDs
     #result is an array same shape as div, with ID=0 for all sub-threshold triangles and unique ID for each individual LKF 
-    #first update pindex
-    pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
     lkf_id = get_lkf_id(tri,threshold,pindex)
     #print(lkf_id)
     

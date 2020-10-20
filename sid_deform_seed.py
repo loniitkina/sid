@@ -6,6 +6,9 @@ from pyproj import Proj, transform
 from pyresample.geometry import AreaDefinition
 from scipy.spatial import Delaunay
 from scipy.spatial import ConvexHull
+from shapely.geometry import Point, MultiPoint
+from shapely.geometry import Polygon as Shapely_Polygon
+from shapely.ops import unary_union
 from sid_func import * 
 import itertools
 import matplotlib.pyplot as plt
@@ -27,6 +30,9 @@ image=True
 #active floe size
 afs=True
 #afs=False
+#buffer size in m (max distance between two nods to get connected)
+bf = 5000
+
 
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 #just save level 1 data and exit
@@ -42,8 +48,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 7000
-file_name_end = '_7km_afs'
+radius = 25000
+file_name_end = '_25km_afs'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -681,150 +687,144 @@ for i in range(0,len(fl)):
 
     #estimate active floe size
     if afs:
-        
+
         #get all nods of triangles in lkfs
         lkf_tri = [ tripts[p] for p in pindex ]
         lkf_nods = [val for sublist in lkf_tri for val in sublist]
-        #print(lkf_nods) 
+        print('This pair has # LKF nods',len(lkf_nods)) 
         lkf_nods_extra = lkf_nods.copy()
         
         #other nods
         other_tri = [ tripts[o] for o in oindex ]
         other_nods = [val for sublist in other_tri for val in sublist]
         
-        #some nods will be in both sets!
-        
-        #buffer size in m
-        bf = 3000
+        #buffer size in meters
+        print('buffer size',bf)
         
         #alpha for triangulation in concave hull
-        alpha = 0.0005
+        alpha = 0.0002
         print('triangle radius up to',1/alpha)
         
-        #for every nod draw a buffer around (~1km)
-        extra_nods=[]
+        #for every nod draw a buffer around of size bf
+        all_poly2=[]
+        all_poly3=[]
         for i in lkf_nods:
-            #print(i)
-            from shapely.geometry import Point
-            from shapely.geometry import Polygon as Shapely_Polygon
             point = Point(i)
-            #print(point)
             circle = Shapely_Polygon(point.buffer(bf).exterior)
-            #print(circle)
             
-        
-        
             #check if any other points are inside this buffer
             close_nods=[i]
             for j in lkf_nods:
                 if circle.contains(Point(j)):
                     close_nods.append(j)
             
+            #convex hull
+            #poly2 = MultiPoint(close_nods).convex_hull
             
-            from shapely.geometry import MultiPoint
-            poly2 = MultiPoint(close_nods).convex_hull
-            #print(poly2)
+            #concave_hull should be better as it wont fill in bends in lkf shape
+            #it will not work if there are too few points
+            if len(close_nods) < 3:
+                continue    #just ignore these cases - not sure how this is possible... huge triangles?
+            else:
+                poly3, edge_points = alpha_shape(close_nods, alpha)
             
-            #concave_hull should be better as it wont fill in bends in lkf shape (otherwise same)
-            poly3, edge_points = alpha_shape(close_nods, alpha)
-            #print(poly3)
-            
-            
-            
-            
-            
-            #check if there are other (non-lkf) points inside that polygon
-            extra_nods = []
-            for k in other_nods:
-                if poly3.contains(Point(k)):
-                    #check if there are same as close nods
-                    #print(k)
-                    #print(close_nods)
-                    cx = [ c[0] for c in close_nods ]
-                    if k[0] in cx:
-                        #print('exists')
-                        continue
-                    else:
-                        extra_nods.append(k)
-            
-            
-            if len(extra_nods) > 0:
-                #print(i)
-                #print(extra_nods)
-            
-                ###plot this
-                #fig6    = plt.figure(figsize=(10,10))
-                #px      = fig6.add_subplot(111)
-                
-                ##main point
-                #px.plot(i[0],i[1],'x',ms=10, label='center')
-                
-                ##LKF nods
-                #x = [p[0] for p in close_nods]
-                #y = [p[1] for p in close_nods]
-                #px.plot(x,y,'o',label='lkf nods')
-                
-                ##extra nods
-                #x = [p[0] for p in extra_nods]
-                #y = [p[1] for p in extra_nods]
-                #px.plot(x,y,'o',label='extra nods')
-                
-                #px.plot(*poly2.exterior.xy,label='poly2')
-                #px.plot(*poly3.exterior.xy,label='poly3')
-                #px.plot(*circle.exterior.xy,label='circle')
-                
-                #px.legend()
-                #plt.show()
-                
-                #exit()
+            #collect all such polygons
+            #all_poly2.append(poly2)
+            all_poly3.append(poly3)
         
-                #add extra nods to LKF nods
-                lkf_nods_extra.extend(extra_nods)
-        
-        #check what we got
-        fig6    = plt.figure(figsize=(10,10))
-        px      = fig6.add_subplot(111)
-        
-        #all nods
-        xe = [p[0] for p in lkf_nods_extra]
-        ye = [p[1] for p in lkf_nods_extra]
-        px.plot(xe,ye,'o',label='extra nods')
-        
-        #LKF nods
-        x = [p[0] for p in lkf_nods]
-        y = [p[1] for p in lkf_nods]
-        px.plot(x,y,'o',label='lkf nods')
-        
-        px.legend()
-        plt.show()        
-        
-        
-        
-        #Take all remaining points
-        xe = np.array(xe)
-        lkf_nods_mask = np.isin(xs, xe)
-        x_afs = np.ma.array(xs,mask=lkf_nods_mask); x_afs = np.compressed(x_afs)
-        y_afs = np.ma.array(ys,mask=lkf_nods_mask); y_afs = np.compressed(y_afs)
+        #make union
+        #poly2 = unary_union(all_poly2)
+        poly3 = unary_union(all_poly3)
+            
+        #check for every nod if it lays inside the final union
+        afs_nods = []
+        for k in other_nods:
+            if not poly3.contains(Point(k)):
+                afs_nods.append(k)
+    
+        x_afs = [p[0] for p in afs_nods]
+        y_afs = [p[1] for p in afs_nods]        
         
         #triangulate
         pts_afs = np.zeros((len(x_afs),2))
         pts_afs[:,0]=x_afs; pts_afs[:,1]=y_afs
         tri_afs = Delaunay(pts_afs)       
-        tripts_afs = pts_afs[tri_afs.simplices]
+        tripts_afs = pts_afs[tri_afs.vertices]
         
         #remove all large triangles (resulting from points removed in LKFs)
-        area_afs
-        threshold_afs
+        a = ((tripts_afs[:,0,0] - tripts_afs[:,1,0]) ** 2 + (tripts_afs[:,0,1] - tripts_afs[:,1,1]) ** 2) ** 0.5
+        b = ((tripts_afs[:,1,0] - tripts_afs[:,2,0]) ** 2 + (tripts_afs[:,1,1] - tripts_afs[:,2,1]) ** 2) ** 0.5
+        c = ((tripts_afs[:,2,0] - tripts_afs[:,0,0]) ** 2 + (tripts_afs[:,2,1] - tripts_afs[:,0,1]) ** 2) ** 0.5
+        s = ( a + b + c ) / 2.0
+        area_afs = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+
+        threshold_afs = area_afs > (distance*1.1)**2/2
+        
+        
+        print(area_afs)
+        print(threshold_afs)
+        
+        
+        asf_type = np.where(threshold_afs,1,0)
         
         #plot filtered/remaining triangles
         #check if they are dis/connected
+        fig6    = plt.figure(figsize=(10,10))
         
+        #plot original divergence field
+        px      = fig6.add_subplot(111)
+        m = pr.plot.area_def2basemap(area_def)
+        m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+        m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
         
+        #Lance
+        xl, yl = m(Lance_lon, Lance_lat)
+        px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+
         
+        patches = []
+        for k in range(asf_type.shape[0]):
+            patch = Polygon(tripts_afs[k,:,:])
+            patches.append(patch)
+
+        #plot filled triangles
+        p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
+        p.set_array(asf_type)
+        interval = [0, 2]
+        p.set_clim(interval)
+        px.add_collection(p)
         
+        #plot the union polygons (typically multipolygons)
+        #for geom in poly2.geoms:    
+            #xg, yg = geom.exterior.xy    
+            #px.fill(xg, yg, alpha=0.5, fc='none', ec='b')
         
+        try:
+            #is this a Polygon?
+            xg, yg = poly3.exterior.xy 
+            px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
+        except:
+            #or a MultiPolygon?
+            for geom in poly3.geoms:  
+                xg, yg = geom.exterior.xy    
+                px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
+        
+        #plot LKF triangles over
+        patches_p = []
+        for k in pindex:
+            patch = Polygon(tripts[k])
+            patches_p.append(patch)
+            
+        p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
+        px.add_collection(p)
+
+        fig6.savefig(outpath+'test_asf_6km_concave'+date1,bbox_inches='tight')
+        
+
         
         #search for neighbors
+        
+        
         #make cascaded unions of each neighbor set (floe)
         
         #calculate area, diameter etc. of those polygons/floes
@@ -834,10 +834,10 @@ for i in range(0,len(fl)):
         
 
         
+        print('Done with ASF analysis for', date1)
         
-        
-        exit()
-    
+        #loop through the time series and exit when done
+        continue    
     
     #store all this for parcel tracking!
     if parcel:

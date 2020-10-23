@@ -7,6 +7,13 @@ import matplotlib.pyplot as plt
 
 #for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 
+#WARNING: how accurate are the input S-1 data? Geolocation in GRD is still approximate... Use snap ESA to imporve geolocaton for s-1
+#This option not available for RS-2, ask KSAT
+
+#TASK: feed yourown tiffs to Sea_ice_drift (change geolocation, apply calibration, apply noise correction, use DB instead of linar scale for intensity)
+#algorithm works with open CV for feature detection
+
+#TASK: make flowchart for parcels
 
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!

@@ -316,6 +316,7 @@ def get_lkf_id(tri,threshold,pindex):
     #print(lkf_id.shape)
     
     lkf_counter = 1
+    print('counter',lkf_counter)
     
     for p in pindex:
         if p in n_list: #if we used this seed before, just skip to next
@@ -357,7 +358,7 @@ def get_lkf_id(tri,threshold,pindex):
         #take only really long ones
         if len(lkf_idx)>10:
             lkf_id[lkf_idx] = lkf_counter
-            #print(lkf_idx, lkf_counter)
+            print(lkf_idx, lkf_counter)
             #increase the counter by one
             lkf_counter = lkf_counter+1
         

@@ -16,9 +16,15 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+#WARNING: shapely can be unstable, lots of segfaults
+#try: pip uninstall shapely; pip install --no-binary :all: shapely
+
+
+
+
 #How long do you want it to run?
 first_week=True
-#first_week=False    #This will make it run for all the data
+first_week=False    #This will make it run for all the data
 
 #after_storm=True
 after_storm=False
@@ -31,7 +37,11 @@ image=True
 afs=True
 #afs=False
 #buffer size in m (max distance between two nods to get connected)
-bf = 5000
+#6 and 7 km join a critical connection in the main 'N', but also too much of spaces between LKFs are filled
+#2km keeps most fo the LKF bits separate
+bf = 3000
+#alpha for triangulation in concave hull (0.0002 will give max 5km (1/alpha) triangles inside a concave hull)
+alpha = 0.0003
 
 
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
@@ -48,8 +58,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 25000
-file_name_end = '_25km_afs'
+radius = 7000
+file_name_end = '_7km_afs'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -77,8 +87,11 @@ outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 
 #parcels 
 inpath = '../sidrift/data/stp10_parcels_f1/'
-inpath = '../sidrift/data/stp10_parcels_f1_rs2/'
+#inpath = '../sidrift/data/stp10_parcels_f1_rs2/'
 outpath_def = inpath
+
+#afs 
+outpath_def = '../sidrift/data/stp10_asf/'
 
 step = 10
 factor = 40    #(factor in sid_drift 1)
@@ -682,8 +695,8 @@ for i in range(0,len(fl)):
     
     #update pindex (triangle index) for afs and lkf_id
     pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
-    #index of all the other triangles
-    oindex = np.arange(0,len(tri.vertices));oindex = np.ma.array(oindex, mask=~threshold); oindex = np.ma.compressed(oindex)
+    ##index of all the other triangles
+    #oindex = np.arange(0,len(tri.vertices));oindex = np.ma.array(oindex, mask=~threshold); oindex = np.ma.compressed(oindex)
 
     #estimate active floe size
     if afs:
@@ -692,17 +705,21 @@ for i in range(0,len(fl)):
         lkf_tri = [ tripts[p] for p in pindex ]
         lkf_nods = [val for sublist in lkf_tri for val in sublist]
         print('This pair has # LKF nods',len(lkf_nods)) 
-        lkf_nods_extra = lkf_nods.copy()
+        #lkf_nods_extra = lkf_nods.copy()
         
-        #other nods
-        other_tri = [ tripts[o] for o in oindex ]
-        other_nods = [val for sublist in other_tri for val in sublist]
+        ##other nods
+        #other_tri = [ tripts[o] for o in oindex ]
+        #other_nods = [val for sublist in other_tri for val in sublist]
+        
+        #get region polygon
+        xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
+        ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
+        region = Shapely_Polygon([[x[idcr1],y[idcr1]],[x[idcr2],y[idcr2]],[x[idcr3],y[idcr3]],[x[idcr4],y[idcr4]]])
         
         #buffer size in meters
         print('buffer size',bf)
         
         #alpha for triangulation in concave hull
-        alpha = 0.0002
         print('triangle radius up to',1/alpha)
         
         #for every nod draw a buffer around of size bf
@@ -726,7 +743,11 @@ for i in range(0,len(fl)):
             if len(close_nods) < 3:
                 continue    #just ignore these cases - not sure how this is possible... huge triangles?
             else:
-                poly3, edge_points = alpha_shape(close_nods, alpha)
+                #it also wont work if points are few and co-planar
+                try:
+                    poly3, edge_points = alpha_shape(close_nods, alpha)
+                except:
+                    continue    #also ignore those cases
             
             #collect all such polygons
             #all_poly2.append(poly2)
@@ -735,37 +756,37 @@ for i in range(0,len(fl)):
         #make union
         #poly2 = unary_union(all_poly2)
         poly3 = unary_union(all_poly3)
-            
-        #check for every nod if it lays inside the final union
-        afs_nods = []
-        for k in other_nods:
-            if not poly3.contains(Point(k)):
-                afs_nods.append(k)
-    
-        x_afs = [p[0] for p in afs_nods]
-        y_afs = [p[1] for p in afs_nods]        
         
-        #triangulate
-        pts_afs = np.zeros((len(x_afs),2))
-        pts_afs[:,0]=x_afs; pts_afs[:,1]=y_afs
-        tri_afs = Delaunay(pts_afs)       
-        tripts_afs = pts_afs[tri_afs.vertices]
+        #can we thin such polygons to lines (erosion, simplify)
+        #extend them by some km
+        #check if we meet another line
+        #marge polygons
         
-        #remove all large triangles (resulting from points removed in LKFs)
-        a = ((tripts_afs[:,0,0] - tripts_afs[:,1,0]) ** 2 + (tripts_afs[:,0,1] - tripts_afs[:,1,1]) ** 2) ** 0.5
-        b = ((tripts_afs[:,1,0] - tripts_afs[:,2,0]) ** 2 + (tripts_afs[:,1,1] - tripts_afs[:,2,1]) ** 2) ** 0.5
-        c = ((tripts_afs[:,2,0] - tripts_afs[:,0,0]) ** 2 + (tripts_afs[:,2,1] - tripts_afs[:,0,1]) ** 2) ** 0.5
-        s = ( a + b + c ) / 2.0
-        area_afs = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+        #add a small frame (500m) along the edges of the region
+        #this will close any floes that run accros the region edge
+        frame = region.boundary.buffer(500)
+        poly4 = poly3.union(frame)
 
-        threshold_afs = area_afs > (distance*1.1)**2/2
+        
+        #get difference of both
+        poly5 = region.difference(poly4)
+        
+        #polygon area
+        print(poly5.area)
+        print(poly5.hausdorf_distance) #The Hausdorff distance between two geometries is the furthest distance that a point on either geometry can be from the nearest point to it on the other geometry.
+        
+        exit()
+        #perimeter/area ratio
         
         
-        print(area_afs)
-        print(threshold_afs)
+        #smallest and largest polygon radius
         
         
-        asf_type = np.where(threshold_afs,1,0)
+        
+        #distance between polygons (how wide are LKFs)
+        
+        #values for each floe
+        #statistics can be calculated later (mean, sd, PDF histograms)
         
         #plot filtered/remaining triangles
         #check if they are dis/connected
@@ -781,24 +802,19 @@ for i in range(0,len(fl)):
         xl, yl = m(Lance_lon, Lance_lat)
         px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
-        
-        patches = []
-        for k in range(asf_type.shape[0]):
-            patch = Polygon(tripts_afs[k,:,:])
-            patches.append(patch)
+        #patches = []
+        #for k in range(tripts_afs.shape[0]):
+            #patch = Polygon(tripts_afs[k,:,:])
+            #patches.append(patch)
 
-        #plot filled triangles
-        p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
-        p.set_array(asf_type)
-        interval = [0, 2]
-        p.set_clim(interval)
-        px.add_collection(p)
+        ##plot filled triangles
+        #p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
+        #p.set_array(floe_id)
+        ##interval = [0, 2]
+        #p.set_clim(interval)
+        #px.add_collection(p)
         
         #plot the union polygons (typically multipolygons)
-        #for geom in poly2.geoms:    
-            #xg, yg = geom.exterior.xy    
-            #px.fill(xg, yg, alpha=0.5, fc='none', ec='b')
-        
         try:
             #is this a Polygon?
             xg, yg = poly3.exterior.xy 
@@ -809,6 +825,26 @@ for i in range(0,len(fl)):
                 xg, yg = geom.exterior.xy    
                 px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
         
+        xg, yg = region.exterior.xy 
+        px.fill(xg, yg, alpha=0.5, fc='none', ec='b')
+        
+        xg, yg = frame.exterior.xy 
+        px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
+        
+        #plot difference
+        try:
+            #is this a Polygon?
+            xg, yg = poly5.exterior.xy 
+            px.fill(xg, yg, alpha=0.5)
+        except:
+            #or a MultiPolygon?
+            for geom in poly5.geoms:  
+                xg, yg = geom.exterior.xy    
+                px.fill(xg, yg, alpha=0.5)
+        
+        
+        
+        
         #plot LKF triangles over
         patches_p = []
         for k in pindex:
@@ -818,23 +854,9 @@ for i in range(0,len(fl)):
         p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
         px.add_collection(p)
 
-        fig6.savefig(outpath+'test_asf_6km_concave'+date1,bbox_inches='tight')
+        fig6.savefig(outpath+'test_asf_'+str(int(bf/1000))+'km'+date1.split('T')[0]+'_'+str(int(radius/1000))+'km',bbox_inches='tight')
         
-
-        
-        #search for neighbors
-        
-        
-        #make cascaded unions of each neighbor set (floe)
-        
-        #calculate area, diameter etc. of those polygons/floes
-        
-        
-        
-        
-
-        
-        print('Done with ASF analysis for', date1)
+        print('Done with ASF analysis for', date1.split('T')[0])
         
         #loop through the time series and exit when done
         continue    

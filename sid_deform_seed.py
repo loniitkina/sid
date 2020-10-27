@@ -9,6 +9,7 @@ from scipy.spatial import ConvexHull
 from shapely.geometry import Point, MultiPoint
 from shapely.geometry import Polygon as Shapely_Polygon
 from shapely.ops import unary_union
+import pickle
 from sid_func import * 
 import itertools
 import matplotlib.pyplot as plt
@@ -58,8 +59,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 7000
-file_name_end = '_7km_afs'
+radius = 25000
+file_name_end = '_25km_afs'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -143,7 +144,6 @@ for fn in rlist:
     os.remove(fn)
 
 
-
 #supress warnings
 import warnings
 warnings.filterwarnings("ignore")
@@ -174,7 +174,6 @@ ma.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #get all drift pair files
 fl = sorted(glob(inpath+'SeaIceDrift*.npz'))
-#fl = fl[5:6]
 #colors for overview map
 color=iter(plt.cm.jet_r(np.linspace(0,1,len(fl)+1)))
 
@@ -198,7 +197,7 @@ for i in range(0,len(fl)):
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
     
     #if we want just the data until the week-long gap
-    if (dt1 > datetime(2015,1,27)) & (first_week==True): print('First week only'); break
+    if (dt1 > datetime(2015,1,27)) & (first_week==True): print('First week only') ;break
 
     diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
     
@@ -771,28 +770,15 @@ for i in range(0,len(fl)):
         #get difference of both
         poly5 = region.difference(poly4)
         
-        #polygon area
-        print(poly5.area)
-        print(poly5.hausdorf_distance) #The Hausdorff distance between two geometries is the furthest distance that a point on either geometry can be from the nearest point to it on the other geometry.
-        
-        exit()
-        #perimeter/area ratio
-        
-        
-        #smallest and largest polygon radius
-        
-        
-        
-        #distance between polygons (how wide are LKFs)
-        
-        #values for each floe
-        #statistics can be calculated later (mean, sd, PDF histograms)
-        
+        #save this polygons
+        with open(outpath_def+'afs_poly_'+date1, "wb") as poly_file:
+            pickle.dump(poly5, poly_file, pickle.HIGHEST_PROTOCOL)
+            #np.save(poly_file,poly5)
+
+
         #plot filtered/remaining triangles
         #check if they are dis/connected
         fig6    = plt.figure(figsize=(10,10))
-        
-        #plot original divergence field
         px      = fig6.add_subplot(111)
         m = pr.plot.area_def2basemap(area_def)
         m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
@@ -815,12 +801,10 @@ for i in range(0,len(fl)):
         #px.add_collection(p)
         
         #plot the union polygons (typically multipolygons)
-        try:
-            #is this a Polygon?
+        if poly3.geom_type == 'Polygon':
             xg, yg = poly3.exterior.xy 
             px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
-        except:
-            #or a MultiPolygon?
+        if poly3.geom_type == 'MultiPolygon':
             for geom in poly3.geoms:  
                 xg, yg = geom.exterior.xy    
                 px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
@@ -832,19 +816,14 @@ for i in range(0,len(fl)):
         px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
         
         #plot difference
-        try:
-            #is this a Polygon?
+        if poly5.geom_type == 'Polygon':
             xg, yg = poly5.exterior.xy 
             px.fill(xg, yg, alpha=0.5)
-        except:
-            #or a MultiPolygon?
+        if poly5.geom_type == 'MultiPolygon':
             for geom in poly5.geoms:  
                 xg, yg = geom.exterior.xy    
                 px.fill(xg, yg, alpha=0.5)
-        
-        
-        
-        
+
         #plot LKF triangles over
         patches_p = []
         for k in pindex:
@@ -1128,3 +1107,4 @@ for i in range(0,len(fl)):
     
             
 fig1.savefig(outpath+'overview_map_'+reg+'_'+str(int(radius/1000.)),bbox_inches='tight')
+

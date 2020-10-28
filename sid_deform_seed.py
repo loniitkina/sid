@@ -9,7 +9,7 @@ from scipy.spatial import ConvexHull
 #from shapely.geometry import Point, MultiPoint
 #from shapely.geometry import Polygon as Shapely_Polygon
 #from shapely.ops import unary_union
-#import pickle
+import pickle
 from sid_func import * 
 import itertools
 import matplotlib.pyplot as plt
@@ -57,8 +57,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 20000
-file_name_end = '_20km'
+radius = 25000
+file_name_end = '_25km'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -80,7 +80,7 @@ file_name_end = file_name_end+'.csv'
 inpath = '../sidrift/data/40m_combo/'
 #inpath = '../sidrift/data/40m_stp1_afternoon/' #files too big to open???
 #canberra
-inpath = 'data/40m_combo/'
+#inpath = 'data/40m_combo/'
 
 outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 #outpath_def = '../sidrift/data/80m_stp10_nofilter/'
@@ -94,7 +94,7 @@ outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 #afs 
 outpath_def = '../sidrift/data/stp10_asf/'
 #canberra
-outpath_def = 'data/stp10_afs/'
+#outpath_def = 'data/stp10_afs/'
 
 step = 10
 factor = 40    #(factor in sid_drift 1)
@@ -118,7 +118,7 @@ outpath = outpath_def
 
 metfile = '../sidrift/data/10minute_nounits.csv'
 #canberra
-metfile = 'data/10minute_nounits.csv'
+#metfile = 'data/10minute_nounits.csv'
 reg = 'Lance'
 proj = reg
 #reg = 'FYI'
@@ -707,6 +707,12 @@ for i in range(0,len(fl)):
         #dump active floe size input data into numpy file
         out_file = outpath_def+'Afs_'+date1+'_'+date2+file_name_end+'.npz'
         np.savez(out_file,pindex = pindex, tripts = tripts, xlist = xlist, ylist = ylist)
+
+        #for maping
+        out_area_def = outpath_def+'area_def_'+date1+'_'+date2+file_name_end+'.pkl'
+        f = open(out_area_def,'wb')
+        pickle.dump(area_def,f)
+        f.close()
 
         print('Storing data: ',out_file)
         continue

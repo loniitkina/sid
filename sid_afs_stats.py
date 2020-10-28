@@ -11,6 +11,9 @@ import pickle
 from sid_func import * 
 import itertools
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #buffer size in m (max distance between two nods to get connected)
 #6 and 7 km join a critical connection in the main 'N', but also too much of spaces between LKFs are filled
@@ -22,11 +25,11 @@ alpha = 0.0003
 
 inpath = '../sidrift/data/stp10_asf/'
 #canberra
-inpath = 'data/stp10_afs/'
+#inpath = 'data/stp10_afs/'
 outpath = inpath
 reg = 'Lance'
 
-file_name_end = '_20km'
+file_name_end = '_25km'
 
 #time series of afs satistics
 fig1    = plt.figure(figsize=(12,10))
@@ -53,24 +56,23 @@ rlist = glob(outpath+outname_asf)
 for fn in rlist:
     os.remove(fn)
 
-
-
-#fl = sorted(glob(inpath+'*poly*'))
-
-fl = sorted(glob(inpath+'Afs*'+file_name_end+'*.npz'))
-fl = sorted(glob(inpath+'Afs*.npz'))
+fl = sorted(glob(inpath+'Afs*'+file_name_end+'*.npz'))[1:]
 print(fl)
 
 for i in fl:
     print(i)
     
+    #get date
+    date = i.split('_')[2]
+    dt = datetime.strptime(date, "%Y%m%dT%H%M%S")
+
     #load data
-    container = np.load(i)
+    container = np.load(i, allow_pickle=True)
     pindex = container['pindex']
     tripts = container['tripts']
     xlist = container['xlist']
     ylist = container['ylist']
-
+    
     #get all nods of triangles in lkfs
     lkf_tri = [ tripts[p] for p in pindex ]
     lkf_nods = [val for sublist in lkf_tri for val in sublist]
@@ -135,22 +137,26 @@ for i in fl:
     poly5 = region.difference(poly4)
     
     #save this polygons
-    with open(outpath_def+'afs_poly_'+date1+'_'+file_name_end, "wb") as poly_file:
+    with open(outpath+'afs_poly_'+date+'_'+file_name_end, "wb") as poly_file:
         pickle.dump(poly5, poly_file, pickle.HIGHEST_PROTOCOL)
-        #np.save(poly_file,poly5)
-
 
     #plot filtered/remaining triangles
     #check if they are dis/connected
     fig6    = plt.figure(figsize=(10,10))
     px      = fig6.add_subplot(111)
+    
+    #map area definition
+    area_def_file = glob(inpath+'area_def_'+date+'*'+file_name_end+'*.pkl')[0]
+    with open(area_def_file, "rb") as pkl:
+        area_def = pickle.load(pkl)
     m = pr.plot.area_def2basemap(area_def)
+    
     m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
     m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
     
-    #Lance
-    xl, yl = m(Lance_lon, Lance_lat)
-    px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+    ##Lance
+    #xl, yl = m(Lance_lon, Lance_lat)
+    #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
     #patches = []
     #for k in range(tripts_afs.shape[0]):
@@ -201,20 +207,8 @@ for i in fl:
     
     print('Done with ASF analysis for', date1.split('T')[0])
     
-    #loop through the time series and exit when done
-    continue    
-
-    
-    
-    
-    
-    #get date
-    date = i.split('_')[-1]
-    dt = datetime.strptime(date, "%Y%m%dT%H%M%S")
-
-    with open(i, "rb") as poly_file:
-        poly = pickle.load(poly_file)
-        #poly = np.load(poly_file, allow_pickle=True)
+    #with open(i, "rb") as poly_file:
+        #poly = pickle.load(poly_file)
 
     #get some stats
     asf_date = []
@@ -224,38 +218,33 @@ for i in fl:
     asf_fr=[]
 
     if poly.geom_type == 'MultiPolygon':
-        for geom in poly.geoms:
+        for geom in poly5.geoms:
             #polygon area
-            
             a = geom.area
-            #print('area',a)
+
             #shortest radius
             centroid = geom.centroid
             rs = centroid.distance(geom.boundary)
-            #print(rs)
             #longest radius
             #The Hausdorff distance between two geometries is the furthest distance that a point on either geometry can be from the nearest point to it on the other geometry.
             rl = centroid.hausdorff_distance(geom.boundary)
-            #print(rl)
             #radius ratio ('roundness')
             rr = rs/rl
-            #print('roundness',rr)
             
-            #fragmentation ratio (fractuaction of the floe shape will be high if this floe is actually a conglomerate that can not be properly separated)
+            #fragmentation ratio (will be high if this floe is actually a conglomerate that can not be properly separated by LKF)
             #perimeter/area ratio
             bl = geom.boundary.length
             fr = bl/a
-            #print('fragmentation',fr)
-            
-            #does this floe include smaller polygons? (fragmets of boundary)
             
             #fraction of area not covered by floes (LKF fraction)
+            
+            #save data in lists
             asf_area.append(a)
             asf_rr.append(rr)
             asf_fr.append(fr)
             
             asf_date.append(dt)
-            asf_num.append(len(poly))
+            asf_num.append(len(poly5))
         
         #print(asf_date,asf_num,asf_area,asf_rr,asf_fr)
         

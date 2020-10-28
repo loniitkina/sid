@@ -6,10 +6,10 @@ from pyproj import Proj, transform
 from pyresample.geometry import AreaDefinition
 from scipy.spatial import Delaunay
 from scipy.spatial import ConvexHull
-from shapely.geometry import Point, MultiPoint
-from shapely.geometry import Polygon as Shapely_Polygon
-from shapely.ops import unary_union
-import pickle
+#from shapely.geometry import Point, MultiPoint
+#from shapely.geometry import Polygon as Shapely_Polygon
+#from shapely.ops import unary_union
+#import pickle
 from sid_func import * 
 import itertools
 import matplotlib.pyplot as plt
@@ -19,8 +19,12 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #WARNING: shapely can be unstable, lots of segfaults
 #try: pip uninstall shapely; pip install --no-binary :all: shapely
+#works better, but not good
 
-
+#Conda will have problems with some libraries installed by pip (if shared resources), better if all installed by conda
+#try: pip uninstall shapely; conda install shapely
+#no, that does not work use this instead: https://anaconda.org/conda-forge/shapely
+#does not work :(
 
 
 #How long do you want it to run?
@@ -37,12 +41,6 @@ image=True
 #active floe size
 afs=True
 #afs=False
-#buffer size in m (max distance between two nods to get connected)
-#6 and 7 km join a critical connection in the main 'N', but also too much of spaces between LKFs are filled
-#2km keeps most fo the LKF bits separate
-bf = 3000
-#alpha for triangulation in concave hull (0.0002 will give max 5km (1/alpha) triangles inside a concave hull)
-alpha = 0.0003
 
 
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
@@ -59,8 +57,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 25000
-file_name_end = '_25km_afs'
+radius = 20000
+file_name_end = '_20km'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -81,18 +79,22 @@ file_name_end = file_name_end+'.csv'
 
 inpath = '../sidrift/data/40m_combo/'
 #inpath = '../sidrift/data/40m_stp1_afternoon/' #files too big to open???
+#canberra
+inpath = 'data/40m_combo/'
 
 outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 #outpath_def = '../sidrift/data/80m_stp10_nofilter/'
 #outpath_def = '../sidrift/data/40m_parcels/'
 
 #parcels 
-inpath = '../sidrift/data/stp10_parcels_f1/'
+#inpath = '../sidrift/data/stp10_parcels_f1/'
 #inpath = '../sidrift/data/stp10_parcels_f1_rs2/'
-outpath_def = inpath
+#outpath_def = inpath
 
 #afs 
 outpath_def = '../sidrift/data/stp10_asf/'
+#canberra
+outpath_def = 'data/stp10_afs/'
 
 step = 10
 factor = 40    #(factor in sid_drift 1)
@@ -115,6 +117,8 @@ extra_margin = 20   #20 in test5 gace best results so far (also lets in the last
 outpath = outpath_def
 
 metfile = '../sidrift/data/10minute_nounits.csv'
+#canberra
+metfile = 'data/10minute_nounits.csv'
 reg = 'Lance'
 proj = reg
 #reg = 'FYI'
@@ -694,151 +698,18 @@ for i in range(0,len(fl)):
     
     #update pindex (triangle index) for afs and lkf_id
     pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
-    ##index of all the other triangles
-    #oindex = np.arange(0,len(tri.vertices));oindex = np.ma.array(oindex, mask=~threshold); oindex = np.ma.compressed(oindex)
+    
+    #get region polygon
+    xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
+    ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
 
-    #estimate active floe size
-    if afs:
+    if afs==True:
+        #dump active floe size input data into numpy file
+        out_file = outpath_def+'Afs_'+date1+'_'+date2+file_name_end+'.npz'
+        np.savez(out_file,pindex = pindex, tripts = tripts, xlist = xlist, ylist = ylist)
 
-        #get all nods of triangles in lkfs
-        lkf_tri = [ tripts[p] for p in pindex ]
-        lkf_nods = [val for sublist in lkf_tri for val in sublist]
-        print('This pair has # LKF nods',len(lkf_nods)) 
-        #lkf_nods_extra = lkf_nods.copy()
-        
-        ##other nods
-        #other_tri = [ tripts[o] for o in oindex ]
-        #other_nods = [val for sublist in other_tri for val in sublist]
-        
-        #get region polygon
-        xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
-        ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
-        region = Shapely_Polygon([[x[idcr1],y[idcr1]],[x[idcr2],y[idcr2]],[x[idcr3],y[idcr3]],[x[idcr4],y[idcr4]]])
-        
-        #buffer size in meters
-        print('buffer size',bf)
-        
-        #alpha for triangulation in concave hull
-        print('triangle radius up to',1/alpha)
-        
-        #for every nod draw a buffer around of size bf
-        all_poly2=[]
-        all_poly3=[]
-        for i in lkf_nods:
-            point = Point(i)
-            circle = Shapely_Polygon(point.buffer(bf).exterior)
-            
-            #check if any other points are inside this buffer
-            close_nods=[i]
-            for j in lkf_nods:
-                if circle.contains(Point(j)):
-                    close_nods.append(j)
-            
-            #convex hull
-            #poly2 = MultiPoint(close_nods).convex_hull
-            
-            #concave_hull should be better as it wont fill in bends in lkf shape
-            #it will not work if there are too few points
-            if len(close_nods) < 3:
-                continue    #just ignore these cases - not sure how this is possible... huge triangles?
-            else:
-                #it also wont work if points are few and co-planar
-                try:
-                    poly3, edge_points = alpha_shape(close_nods, alpha)
-                except:
-                    continue    #also ignore those cases
-            
-            #collect all such polygons
-            #all_poly2.append(poly2)
-            all_poly3.append(poly3)
-        
-        #make union
-        #poly2 = unary_union(all_poly2)
-        poly3 = unary_union(all_poly3)
-        
-        #can we thin such polygons to lines (erosion, simplify)
-        #extend them by some km
-        #check if we meet another line
-        #marge polygons
-        
-        #add a small frame (500m) along the edges of the region
-        #this will close any floes that run accros the region edge
-        frame = region.boundary.buffer(500)
-        poly4 = poly3.union(frame)
-
-        
-        #get difference of both
-        poly5 = region.difference(poly4)
-        
-        #save this polygons
-        with open(outpath_def+'afs_poly_'+date1, "wb") as poly_file:
-            pickle.dump(poly5, poly_file, pickle.HIGHEST_PROTOCOL)
-            #np.save(poly_file,poly5)
-
-
-        #plot filtered/remaining triangles
-        #check if they are dis/connected
-        fig6    = plt.figure(figsize=(10,10))
-        px      = fig6.add_subplot(111)
-        m = pr.plot.area_def2basemap(area_def)
-        m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-        m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-        
-        #Lance
-        xl, yl = m(Lance_lon, Lance_lat)
-        px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-
-        #patches = []
-        #for k in range(tripts_afs.shape[0]):
-            #patch = Polygon(tripts_afs[k,:,:])
-            #patches.append(patch)
-
-        ##plot filled triangles
-        #p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
-        #p.set_array(floe_id)
-        ##interval = [0, 2]
-        #p.set_clim(interval)
-        #px.add_collection(p)
-        
-        #plot the union polygons (typically multipolygons)
-        if poly3.geom_type == 'Polygon':
-            xg, yg = poly3.exterior.xy 
-            px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
-        if poly3.geom_type == 'MultiPolygon':
-            for geom in poly3.geoms:  
-                xg, yg = geom.exterior.xy    
-                px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
-        
-        xg, yg = region.exterior.xy 
-        px.fill(xg, yg, alpha=0.5, fc='none', ec='b')
-        
-        xg, yg = frame.exterior.xy 
-        px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
-        
-        #plot difference
-        if poly5.geom_type == 'Polygon':
-            xg, yg = poly5.exterior.xy 
-            px.fill(xg, yg, alpha=0.5)
-        if poly5.geom_type == 'MultiPolygon':
-            for geom in poly5.geoms:  
-                xg, yg = geom.exterior.xy    
-                px.fill(xg, yg, alpha=0.5)
-
-        #plot LKF triangles over
-        patches_p = []
-        for k in pindex:
-            patch = Polygon(tripts[k])
-            patches_p.append(patch)
-            
-        p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
-        px.add_collection(p)
-
-        fig6.savefig(outpath+'test_asf_'+str(int(bf/1000))+'km'+date1.split('T')[0]+'_'+str(int(radius/1000))+'km',bbox_inches='tight')
-        
-        print('Done with ASF analysis for', date1.split('T')[0])
-        
-        #loop through the time series and exit when done
-        continue    
+        print('Storing data: ',out_file)
+        continue
     
     #store all this for parcel tracking!
     if parcel:

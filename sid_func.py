@@ -8,6 +8,9 @@ import pyresample as pr
 from scipy import stats
 from scipy.stats import gaussian_kde
 from scipy.interpolate import interpn
+from shapely.ops import cascaded_union, polygonize
+from scipy.spatial import Delaunay
+from shapely import geometry
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -418,9 +421,6 @@ def save_geotiff(raster_array, area_def, export_path):
 
 #from https://gist.github.com/dwyerk/10561690
 
-from shapely.ops import cascaded_union, polygonize
-from scipy.spatial import Delaunay
-from shapely import geometry
 def alpha_shape(points, alpha):
     """
     Compute the alpha shape (concave hull) of a set

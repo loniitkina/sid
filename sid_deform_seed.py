@@ -57,8 +57,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 25000
-file_name_end = '_25km'
+radius = 60000
+file_name_end = '_60km'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -514,6 +514,7 @@ for i in range(0,len(fl)):
     #use threshold and triangle size criteria to detect noise due to step function in speed
     #hessian filter got rid of the image artifacts and bad data in the shattered zones (MIZ etc), all large triangle left are of good qualities
     #step function artefacts are all small traingles
+    #WARNING: still not all large triangles are part of this!
     threshold = ~((td>dummy_td) | (area > (distance*1.1)**2/2))
     
     #for high resolution data only:

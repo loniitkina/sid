@@ -35,10 +35,30 @@ ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 
 #ax.set_xlim(.1,10)
 
+
+#scale total divergence to average displacement (in one direction)
+#dux = n * sigma_x**2 / (2* A * dt).
+fig3 = plt.figure(figsize=(7.5,7))
+cx = fig3.add_subplot(111)
+
+cx.set_xlabel(r"Length scale (km)",fontsize=25)
+cx.set_ylabel(r"Total displacement (m)",fontsize=25)
+cx.set_xscale('log')
+cx.set_yscale('log')
+cx.set_xlim(.001,100)
+
+
+
 meanls_list_sr=[]
 meantd_list_sr=[]
+meanls_list_sr_all=[]
+meantd_list_sr_all=[]
+
+
 meanls_list_sar=[]
 meantd_list_sar=[]
+stdtd_list_sar=[]
+
 meanls_list_b=[]
 meantd_list_b=[]
 
@@ -49,6 +69,10 @@ td_list_b=[]
 ls_list_sar=[]
 td_list_sar=[]
 
+mean_dist_sar=[]
+std_dist_sar=[]
+mean_dist_sr=[]
+std_dist_sr=[]
 
 #SAR data
 #inpath = '../sidrift/data/whole_series_10stp_factor_def/data/'
@@ -70,7 +94,8 @@ fname_start = 'td_seed_f_Lance_L'
 #maxlen = [.15,.3,.4,.6,.9,1.5,2,  3.5,20]
 
 #create log-spaced vector and convert it to integers
-n=8 # number of samples
+n=9 # number of samples
+n=8
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
@@ -89,7 +114,7 @@ print(stp)
 #print(ls_stp)
 
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.2),np.log(10),n))
+margin = np.exp(np.linspace(np.log(.25),np.log(10),n))
 
 #colors
 color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
@@ -116,6 +141,8 @@ ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
 ##for the LKF plot
 #fig2 = plt.figure(figsize=(9,9))
 #bx = fig2.add_subplot(111)
+
+print('***********************sar***************************')
 
 for i in range(0,len(stp)-0):                           
 #for i in range(0,len(stp)):    
@@ -145,6 +172,7 @@ for i in range(0,len(stp)-0):
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
     ang = np.ma.compressed(ang)
+    tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
     
     #mask out all the acute triangles
     mask = ang<15
@@ -152,6 +180,7 @@ for i in range(0,len(stp)-0):
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
+    tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
         
     ##throw away very low deformation rates (pixel/template edge noise)
     no_all = len(td)
@@ -161,9 +190,10 @@ for i in range(0,len(stp)-0):
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
+    tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
     no_part = len(td)
     fraction = no_part/no_all
-    print('fraction: '+str(fraction))
+    print('fraction: '+str(fraction)+'from: '+str(no_all))
     
     ##replace low deformation rates by averages
     #mask = (td<dum2[i])
@@ -195,13 +225,15 @@ for i in range(0,len(stp)-0):
     ls = np.ma.array(ls,mask=mask)
     td = np.ma.array(td,mask=mask)
     ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)    
+    td = np.ma.compressed(td)
+    tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
     
     #calculate and store averages
     meanls=np.mean(ls)
     meantd=np.mean(td); print('mean td :',meantd, 'from', td.shape[0], 'values')
     meanls_list_sar.append(meanls)
     meantd_list_sar.append(meantd)
+    stdtd_list_sar.append(np.std(td))
     
     ls_list_sar.extend(ls)
     td_list_sar.extend(td)
@@ -227,6 +259,20 @@ for i in range(0,len(stp)-0):
         #weights = np.ones_like(lkf_ids) / (len(lkf_ids))
         #n, bins, patches = bx.hist(lkf_ids, range(1,7),label=str(stp[i]), density=True, alpha=1, histtype='step',lw=5, weights=weights)
 
+
+    #convert td to displacement
+    #dux = n * sigma_x**2 / (2* A * dt)
+    #sigma_x = np.sqrt(dux * (2* A * dt) /n )
+    tls = tls *3600 #convert back to seconds
+    ls = ls *1000 #convert back to meters
+    sigma_x = np.sqrt(td * (2* ls**2 * tls) /3 )
+    sigma_x_mean = np.mean(sigma_x)
+    mean_dist_sar.append(sigma_x_mean)
+    std_dist_sar.append(np.std(sigma_x))
+
+    cx.scatter(ls/1000, sigma_x, lw=0, alpha=.1, color=cl)
+    cx.plot(meanls,sigma_x_mean,'*',markersize=10,markeredgecolor='w',color=cl)
+
 #bx.legend()
 #fig2.savefig(outpath+'lkf_ids_len'+title+rr)
 
@@ -244,7 +290,7 @@ color=iter(plt.cm.Purples_r(np.linspace(0,1,len(lsc_list)+1)))
 #dummy values for ship radar
 dum2r = [dum2[0],dum2[1],dum2[1],dum2[2],dum2[3],dum2[3]]
 
-
+print('***********************ship_radar***************************')
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
     print(scale)
@@ -267,6 +313,30 @@ for i in range(0,len(lsc_list)):
     #ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
     #td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
     
+    #calculate and store averages
+    meanls=np.mean(ls)
+    meantd=np.mean(td)
+    meanls_list_sr_all.append(meanls)
+    meantd_list_sr_all.append(meantd)
+    #ls_list_sr.extend(ls)
+    #td_list_sr.extend(td)
+    
+    #plot averages for all the data
+    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
+    #all data in grey
+    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color='0.8')
+    
+    #convert td to displacement
+    tls = 24 *3600 #convert back to seconds
+    lsc = ls *1000 #convert back to meters
+    sigma_x = np.sqrt(td * (2* lsc**2 * tls) /3 )
+    sigma_x_mean = np.mean(sigma_x)
+    cx.scatter(ls, sigma_x, lw=0, alpha=.1, color=cl)
+    cx.plot(meanls,sigma_x_mean,'*',markersize=10,markeredgecolor='w',color=cl)
+    
+    mean_dist_sr.append(sigma_x_mean)
+    std_dist_sr.append(np.std(sigma_x))
+    
     #mask with the dummy values from SAR
     no_all = len(td)
     #mask = (td<dum2r[i])
@@ -277,21 +347,24 @@ for i in range(0,len(lsc_list)):
     td = np.ma.compressed(td)
     no_part = len(td)
     fraction = no_part/no_all
-    print('fraction: '+str(fraction))
+    print('fraction: '+str(fraction)+'from: '+str(no_all))
     
     #calculate and store averages
     meanls=np.mean(ls)
     meantd=np.mean(td)
     meanls_list_sr.append(meanls)
     meantd_list_sr.append(meantd)
-    ls_list_sr.extend(ls)
-    td_list_sr.extend(td)
+    #ls_list_sr.extend(ls)
+    #td_list_sr.extend(td)
 
     
     #plot all the data
     cl = next(color)
     ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
-    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
+    #ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
+    
+    
+
 
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
@@ -336,7 +409,7 @@ color=iter(plt.cm.Greens_r(np.linspace(0,1,len(lsc_list)+1)))
 #dummy values for buoys
 dum2b = [dum2[3],dum2[4],dum2[4]]
 
-
+print('***********************buoys***************************')
 for i in range(0,len(lsc_list)):
     print(i)
     mask = (ls<minlen[i]) | (ls>maxlen[i])
@@ -359,8 +432,8 @@ for i in range(0,len(lsc_list)):
     meantd=np.mean(td_class)
     meanls_list_b.append(meanls)
     meantd_list_b.append(meantd)
-    ls_list_b.extend(ls)
-    td_list_b.extend(td)
+    #ls_list_b.extend(ls)
+    #td_list_b.extend(td)
 
     
     #plot all the data
@@ -377,9 +450,17 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,meantd_list_sr)
 #dummy x data for plotting
 x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
 
+#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='orange')
+#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+#all the ship radar data
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr_all[:],meantd_list_sr_all[:])
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='orange')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+
 
 #buoys
 #fit the line to bins
@@ -388,6 +469,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_b,meantd_list_b)
 
 #dummy x data for plottingoutpath+'power_law_24h_'+title+rr
 x = np.arange(min(meanls_list_b), max(meanls_list_b), 1)
+
 
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='y')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
@@ -409,14 +491,218 @@ ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c=
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
+##and just SAR long scales
+#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[-5:],meantd_list_sar[-5:])
+#ax.loglog(x,a*x**k,linewidth=2, ls='--',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
+
+#and combined SR for short scales and SAR for long scales
+comb_ls=[]
+comb_ls.extend(meanls_list_sr_all[:-2])
+comb_ls.extend(meanls_list_sar[-4:])
+
+comb_td=[]
+comb_td.extend(meantd_list_sr_all[:-2])
+comb_td.extend(meantd_list_sar[-4:])
+
+a,k,cix,ciy_upp,ciy_low = logfit(comb_ls,comb_td)
+ax.loglog(x,a*x**k,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
+ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+
+
+
+#and Ship radar distances
+x = np.arange(.001, max(ls_list_sar), 1)
+
+ad,kd,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,mean_dist_sr)
+cx.loglog(x,ad*x**kd,linewidth=2, ls='--',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(ad*10e6,kd),c='purple')
+#ast,kst,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,std_dist_sr)
+#cx.loglog(x,ast*x**kst,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(ast*10e6,kst),c='purple')
+
+#and SAR distances
+ad,kd,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[-5:],mean_dist_sar[-5:])
+cx.loglog(x,ad*x**kd,linewidth=2, ls='--',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(ad*10e6,kd),c='darkred')
+##SAR standard deviation
+#ast,kst,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[0:],std_dist_sar[0:])
+#cx.loglog(x,ast*x**kst,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(ast*10e6,kst),c='darkred')
+
+
+#combined
+comb_dist=[]
+comb_dist.extend(mean_dist_sr[:-2])
+comb_dist.extend(mean_dist_sar[-4:])
+comb_std=[]
+comb_std.extend(std_dist_sr[:-2])
+comb_std.extend(std_dist_sar[-4:])
+
+ad,kd,cix,ciy_upp,ciy_low = logfit(comb_ls,comb_dist)
+cx.loglog(x,ad*x**kd,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(ad*10e6,kd),c='darkred')
+ast,kst,cix,ciy_upp,ciy_low = logfit(comb_ls,comb_std)
+
+#extend the x
+dist=[]
+dist.extend([.001,.03,.2])
+dist.extend(meanls_list_sar)
+
+#create random log normal distributon with such means and standar deviation
+def generate_lognormal_samples(mean, stdev, n=1):
+    """
+    from: https://pythonhealthcare.org/2019/02/07/120-generating-log-normal-samples-from-provided-arithmetic-mean-and-standard-deviation-of-original-population/
+    Returns n samples taken from a lognormal distribution, based on mean and
+    standard deviation calaculated from the original non-logged population.
+    
+    Converts mean and standard deviation to underlying lognormal distribution
+    mu and sigma based on calculations desribed at:
+        https://blogs.sas.com/content/iml/2014/06/04/simulate-lognormal-data-
+        with-specified-mean-and-variance.html
+        
+    Returns a numpy array of floats if n > 1, otherwise return a float
+    """
+    
+    # Calculate mu and sigma of underlying lognormal distribution
+    phi = (stdev ** 2 + mean ** 2) ** 0.5
+    mu = np.log(mean ** 2 / phi)
+    sigma = (np.log(phi ** 2 / mean ** 2)) ** 0.5
+    
+    # Generate lognormal population
+    generated_pop = np.random.lognormal(mu, sigma , n)
+    
+    # Convert single sample (if n=1) to a float, otherwise leave as array
+    generated_pop = \
+        generated_pop[0] if len(generated_pop) == 1 else generated_pop
+        
+    return generated_pop
+
+
+for i in range(0,len(dist)):
+    #distances
+    mean = ad*dist[i]**kd
+    #stdev = std_dist_sar[i]                                       #here we need to use something else... scale this from the last 4 too!!!
+    stdev = ast*dist[i]**kst
+    generated_pop = generate_lognormal_samples(mean, stdev, 1000)
+    print ('Mean:', generated_pop.mean())
+    print ('Standard deviation:', generated_pop.std())
+
+    sample_x = np.ones_like(generated_pop)*dist[i]
+
+    cx.scatter(sample_x, generated_pop, marker='o', lw=0, alpha=.2, color='r')
+    cx.plot(dist[i],generated_pop.mean(),'*',markersize=10,markeredgecolor='w',color='r')
+    
+    ##total deformation
+    #mean = a*meanls_list_sar[i]**k
+    #stdev = stdtd_list_sar[i]                                       #here we need to use something else...
+    
+    #generated_pop = generate_lognormal_samples(mean, stdev, 1000)
+    #print ('Mean:', generated_pop.mean())
+    #print ('Standard deviation:', generated_pop.std())
+
+    #sample_x = np.ones_like(generated_pop)*meanls_list_sar[i]
+
+    #ax.scatter(sample_x, generated_pop, marker='o', lw=0, alpha=.2, color='r')
+    #ax.plot(meanls_list_sar[i],generated_pop.mean(),'*',markersize=10,markeredgecolor='w',color='r')
+
+
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())    
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_'+title+rr)
-print(outpath+'power_law_24h_'+title+rr)
+fig1.savefig(outpath+'power_law_24h_comp_'+title+rr)
+print(outpath+'power_law_24h_comp_'+title+rr)
 
 
-#some extra LKF statistics
+#storing displacements
+cx.grid('on')
+cx.xaxis.set_major_formatter(ScalarFormatter())   
+#cx.minorticks_off()
+#cx.set_yscale('log', subsy=[.01, .1, 1, 10, 100, 1000, 10000]) #basey, 'subsy', nonposy'
+#cx.yaxis.set_major_formatter(ScalarFormatter())
+cx.set_yticks([.001,.01, .1, 1, 10, 100, 1000, 10000, 100000],[0.001,0.01, 0.1, 1, 10, 100, 1000, 10000, 100000])
+
+
+#cx.yaxis.ticker.Formatter.IndexFormatter(labels=[0.001,0.01, 0.1, 1, 10, 100, 1000, 10000, 100000])
+cx.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
+fig3.tight_layout()
+
+fig3.savefig(outpath+'power_law_24h_disp_'+title+rr)
+
+
+
+
+#difference plots for short time steps
+
+x = np.array(meanls_list_sar)
+sar_est = a*x**k
+
+
+diff_sar = np.array(meantd_list_sar) - sar_est
+
+
+x = np.array(meanls_list_sr)
+sh_est = a*x**k
+
+diff_sr = np.array(meantd_list_sr) - sh_est
+
+diff_sr_all = np.array(meantd_list_sr_all) - sh_est
+
+#print(meanls_list_sr)
+#print(meanls_list_sr_all)
+
+print(diff_sar)
+print(diff_sr)
+
+
+
+
+
+
+
+
+
+fig2 = plt.figure(figsize=(7.5,7))
+bx = fig2.add_subplot(111)
+
+bx.set_xlabel(r"Length scale (km)",fontsize=25)
+bx.set_ylabel(r"Total deformation difference (s$^{-1}$)",fontsize=25)
+
+bx.loglog(meanls_list_sar,diff_sar,linewidth=2, marker='o')
+bx.loglog(meanls_list_sr,diff_sr,linewidth=2, marker='o')
+bx.loglog(meanls_list_sr,diff_sr_all,linewidth=2, marker='o')
+
+#dummy line
+a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
+bx.loglog(x,a_dum*x**k_dum,linewidth=1,c='k',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k))
+
+#SAR
+x = np.arange(min(meanls_list_sar[:-4]), max(meanls_list_sar[:-4]), 1)
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[:-4],diff_sar[:-4])
+bx.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='y')
+#bx.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+#bx.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+#ship radar
+x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr[:-2],diff_sr[:-2])
+bx.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='r')
+#bx.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+#bx.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+#ship radar all
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr[:-3],diff_sr_all[:-3])
+bx.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='b')
+
+
+bx.grid('on')
+bx.xaxis.set_major_formatter(ScalarFormatter())    
+bx.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
+fig2.tight_layout()
+
+fig2.savefig(outpath+'power_law_24h_comp_diff_'+title+rr)
+
+
+
+
+
+

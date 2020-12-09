@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 #plotting
 fig1 = plt.figure(figsize=(10,5))
 ax = fig1.add_subplot(121)
-title = 'moments_UB'
+title = 'moments_UiT'
 ax.set_title(title,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
@@ -22,8 +22,7 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 
 #ship radar data
-#inpath = '../data/ship_radar/24h/'
-inpath = '../data/ship_radar/time_sliced_data/'
+inpath = '../sidrift/data/ship_radar/time_sliced_data/'
 outpath = '../plots/'
 name1 = 'Annu Oikkonen - Period'
 name2 = '_Deformation_L'
@@ -101,7 +100,7 @@ slopes_rad.append(k*-1)
     
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
-inpath = '../data/buoys/'
+inpath = '../sidrift/data/buoys/'
 outpath = '../plots/'
 fname_start = 'nice1_in_SAR'
 fname_td1 = inpath+'dr_'+fname_start+'1_'+'24h'
@@ -109,8 +108,8 @@ fname_ls1 = inpath+'ls_'+fname_start+'1_'+'24h'
 fname_td2 = inpath+'dr_'+fname_start+'2_'+'24h'
 fname_ls2 = inpath+'ls_'+fname_start+'2_'+'24h'
  
-td = np.append(np.load(fname_td1,encoding='latin1'),np.load(fname_td2,encoding='latin1'))/24/60/60      #convert from days to s
-ls = np.append(np.load(fname_ls1,encoding='latin1'),np.load(fname_ls2,encoding='latin1'))
+td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
 
 #throw away very high deformation rates (unrealistic values)
 mask = td>10e-3
@@ -177,15 +176,16 @@ ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='darkred',ls=
     
 
 #SAR data
-inpath = '/Data/sim/polona/sid/deform/'
-outpath = '../plots/'
-fname_start = 'td_leg1_L'
+inpath = '../sidrift/data/80m_stp10_single_filter/'
+outpath = inpath
+fname_start = 'td_seed_f_Lance_L'
+radius = '_100km_n9.csv'
 #create log-spaced vector and convert it to integers
 n=8 # number of samples
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.01),np.log(3),n))
+margin = np.exp(np.linspace(np.log(.25),np.log(10),n))
 
 meanls_list=[]
 meantd_list=[]
@@ -193,10 +193,10 @@ mom2_list=[]
 mom3_list=[]
 mom4_list=[]
 
-for i in range(0,len(stp)-2):                           #the last two steps are off the curve, try removing them
+for i in range(0,len(stp)):                           #the last two steps are off the curve, try removing them
     scale = stp[i]
     print(scale)
-    fname = inpath+fname_start+str(scale)+'_7km.csv'
+    fname = inpath+fname_start+str(scale)+radius
     print(fname)
     
     ls = getColumn(fname,1, delimiter=',')
@@ -224,12 +224,12 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     ls = np.ma.compressed(ls)
     td = np.ma.compressed(td)
         
-    #throw away very low deformation rates (pixel/template edge noise)
-    mask = td<.5e-7
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)   
+    ##throw away very low deformation rates (pixel/template edge noise)
+    #mask = td<.5e-7
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)   
 
     #mask all very small or big triangles
     #if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
@@ -263,25 +263,30 @@ for i in range(0,len(stp)-2):                           #the last two steps are 
     mom2_list.append(moments[1])
     mom3_list.append(moments[2])
     mom4_list.append(moments[3])
+
+#print(mom2_list)
+#print(mom3_list)
+#print(mom4_list)
+#exit()
     
 
 slopes_sar=[]
     
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,meantd_list)
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[-5:],meantd_list[-5:])
 #dummy x data for plotting
-x = np.arange(min(meanls_list), max(meanls_list), 1)
+x = np.arange(min(meanls_list[-5:]), max(meanls_list[-5:]), 1)
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='orange',ls='--')
 slopes_sar.append(k*-1)
 
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,mom2_list)
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[-5:],mom2_list[-5:])
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='salmon',ls='--')
 slopes_sar.append(k*-1)
     
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,mom3_list)
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[-5:],mom3_list[-5:])
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='royalblue',ls='--')
 slopes_sar.append(k*-1)
     
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list,mom4_list)
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list[-5:],mom4_list[-5:])
 ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='darkred',ls='--')
 slopes_sar.append(k*-1)
 

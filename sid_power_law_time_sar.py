@@ -23,6 +23,7 @@ meantd_list_b=[]
 inpath = '../sidrift/data/ship_radar/time_sliced_data/'
 name1 = 'Annu Oikkonen - Period'
 name2 = '_Deformation_L6_'
+#name2 = '_Deformation_L1_'
 lsc_list = [1,3,6,12,24]
 
 for i in range(0,len(lsc_list)):
@@ -31,10 +32,15 @@ for i in range(0,len(lsc_list)):
 
     #period 1
     fname = inpath+name1+'1'+name2+str(scale)+'h.txt'
-    td = getColumn(fname,1, delimiter=' ')
-
+    td1 = getColumn(fname,1, delimiter=' ')
+    
+    #period 2
+    fname = inpath+name1+'2'+name2+str(scale)+'h.txt'
+    td2 = getColumn(fname,1, delimiter=' ')
+    
+    #combine
     ls = scale
-    td = np.array(td,dtype=np.float)/3600      #convert from h to s
+    td = np.array(np.append(td1,td2),dtype=np.float)/3600      #convert from h to s
     
     #calculate and store averages
     meanls=ls
@@ -58,9 +64,12 @@ for i in lsc_list:
     
     fname_td1 = inpath+'dr_'+fname_start+'1_'+str(scale)+'h'
     fname_ls1 = inpath+'ls_'+fname_start+'1_'+str(scale)+'h'
+    fname_td2 = inpath+'dr_'+fname_start+'2_'+str(scale)+'h'
+    fname_ls2 = inpath+'ls_'+fname_start+'2_'+str(scale)+'h'
     
-    td = np.load(fname_td1,encoding='latin1',allow_pickle=True)/24/60/60      #convert from days to s
-    ls = np.load(fname_ls1,encoding='latin1',allow_pickle=True)
+    td = np.append(np.load(fname_td1,encoding='latin1',allow_pickle=True),np.load(fname_td2,encoding='latin1',allow_pickle=True))/24/60/60      #convert from days to s
+    ls = np.append(np.load(fname_ls1,encoding='latin1',allow_pickle=True),np.load(fname_ls2,encoding='latin1',allow_pickle=True))
+
     
     print(len(ls))
     
@@ -98,13 +107,27 @@ for i in lsc_list:
 
 #SAR data
 reg = 'leg1'
-lscale = 5
 inpath = '../sidrift/data/80m_stp10_time/'
 outpath = inpath
 fname_start = 'td_seed_f_Lance_L'
 
-minlen=2
-maxlen=3
+##lots of data, but influenced by missing low deformation data
+#lscale = 2
+#minlen=1
+#maxlen=2
+
+##this has some data
+#lscale = 5
+#minlen=2
+#maxlen=3
+
+#this does not have enough data in 7km range
+lscale = 11
+minlen=5
+maxlen=10
+
+#conclussion: we need ~10km radius (or more) and lenght scale ~6 (3-5km)
+#also try larger temporal scales for buoys and SAR (7 days)
 
 tc_min = [1,2,15,20,25,50]
 tc_max = [2,9,20,25,50,80]
@@ -214,12 +237,17 @@ ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='royalblue')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
+#the last 3 scales of SAR
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[-3:],meantd_list_sar[-3:])
+ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f L^{%.2f}$' %(a,k),c='royalblue',ls='--')
+
+
 
 
 ax.grid('on')
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())    
-ax.legend(loc='upper right',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
+ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_3-5km_'+title)
+fig1.savefig(outpath+'power_law_3-5km_whole_period'+title)

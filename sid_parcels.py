@@ -25,10 +25,11 @@ fp = 5  #final image pair
 
 #-------------------------------------------------------------------
 inpath = '../sidrift/data/stp10_parcels_f1/'
-inpath = '../sidrift/data/stp10_parcels_f1_rs2/'    #alternative endings
+#inpath = '../sidrift/data/stp10_parcels_f1_rs2/'    #alternative endings
 inpath_drift = inpath
 outpath_data = inpath
 outpath = inpath
+outpath = '../sidrift/data/stp10_parcels_test/'
 
 #inpath = '../sidrift/data/80m_stp10_single_filter/'
 #inpath_drift = '../sidrift/data/40m_combo/'
@@ -51,7 +52,8 @@ Lance_lat = llat_dtb[mi]
 #Lance start location in geographical coordinates
 from pyproj import Proj, transform
 inProj = Proj(init='epsg:4326')
-outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +a=6378137 +b=6356752.3142 +units=m' % (90, 0))
+#Use same projection as in pattern matching part of the sea ice drift algorithm
+outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=m' % (90, 10))
 xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
 
 #create a grid of spacing of 100m in each direction in the radius from the ship's initial position
@@ -81,7 +83,7 @@ y_path[0,:] = y_buoy
 date = [start]
 
 for i in range(0,len(fl_dmg)):
-    #break
+    break
     #read in the drift data
     print(fl[i])
     container = np.load(fl[i])
@@ -90,6 +92,10 @@ for i in range(0,len(fl_dmg)):
     u = container['upm']
     v = container['vpm']
     hpm = container['hpm'] 
+    
+    #lat2 = container['lat2']
+    #lon2 = container['lon2']   
+    #exit()
     
     #quality filter 
     gpi = hpm > 9
@@ -129,35 +135,35 @@ for i in range(0,len(fl_dmg)):
     #print(np.max(np.ma.masked_invalid(dx)))
     #print(np.mean(np.ma.masked_invalid(dx)))
     
-    #check how much Lance drifted in this time and apply one number correction
-    #this helps keeping the deformed ice in a line (relative location), but it deteriorates the absolute positions
-    mi = np.argmin(abs(np.asarray(dtb)-dt1))
-    Lance_lon1 = llon_dtb[mi]
-    Lance_lat1 = llat_dtb[mi]
+    ##check how much Lance drifted in this time and apply one number correction
+    ##this helps keeping the deformed ice in a line (relative location), but it deteriorates the absolute positions
+    #mi = np.argmin(abs(np.asarray(dtb)-dt1))
+    #Lance_lon1 = llon_dtb[mi]
+    #Lance_lat1 = llat_dtb[mi]
 
-    mi = np.argmin(abs(np.asarray(dtb)-dt2))
-    Lance_lon2 = llon_dtb[mi]
-    Lance_lat2 = llat_dtb[mi]
+    #mi = np.argmin(abs(np.asarray(dtb)-dt2))
+    #Lance_lon2 = llon_dtb[mi]
+    #Lance_lat2 = llat_dtb[mi]
     
-    lx1,ly1 = transform(inProj,outProj,Lance_lon1, Lance_lat1)
-    lx2,ly2 = transform(inProj,outProj,Lance_lon2, Lance_lat2)
+    #lx1,ly1 = transform(inProj,outProj,Lance_lon1, Lance_lat1)
+    #lx2,ly2 = transform(inProj,outProj,Lance_lon2, Lance_lat2)
     
-    ldx = lx2-lx1
-    ldy = ly2-ly1
+    #ldx = lx2-lx1
+    #ldy = ly2-ly1
         
-    #find local displacement (closest coordinate) and correct uniformly for that displacement
-    mask_l = (x1>lx1-spacing) & (x1<lx1+spacing) & (y1>ly1-spacing) & (y1<ly1+spacing)
-    #print(x1[mask_l], y1[mask_l])
-    dx_near = np.mean(np.ma.masked_invalid(dx[mask_l]))
-    dy_near = np.mean(np.ma.masked_invalid(dy[mask_l]))
-    #print(dx_near, dy_near)
+    ##find local displacement (closest coordinate) and correct uniformly for that displacement
+    #mask_l = (x1>lx1-spacing) & (x1<lx1+spacing) & (y1>ly1-spacing) & (y1<ly1+spacing)
+    ##print(x1[mask_l], y1[mask_l])
+    #dx_near = np.mean(np.ma.masked_invalid(dx[mask_l]))
+    #dy_near = np.mean(np.ma.masked_invalid(dy[mask_l]))
+    ##print(dx_near, dy_near)
     
-    x_correction = dx_near-ldx
-    y_correction = dy_near-ldy
-    print(x_correction, y_correction)
+    #x_correction = dx_near-ldx
+    #y_correction = dy_near-ldy
+    #print(x_correction, y_correction)
     
-    dx = dx-x_correction
-    dy = dy-y_correction
+    #dx = dx-x_correction
+    #dy = dy-y_correction
     
     #estimate positions after drift
     x2 = x1 + dx
@@ -191,6 +197,24 @@ for i in range(0,len(fl_dmg)):
         rr = np.mean(np.ma.masked_invalid(rid[mask_d]))
         ridges[i+1,m] = rr
         
+        #how can i track the area change over this triangle???
+        #for that i need to always use the same nods and keep record of the area
+        
+        #this is only possible if output points from one drift pair are kept as input for the other.
+        #and some mew points are added
+        
+        #or simlpy, why not claculating deformaiton again the parcel script, there cells are tracked...
+        
+        #then track volume of lead ice and ridge ice in every parcel...
+        #no, parcels are just points, how should i distribute the values from triangles to them???
+        
+        #use some simple themodynamice model for sea ice growth inside the parcel
+        #dynamic components based on area change creates leads and ridges
+        #these new, ridge ice needs to be distributed somehow inside the parcels
+        #what can we learn from Albeldyl et al, TC???
+        
+        
+        
         ##how close are other parcels?
         ##check in all 4 directions if we have a neighbor at less than 2 spacing away. if not create new neighbor at 1 spacig away
         #if np.min(np.abs(x_buoy-x_buoy[m])) > 2*spacing:
@@ -218,18 +242,18 @@ for i in range(0,len(fl_dmg)):
 
             
 
-#save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
-lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
-print(x_path[:,0])
-print(lat_path[:,0]) #does 90 come from nan???
+##save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
+#lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
+#print(x_path[:,0])
+#print(lat_path[:,0]) #does 90 come from nan???
 
-#dump data into numpy file
-out_file = outpath_data+'VB.npz'
-np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
+##dump data into numpy file
+#out_file = outpath_data+'VB.npz'
+#np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
 
-#save dates separatelly
-out_file = outpath_data+'VB_dates.npz'
-np.savez(out_file,date=date)
+##save dates separatelly
+#out_file = outpath_data+'VB_dates.npz'
+#np.savez(out_file,date=date)
 
 #make some plots
 out_file = outpath_data+'VB.npz'
@@ -257,7 +281,7 @@ from pyresample.geometry import AreaDefinition
 area_id = 'around Lance'
 description = 'North Pole LAEA'
 proj_id = 'lance'
-proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':0, 'a':6378137, 'b':6356752.3142, 'units':'m'}
+proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
 width = radius_proj*2/100 #100 m spacing    (should have same resolution as the final gridded map)
 height = radius_proj*2/100 #100 m spacing
 area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj)
@@ -294,9 +318,9 @@ for i in range(1,fp+1):#lon_path.shape[0]):
     rr = np.ma.masked_where(~(np.isfinite(lat_path[i,:])),ridges[i,:]); rr = np.ma.compressed(rr)
     ll = np.ma.masked_where(~(np.isfinite(lat_path[i,:])),leads[i,:]); ll = np.ma.compressed(ll)
     
-    ax.scatter(x,y,c=dd,lw=5)         #marker size should be radius dependant
-    bx.scatter(x,y,c=ll,lw=5)
-    cx.scatter(x,y,c=rr,lw=5)
+    ax.scatter(x,y,c=dd,lw=2)         #marker size should be radius dependant
+    bx.scatter(x,y,c=ll,lw=2)
+    cx.scatter(x,y,c=rr,lw=2)
 
     cl = next(color)
     
@@ -367,16 +391,16 @@ lap = np.ma.masked_invalid(lat_path[fp,:]); lap = np.ma.compressed(lap)
 x,y = m(lop,lap)
 
 dd = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),dtotal); dd = np.ma.compressed(dd)
-ax.scatter(x,y,c=dd,lw=5)
+ax.scatter(x,y,c=dd,lw=2)
 
 ll = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),ltotal); ll = np.ma.compressed(ll)
-bx.scatter(x,y,c=ll,lw=5)
+bx.scatter(x,y,c=ll,lw=2)
 
 rr = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),rtotal); rr = np.ma.compressed(rr)
-cx.scatter(x,y,c=rr,lw=5)
+cx.scatter(x,y,c=rr,lw=2)
 
 cc = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),classified); cc = np.ma.compressed(cc)
-scatter = dx.scatter(x,y,c=cc,lw=5)
+scatter = dx.scatter(x,y,c=cc,lw=2)
 
 # produce a legend with the unique colors from the scatter
 legend1 = dx.legend(*scatter.legend_elements(),
@@ -400,7 +424,11 @@ plt.close()
 
 #interpolate these parcels to a regular grid, so that they can be saved as geotiff
 swath_def = pr.geometry.SwathDefinition(lons=lop, lats=lap)
-classified_map = pr.kd_tree.resample_gauss(swath_def, cc,area_def, radius_of_influence=1000, sigmas=500)
+classified_map = pr.kd_tree.resample_gauss(swath_def, cc,area_def, radius_of_influence=500, sigmas=500)
+
+plt.imshow(classified_map)
+plt.show()
+
 
 #save this a geotiff
 geotiff_file = outpath+outname+'.tiff'

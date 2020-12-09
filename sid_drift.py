@@ -148,6 +148,10 @@ for i in range(0,len(fl)):
     print('*****************************Feature Tracking*****************************')
     uft, vft, lon1ft, lat1ft, lon2ft, lat2ft = sid.get_drift_FT()
 
+    #this could be substituted from final positions in previous image pair (in time)
+    #IF the location was precise!!!
+
+
     # user defined grid of points:
     srs = '+proj=laea lat_0=%f lon_0=%f +datum=WGS84 +ellps=WGS84 +no_defs' % (90, 10)
     #d = Domain(srs, '-te -100000 -100000 100000 100000 -tr 1000 1000')

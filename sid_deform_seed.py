@@ -39,14 +39,17 @@ image=True
 #image=False
 
 #active floe size
-afs=True
-#afs=False
-
+#afs=True
+afs=False
 
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 #just save level 1 data and exit
-#parcel=True
+parcel=True
 parcel=False
+
+#time series
+#time_series=True
+time_series=False
 
 #
 #no_threshold=True
@@ -57,8 +60,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 60000
-file_name_end = '_60km'
+radius = 7000
+file_name_end = '_7km'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -83,16 +86,15 @@ inpath = '../sidrift/data/40m_combo/'
 #inpath = 'data/40m_combo/'
 
 outpath_def = '../sidrift/data/80m_stp10_single_filter/'
-#outpath_def = '../sidrift/data/80m_stp10_nofilter/'
-#outpath_def = '../sidrift/data/40m_parcels/'
+outpath_def = '../sidrift/data/80m_stp10_nofilter/'
 
 #parcels 
-#inpath = '../sidrift/data/stp10_parcels_f1/'
+inpath = '../sidrift/data/stp10_parcels_f1/'
 #inpath = '../sidrift/data/stp10_parcels_f1_rs2/'
 #outpath_def = inpath
 
 #afs 
-outpath_def = '../sidrift/data/stp10_asf/'
+#outpath_def = '../sidrift/data/stp10_asf/'
 #canberra
 #outpath_def = 'data/stp10_afs/'
 
@@ -155,13 +157,19 @@ warnings.filterwarnings("ignore")
 #map of frames and valid data = overview map
 #make a map of the whole area for witch the drift data is processed
 inProj = Proj(init='epsg:4326')
-outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +a=6378137 +b=6356752.3142 +units=m' % (90, 10))
+#Use same projection as in pattern matching part of the sea ice drift algorithm
+outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=m' % (90, 10))
 
 #Using a projection dictionary
 area_id = 'around Lance'
 description = 'North Pole LAEA Europe'
 proj_id = 'lance'
-proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'a':6378137, 'b':6356752.3142, 'units':'m'}
+#proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'a':6378137, 'b':6356752.3142, 'units':'m'}
+#SRS used in sea ice drift:
+#srs = '+proj=laea lat_0=%f lon_0=%f +datum=WGS84 +ellps=WGS84 +no_defs' % (90, 10)
+#because displacements and velocities are in this projection we should use it here too!
+proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
+
 regn = 84; regs = 81
 regw = 10; rege = 30
 xc1,yc1 = transform(inProj,outProj,regw, regs)
@@ -520,6 +528,11 @@ for i in range(0,len(fl)):
     #for high resolution data only:
     #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
     #threshold = ~((np.abs(div)>abs(dummy_div)) | (area > (distance*2.5)**2/2))
+    
+    
+    ##threshold average
+    #threshold_average_div = 
+    #threshold_average_shr =
                 
     ##apply LKF filter
     #prepare place to store filtered data
@@ -697,76 +710,124 @@ for i in range(0,len(fl)):
         print('Figure saved!')###########################################################################################################3
         #exit()   
     
-    #update pindex (triangle index) for afs and lkf_id
-    pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
-    
-    #get region polygon
-    xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
-    ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
+        #update pindex (triangle index) for afs and lkf_id
+        pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
+        
+        #get region polygon
+        xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
+        ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
 
-    if afs==True:
-        #dump active floe size input data into numpy file
-        out_file = outpath_def+'Afs_'+date1+'_'+date2+file_name_end+'.npz'
-        np.savez(out_file,pindex = pindex, tripts = tripts, xlist = xlist, ylist = ylist)
+        if afs==True:
+            #dump active floe size input data into numpy file
+            out_file = outpath_def+'Afs_'+date1+'_'+date2+file_name_end+'.npz'
+            np.savez(out_file,pindex = pindex, tripts = tripts, xlist = xlist, ylist = ylist)
 
-        #for maping
-        out_area_def = outpath_def+'area_def_'+date1+'_'+date2+file_name_end+'.pkl'
-        f = open(out_area_def,'wb')
-        pickle.dump(area_def,f)
-        f.close()
+            #for maping
+            out_area_def = outpath_def+'area_def_'+date1+'_'+date2+file_name_end+'.pkl'
+            f = open(out_area_def,'wb')
+            pickle.dump(area_def,f)
+            f.close()
 
-        print('Storing data: ',out_file)
-        continue
-    
-    #store all this for parcel tracking!
-    if parcel:
-        #find in triangle centroid
-        ctrdx = np.zeros_like(div);ctrdy = np.zeros_like(div) 
-        for i in range(0,len(tripts)):
-            ctrdx[i],ctrdy[i] = centroid(tripts[i])
+            print('Storing data: ',out_file)
+            continue
+        
+        #store all this for parcel tracking!
+        if parcel:
+            #find in triangle centroid
+            ctrdx = np.zeros_like(div);ctrdy = np.zeros_like(div) 
+            for i in range(0,len(tripts)):
+                ctrdx[i],ctrdy[i] = centroid(tripts[i])
+                
+            #convert to lat,lon
+            ctrd_lon,ctrd_lat = m(ctrdx,ctrdy,inverse=True)
             
-        #convert to lat,lon
-        ctrd_lon,ctrd_lat = m(ctrdx,ctrdy,inverse=True)
-        
-        #get 0,1 array with all damaged triangles as 1
-        damage = np.where(~threshold,1,0)
-        lead = np.where((div_f2>0)&(~threshold),1,0)
-        ridge = np.where((div_f2<0)&(~threshold),1,0)
-        
-        #dump damage data into numpy file
-        out_file = outpath_def+'Damage_'+date1+'_'+date2+'.npz'
-        np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge)
+            #get 0,1 array with all damaged triangles as 1
+            damage = np.where(~threshold,1,0)
+            lead = np.where((div_f2>0)&(~threshold),1,0)
+            ridge = np.where((div_f2<0)&(~threshold),1,0)
+            
+            #how can i track the area change over this triangle???
+            #keep triangulation but apply to lon2,lat2
+            #final coordinates can be stored by drift script or calculated from displacements
+            
+            
+            #dump damage data into numpy file
+            out_file = outpath_def+'Damage_'+date1+'_'+date2+'.npz'
+            np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge)
 
-        print('Storing data: ',out_file)
+            print('Storing data: ',out_file)
+            continue
+
+        
+        #get LKF IDs
+        #result is an array same shape as div, with ID=0 for all sub-threshold triangles and unique ID for each individual LKF 
+        #lkf_id = get_lkf_angle(tri,tripts,threshold,pindex)
+        #print(lkf_id)
+        
+        
+        ##plot them all##################################################################################################3
+        #fig6    = plt.figure(figsize=(10,10))
+        
+        ##plot original divergence field
+        #xx      = fig6.add_subplot(111)
+        #m = pr.plot.area_def2basemap(area_def)
+        #m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+        #m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+        
+        #patches = []
+        #for k in range(threshold.shape[0]):
+            #patch = Polygon(tripts[k,:,:])
+            #patches.append(patch)
+
+        ##plot filled triangles
+        #p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
+        #p.set_array(lkf_id)
+        #xx.add_collection(p)
+        #fig6.savefig(outpath+'LKF_id'+date1,bbox_inches='tight')
+        #print('LKF ID figure saved!')##################################################################################3
+        ##exit()
+        
+        lkfs = get_lkf_angle(tri,tripts,threshold,pindex)     
+        
+        #Plotting
+        fig6    = plt.figure(figsize=(10,10))
+        px      = fig6.add_subplot(111)
+        
+        #map area definition
+        #area_def_file = glob(inpath+'area_def_'+date+'*'+file_name_end+'*.pkl')[0]
+        #with open(area_def_file, "rb") as pkl:
+            #area_def = pickle.load(pkl)
+        m = pr.plot.area_def2basemap(area_def)
+        
+        m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+        m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+        
+        ##Lance
+        #xl, yl = m(Lance_lon, Lance_lat)
+        #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                    
+        #plot the lkfs
+        for geom in lkfs:  
+            xg, yg = geom.xy  
+            px.plot(xg, yg, c='b')
+        
+
+        #plot LKF triangles over
+        patches_p = []
+        for k in pindex:
+            patch = Polygon(tripts[k])
+            patches_p.append(patch)
+            
+        p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
+        px.add_collection(p)
+
+        fig6.savefig(outpath+'test_lkf_lines_'+date1.split('T')[0],bbox_inches='tight')
+        
+        print('Done with LKF analysis for', date1.split('T')[0])
+        #exit()
         continue
-
-    
-    #get LKF IDs
-    #result is an array same shape as div, with ID=0 for all sub-threshold triangles and unique ID for each individual LKF 
-    lkf_id = get_lkf_id(tri,threshold,pindex)
-    #print(lkf_id)
-    
-    #plot them all##################################################################################################3
-    fig6    = plt.figure(figsize=(10,10))
-    
-    #plot original divergence field
-    xx      = fig6.add_subplot(111)
-    m = pr.plot.area_def2basemap(area_def)
-    m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-    m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-    
-    patches = []
-    for k in range(threshold.shape[0]):
-        patch = Polygon(tripts[k,:,:])
-        patches.append(patch)
-
-    #plot filled triangles
-    p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
-    p.set_array(lkf_id)
-    xx.add_collection(p)
-    fig6.savefig(outpath+'LKF_id'+date1,bbox_inches='tight')
-    print('LKF ID figure saved!')##################################################################################3
-    #exit()
+        
+        
     
     #course-grain these results:
     ddidx = 0
@@ -785,8 +846,18 @@ for i in range(0,len(fl)):
         mpdiv=[]
         mndiv=[]
         mshr=[]
+        mdiv_sd=[]
+        mpdiv_sd=[]
+        mndiv_sd=[]
+        mshr_sd=[]
+        
         
         if j > 1:
+            #time series dont need corse-graining
+            if time_series==True:
+                print('time series');continue
+            
+            
             #get seeding points for each lenght scale step
             #flatten the array
             xs = x.filled()[::j,::j]
@@ -851,7 +922,7 @@ for i in range(0,len(fl)):
             div_seed = np.ma.array(div_seed,mask=threshold_seed)
             shr_seed = np.ma.array(shr_seed,mask=threshold_seed)            
             area_seed = np.ma.array(area_seed, mask=threshold_seed)
-            minang_seed = np.ma.array(minang_seed, mask=threshold_seed)            
+            minang_seed = np.ma.array(minang_seed, mask=threshold_seed)
             id_seed = np.ma.array(id_seed,mask=threshold_seed)
             
             #keep all the data
@@ -859,20 +930,24 @@ for i in range(0,len(fl)):
             
 
         else:
-            div_seed=np.ma.array(div_f2, mask=threshold)
-            shr_seed=np.ma.array(shr_f2, mask=threshold)
-            tripts_seed=tripts
-            area_seed = np.ma.array(area, mask=threshold)
-            minang_seed = np.ma.array(minang, mask=threshold)
-            id_seed = np.ma.array(lkf_id,mask=threshold)
+            if LKF_filter==False:
+                lkf_id = np.zeros_like(area)
             
-            ##keep all the data
-            #div_seed=div_f2
-            #shr_seed=shr_f2
-            #tripts_seed=tripts
-            #area_seed = area
-            #minang_seed = minang
-            #id_seed = lkf_id
+            if time_series==False:
+                div_seed=np.ma.array(div_f2, mask=threshold)
+                shr_seed=np.ma.array(shr_f2, mask=threshold)
+                tripts_seed=tripts
+                area_seed = np.ma.array(area, mask=threshold)
+                minang_seed = np.ma.array(minang, mask=threshold)
+                id_seed = np.ma.array(lkf_id,mask=threshold)
+            else:
+                #keep all the data
+                div_seed=div_f2
+                shr_seed=shr_f2
+                tripts_seed=tripts
+                area_seed = area
+                minang_seed = minang
+                id_seed = lkf_id
             
         
         ####################################################################3
@@ -899,17 +974,17 @@ for i in range(0,len(fl)):
             plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,Lance_lon,Lance_lat,radius)
         #####################################################################3
 
-        #write out lists into csv file
-        tt = [date_list, ls_list, time_list, td_list, ang_list]
-        table = zip(*tt)
-        #adjusted to python3:
-        table = list(zip(*tt))
+        ##write out lists into csv file
+        #tt = [date_list, ls_list, time_list, td_list, ang_list]
+        #table = zip(*tt)
+        ##adjusted to python3:
+        #table = list(zip(*tt))
 
-        output = outpath_def + outname_td
-        with open(output, 'ab') as f:
-            #header
-            #f.write(b'date, length scale, time difference, total deformation, min angle\n')
-            np.savetxt(f, table, fmt="%s", delimiter=",")
+        #output = outpath_def + outname_td
+        #with open(output, 'ab') as f:
+            ##header
+            ##f.write(b'date, length scale, time difference, total deformation, min angle\n')
+            #np.savetxt(f, table, fmt="%s", delimiter=",")
 
         #this will cause artificially too steep slope as we gradually incorporate more and more low values into the averages of large triangles...
         
@@ -938,21 +1013,23 @@ for i in range(0,len(fl)):
         #time handing
         dt_tri = np.full_like(td,np.datetime64(dt1))
         diff_tri = np.ones_like(td)*diff
-        
-        
-        
+             
         date_list.extend(np.ma.compressed(dt_tri).tolist())
         time_list.extend(np.ma.compressed(diff_tri).tolist())
                 
-        ##save the data for time series
-        #date_ts.append(dt1)
-        #posd = np.ma.array(div_seed,mask=div_seed<0)
-        #negd = np.ma.array(div_seed,mask=div_seed>0)
-        #mpdiv.append(np.mean(posd))
-        #mndiv.append(np.mean(negd))
-        #mdiv.append(np.mean(div_seed))
-        #mshr.append(np.mean(shr_seed))
-
+        #save the data for time series
+        #these are spatial averages and some value need to be used for all those masked areas - average???
+        date_ts.append(dt1)
+        posd = np.ma.array(div_seed,mask=div_seed<0)
+        negd = np.ma.array(div_seed,mask=div_seed>0)
+        mpdiv.append(np.ma.filled(np.mean(posd), fill_value=-999))                     #add fill values (-999)
+        mpdiv_sd.append(np.ma.filled(np.std(posd), fill_value=-999))
+        mndiv.append(np.ma.filled(np.mean(negd), fill_value=-999))
+        mndiv_sd.append(np.ma.filled(np.std(negd), fill_value=-999))
+        mdiv.append(np.ma.filled(np.mean(div_seed), fill_value=-999))
+        mdiv_sd.append(np.ma.filled(np.std(div_seed), fill_value=-999))
+        mshr.append(np.ma.filled(np.mean(shr_seed), fill_value=-999))
+        mshr_sd.append(np.ma.filled(np.std(shr_seed), fill_value=-999))
 
         #continue
         #write out lists into csv file
@@ -967,16 +1044,16 @@ for i in range(0,len(fl)):
             #f.write(b'date, length scale, time difference, total deformation, min angle\n')
             np.savetxt(f, table, fmt="%s", delimiter=",")
 
-        ##write data for time series 
-        #tt = [date_ts, mpdiv, mndiv, mdiv, mshr]
-        #table = zip(*tt)
-        #table = list(zip(*tt))
+        #write data for time series 
+        tt = [date_ts, mpdiv, mndiv, mdiv, mshr, mpdiv_sd, mndiv_sd, mdiv_sd, mshr_sd]
+        table = zip(*tt)
+        table = list(zip(*tt))
 
-        #output = outpath_def + outname_ts
-        #with open(output, 'ab') as f:
-            ##header
-            ##f.write(b'date, pos. divergence, neg. divergence, mean divergence, mean shear\n')
-            #np.savetxt(f, table, fmt="%s", delimiter=",")
+        output = outpath_def + outname_ts
+        with open(output, 'ab') as f:
+            #header
+            #f.write(b'date, pos. divergence, neg. divergence, mean divergence, mean shear\n')
+            np.savetxt(f, table, fmt="%s", delimiter=",")
             
     outname='overview_mesh_seed'+date1
     gx.legend()

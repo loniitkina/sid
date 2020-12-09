@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 #wind direction data: (derivative) -detect the direction change
-metfile = '../data/10minute_nounits.csv'
+metfile = '../sidrift/data/10minute_nounits.csv'
 
 mettime = getColumn(metfile,0)[::6]
 dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
@@ -51,78 +51,85 @@ dfw = pd.DataFrame({ 'Wind speed' : ws[1:],
                     }, index=dtb[1:])
 
 #SAR data
-inpath = '/Data/sim/polona/sid/deform/'
-outpath = '../plots/'
-fname_start = 'ts_leg1_L'
+#inpath = '../sidrift/data/80m_stp10_single_filter/'
+inpath = '../sidrift/data/80m_stp10_nofilter/'
+outpath = inpath
+fname_start = 'ts_seed_f_Lance_L1'
 
-#create log-spaced vector and convert it to integers
-n=8 # number of samples
-stp=np.exp(np.linspace(np.log(1),np.log(300),n))
-stp = stp.astype(int)
-print(stp)
-#get a grip on the lengh scales
-print(stp*.04)
+radius = 7000
+file_name_end = '_7km.csv'
 
-#for 50km radius
-n=9
-stp=np.exp(np.linspace(np.log(1),np.log(800),n))
-stp = stp.astype(int)
-print(stp)
+fname = inpath+fname_start+file_name_end
 
-#distance in m
-lenght = stp*40
-print(lenght)
-#exit()
 
-radius = 50000
-file_name_end = '_50km_more.csv'
+date = getColumn(fname,0, delimiter=',')
+pdiv = getColumn(fname,1, delimiter=',')
+ndiv = getColumn(fname,2, delimiter=',')
+div = getColumn(fname,3, delimiter=',')
+shr = getColumn(fname,4, delimiter=',')
 
-for i in range(0,len(stp)-2): #skip the last two scales (no data anyway)  
-    scale = stp[i]
-    print(scale)
-    fname = inpath+fname_start+str(scale)+file_name_end
-    print(fname)
-    
-    date = getColumn(fname,0, delimiter=',')
-    pdiv = getColumn(fname,1, delimiter=',')
-    ndiv = getColumn(fname,2, delimiter=',')
-    div = getColumn(fname,3, delimiter=',')
-    shr = getColumn(fname,4, delimiter=',')
+#print(date)
 
-    pdiv = np.array(pdiv,dtype=np.float)
-    ndiv = np.array(ndiv,dtype=np.float)
-    div = np.array(div,dtype=np.float)
-    shr = np.array(shr,dtype=np.float)
+#convert from s-1 to hours-1
+pdiv = np.array(pdiv,dtype=np.float);pdiv = np.ma.array(pdiv,mask=pdiv==-999) 
+ndiv = np.array(ndiv,dtype=np.float);ndiv = np.ma.array(ndiv,mask=ndiv==-999) 
+div = np.array(div,dtype=np.float);div = np.ma.array(div,mask=div==-999)
+shr = np.array(shr,dtype=np.float);shr = np.ma.array(shr,mask=shr==-999)
 
-    time = [ datetime.strptime(date[x], '%Y-%m-%d %H:%M:%S') for x in range(0,len(date)) ]
-    print(time)
-    #time = [ time[x].date()+timedelta(seconds=7*60*60) for x in range(0,len(date)) ]
+time = [ datetime.strptime(date[x], '%Y-%m-%d %H:%M:%S') for x in range(0,len(date)) ]
+#print(time)
+#time = [ time[x].date()+timedelta(seconds=7*60*60) for x in range(0,len(date)) ]
 
-    #make pandas time series
-    df = pd.DataFrame({ 'Divergence scale:%i m' % (lenght[i]) : div,
-                        'Pos. div. scale:%i m' % (lenght[i]) : pdiv,
-                        'Neg.div. scale:%i m' % (lenght[i]) : ndiv,
-                        'Shear scale:%i m' % (lenght[i]): shr,
-                        }, index=time)
-    
-    #merge with shorter lenghts
-    if i == 0:
-        big = df
-    else:
-        big = big.join(df, how='outer')
-        
-    #smallest scale in enough
-    break
-
-#big = big.join(dfw, how='outer')
-#print(big['2015-01-22'])
+#make pandas time series
+df = pd.DataFrame({ 'Divergence' : div,
+                    'Pos. div.'  : pdiv,
+                    'Neg.div.'   : ndiv,
+                    'Shear'      : shr,
+                    }, index=time)
 
 #make daily time series of deformation
-big = big.resample('D').mean()
+df_d = df.resample('D').mean()
+
+
+#get data from Oikkonen et al, 2017
+inpath_radar = '../sidrift/plots/'
+fname = inpath_radar+'Oikkonen_ts_shear.csv'
+tmp = getColumn(fname,0, delimiter=',')
+time_radar = [ datetime.strptime(tmp[x], '%Y/%m/%d/%H') for x in range(0,len(tmp)) ]
+shear_radar = getColumn(fname,1, delimiter=',')
+shear_radar = np.array(shear_radar,dtype=np.float)/3600 #chnage units to s-1
+
+#some dates are not sorted
+time_radar = [x for x,_ in sorted(zip(time_radar,shear_radar))]
+
+shear_radar = [y for _,y in sorted(zip(time_radar,shear_radar))]
+
+#use temporal scaling law exponent to scale from hourly to daily data
+#there will be just some 5 points to compare!!! >> is this worth doing???
+
+
+#print(time_radar)
+#exit()
+
+dfr = pd.DataFrame({ 'Shear_radar' : shear_radar
+                    }, index=time_radar)
+
+
+print(dfr)
+
+#make daily time series of deformation
+dfr_d = dfr.resample('D').mean()
+
+print(dfr_d)
+#exit()
+
+big = df_d.join(dfr_d, how='outer')
 print(big)
 
+
+
 start = datetime(2015,1,21)
-end = datetime(2015,2,16)
+end = datetime(2015,2,9)
 
 #plot
 fig, axes = plt.subplots(nrows=3, ncols=1,figsize=(10,8))
@@ -134,11 +141,15 @@ fig, axes = plt.subplots(nrows=3, ncols=1,figsize=(10,8))
 ax = big.iloc[:,0].plot(ax=axes[0],title='Sea ice deformation',xlim=(start,end),label=True)
 ax.set_ylabel(r'Divergence (s$^-1$)')
 
-ax = big.iloc[:,1].plot(ax=axes[0], linestyle='--',xlim=(start,end))
+ax = big.iloc[:,1].plot(ax=axes[0], linestyle='--',xlim=(start,end),ylim=(-1e-4,1e-4))
 ax = big.iloc[:,2].plot(ax=axes[0], linestyle='--',xlim=(start,end))
 
 #shear
-bx = big.iloc[:,3].plot(ax=axes[1],xlim=(start,end))
+#bx = big.iloc[:,3].plot(ax=axes[1])#,xlim=(start,end),ylim=(0,1e-4))
+#bx = big.iloc[:,4].plot(ax=axes[1])
+bx = df.iloc[:,3].plot(ax=axes[1])
+bx = dfr.plot(ax=axes[1])
+
 bx.set_ylabel(r'Shear (s$^-1$)')
 
 #wind direction

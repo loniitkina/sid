@@ -9,6 +9,7 @@ from scipy import stats
 from scipy.stats import gaussian_kde
 from scipy.interpolate import interpn
 from shapely.ops import cascaded_union, polygonize
+from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon
 from scipy.spatial import Delaunay
 from shapely import geometry
 from matplotlib.collections import PatchCollection
@@ -367,6 +368,88 @@ def get_lkf_id(tri,threshold,pindex):
         
     return(lkf_id)
 
+def get_lkf_angle(tri,tripts,threshold,pindex):
+    #get a list to store LKF lines
+    lkfs=[]
+    
+    #Get cetroids of all triangles
+    ctrd = []
+    for p in pindex:
+        ctrd.append(Polygon(tripts[p]).centroid)
+    
+    #sort them so they are ordered from south-west
+    origin=Point(0,0)
+    dist=[]
+    for i in range(0,len(ctrd)):
+        d = origin.distance(ctrd[i])
+        dist.append(d)
+    
+    ctrd = [ctrd for _,ctrd in sorted(zip(dist,ctrd))]
+    
+    from shapely.ops import unary_union
+    #make buffers around these centroids and unify
+    multipoint = MultiPoint(ctrd)
+    ctrd_buff = unary_union(multipoint.buffer(300))
+    
+    #for each polygon get all centroids inside an connect to a line
+    lkfs=[]
+    if ctrd_buff.geom_type == 'MultiPolygon':
+        for geom in ctrd_buff.geoms:
+            #print(geom)
+            lkf_ctrd=[]
+            for j in ctrd:
+                if geom.contains(Point(j)):
+                    lkf_ctrd.append(j)
+            
+            if len(lkf_ctrd)>1:
+       
+                #make lines
+                line = LineString(lkf_ctrd)
+
+                #simplify
+                simple=line.simplify(tolerance=2000, preserve_topology=False)
+                
+                #check if line has a lot of nods
+                xl,yl=simple.xy
+                #if yes (zig-zag) >> sort with a diagonal origin
+                origin=Point(0,20000)
+                if len(xl)> 5:
+                    dist=[]
+                    for i in range(0,len(xl)):
+                        d = origin.distance(Point(xl[i],yl[i]))
+                        dist.append(d)
+                
+                    print(dist)
+                    line=zip(xl,yl)
+                    line = [line for _,line in sorted(zip(dist,line))]
+                
+                    #simplify again
+                    line = LineString(line)
+                    simple=line.simplify(tolerance=1000, preserve_topology=False)    #give less torelance and prevent turning of the line
+                
+                #store
+                lkfs.append(simple)
+        
+    #divide the lines in all nods
+    
+    #throw away all very short lines
+    
+    #extend the remaining lines a bit (500m?)
+    
+    #these are the LKF lines
+    #make buffers along them and give IDs to triangles
+    
+    #the unbuffered lines by ~2km at both ends, to ensure intersections
+    #measure all intersection angles
+    #consider connecting all LKFs with angles close to 180 as they are continuation of the same LKF
+    
+    #convert to plottable multistring/multilines
+    lkfs=MultiLineString(lkfs)
+    print(lkfs)
+    
+    return(lkfs)
+
+
 def save_geotiff(raster_array, area_def, export_path):
     # set manually the number of bands to one, because we know you have only one layer
     bands_number = 1
@@ -464,3 +547,7 @@ def alpha_shape(points, alpha):
     m = geometry.MultiLineString(edge_points)
     triangles = list(polygonize(m))
     return cascaded_union(triangles), edge_points
+
+#some notes for code development/debugging
+#use 'import ipdb; ipdb.set_trace()' above problematic spot
+#use 'dir(object)' to get all options for that object

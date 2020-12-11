@@ -29,7 +29,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #How long do you want it to run?
 first_week=True
-first_week=False    #This will make it run for all the data
+#first_week=False    #This will make it run for all the data
 
 #after_storm=True
 after_storm=False
@@ -60,8 +60,8 @@ LKF_filter=True
 #LKF_filter=False
 
 #select lenght scale
-radius = 7000
-file_name_end = '_7km'
+radius = 60000
+file_name_end = '_60km'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -707,6 +707,7 @@ for i in range(0,len(fl)):
         #lx.add_collection(pc)
 
         fig5.savefig(outpath+'test',bbox_inches='tight')
+        plt.close(fig5)
         print('Figure saved!')###########################################################################################################3
         #exit()   
     
@@ -750,14 +751,12 @@ for i in range(0,len(fl)):
             #keep triangulation but apply to lon2,lat2
             #final coordinates can be stored by drift script or calculated from displacements
             
-            
             #dump damage data into numpy file
             out_file = outpath_def+'Damage_'+date1+'_'+date2+'.npz'
             np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge)
 
             print('Storing data: ',out_file)
             continue
-
         
         #get LKF IDs
         #result is an array same shape as div, with ID=0 for all sub-threshold triangles and unique ID for each individual LKF 
@@ -787,7 +786,8 @@ for i in range(0,len(fl)):
         #print('LKF ID figure saved!')##################################################################################3
         ##exit()
         
-        lkfs = get_lkf_angle(tri,tripts,threshold,pindex)     
+        #this only works at times when LKF are straight lines
+        lkfs, buff, sline = get_lkf_angle(tri,tripts,threshold,pindex)     
         
         #Plotting
         fig6    = plt.figure(figsize=(10,10))
@@ -810,7 +810,29 @@ for i in range(0,len(fl)):
         for geom in lkfs:  
             xg, yg = geom.xy  
             px.plot(xg, yg, c='b')
+            
+        #plot the split line 
+        xg, yg = sline.xy  
+        px.plot(xg, yg, c='g')
         
+        #plot the buffers (typically multipolygons)
+        if buff.geom_type == 'Polygon':
+            xg, yg = buff.exterior.xy 
+            px.fill(xg, yg, alpha=1, fc='none', ec='r')
+        if buff.geom_type == 'MultiPolygon':
+            for geom in buff.geoms:  
+                xg, yg = geom.exterior.xy    
+                px.fill(xg, yg, alpha=1, fc='none', ec='r')
+                
+        ##plot the buffers (typically multipolygons)
+        #if sline.geom_type == 'Polygon':
+            #xg, yg = sline.exterior.xy 
+            #px.fill(xg, yg, alpha=1, fc='none', ec='g')
+        #if sline.geom_type == 'MultiPolygon':
+            #for geom in sline.geoms:  
+                #xg, yg = geom.exterior.xy    
+                #px.fill(xg, yg, alpha=1, fc='none', ec='g')
+                
 
         #plot LKF triangles over
         patches_p = []
@@ -822,6 +844,7 @@ for i in range(0,len(fl)):
         px.add_collection(p)
 
         fig6.savefig(outpath+'test_lkf_lines_'+date1.split('T')[0],bbox_inches='tight')
+        plt.close(fig6)
         
         print('Done with LKF analysis for', date1.split('T')[0])
         #exit()
@@ -1058,8 +1081,8 @@ for i in range(0,len(fl)):
     outname='overview_mesh_seed'+date1
     gx.legend()
     fig4.savefig(outpath+outname)
-
+    plt.close(fig4)
     
             
 fig1.savefig(outpath+'overview_map_'+reg+'_'+str(int(radius/1000.)),bbox_inches='tight')
-
+plt.close(fig1)

@@ -357,7 +357,6 @@ def get_lkf_id(tri,threshold,pindex):
                 else:
                     same_lkf=False
                 
-                    
         #assign same ID to all triangles in this LKF group
         #take only really long ones
         if len(lkf_idx)>10:
@@ -368,7 +367,41 @@ def get_lkf_id(tri,threshold,pindex):
         
     return(lkf_id)
 
+def sort_and_simplify(zigzag,origin=Point(0,0),tolerance=1000):
+    #get line coordinates
+    xl,yl=zigzag.xy
+    
+    origin=origin
+    #if it has many nods (zig-zag) >> sort in relaton to a point far away (origin)
+    if len(xl)> 20:
+        dist=[]
+        for i in range(0,len(xl)):
+            d = origin.distance(Point(xl[i],yl[i]))
+            dist.append(d)
+    
+        #sort nods
+        line=zip(xl,yl)
+        line = [line for _,line in sorted(zip(dist,line))]
+        
+        #subsample nods (50% of points is enough) 
+        line = line[::2]
+
+        #simplify again
+        line = LineString(line)
+        simple=line.simplify(tolerance=tolerance, preserve_topology=False)
+        simple=simple.simplify(tolerance=tolerance, preserve_topology=False)
+        simple=simple.simplify(tolerance=tolerance*2, preserve_topology=False)
+
+    else:
+        simple=zigzag.simplify(tolerance=tolerance*2, preserve_topology=False)   #not a zigzag actually, use larger tolerance
+        
+    return(simple)
+
 def get_lkf_angle(tri,tripts,threshold,pindex):
+    from shapely.ops import unary_union
+    from shapely.ops import split
+    from shapely.affinity import scale, rotate
+    
     #get a list to store LKF lines
     lkfs=[]
     
@@ -380,75 +413,123 @@ def get_lkf_angle(tri,tripts,threshold,pindex):
     #sort them so they are ordered from south-west
     origin=Point(0,0)
     dist=[]
+    cx=[]
+    cy=[]
     for i in range(0,len(ctrd)):
         d = origin.distance(ctrd[i])
         dist.append(d)
+        tmp1,tmp2=ctrd[i].xy
+        cx.append(np.array(tmp1)[0]);cy.append(np.array(tmp1)[0])
     
     ctrd = [ctrd for _,ctrd in sorted(zip(dist,ctrd))]
     
-    from shapely.ops import unary_union
     #make buffers around these centroids and unify
     multipoint = MultiPoint(ctrd)
-    ctrd_buff = unary_union(multipoint.buffer(300))
+    ctrd_buff = unary_union(multipoint.buffer(400))
+    
+    #long and complicated lines will be lost, shorter are easier to work with
+    #can we split this polygons to several features?
+    x_min=np.min(cx);x_max=np.max(cx)
+    y_min=np.min(cy);y_max=np.max(cy)
+    #construct a split line
+    split_line = LineString([Point((x_max-x_min)/4,y_min), Point((x_max-x_min)/4,y_max), 
+                             Point((x_max-x_min)/2,y_max), Point((x_max-x_min)/2,y_min),
+                             Point(3*(x_max-x_min)/4,y_min), Point(3*(x_max-x_min)/4,y_max), 
+                             
+         Point(x_max,y_max), Point(x_max,(y_max-y_min)/4),Point(x_min,(y_max-y_min)/4),
+                             Point(x_min,(y_max-y_min)/2),Point(x_max,(y_max-y_min)/2),
+                             Point(x_max,3*(y_max-y_min)/4),Point(x_min,3*(y_max-y_min)/4) ])
+    
+    split_line_b = split_line.buffer(50)
+    
+    #split the polygons
+    ctrd_buff = ctrd_buff.difference(split_line_b)
     
     #for each polygon get all centroids inside an connect to a line
     lkfs=[]
     if ctrd_buff.geom_type == 'MultiPolygon':
         for geom in ctrd_buff.geoms:
-            #print(geom)
             lkf_ctrd=[]
             for j in ctrd:
                 if geom.contains(Point(j)):
                     lkf_ctrd.append(j)
             
-            if len(lkf_ctrd)>1:
-       
-                #make lines
+            if len(lkf_ctrd)>10:
                 line = LineString(lkf_ctrd)
-
+                
                 #simplify
-                simple=line.simplify(tolerance=2000, preserve_topology=False)
+                simple=line.simplify(tolerance=500, preserve_topology=False)
                 
                 #check if line has a lot of nods
-                xl,yl=simple.xy
-                #if yes (zig-zag) >> sort with a diagonal origin
-                origin=Point(0,20000)
-                if len(xl)> 5:
-                    dist=[]
-                    for i in range(0,len(xl)):
-                        d = origin.distance(Point(xl[i],yl[i]))
-                        dist.append(d)
-                
-                    print(dist)
-                    line=zip(xl,yl)
-                    line = [line for _,line in sorted(zip(dist,line))]
-                
-                    #simplify again
-                    line = LineString(line)
-                    simple=line.simplify(tolerance=1000, preserve_topology=False)    #give less torelance and prevent turning of the line
+                #rotate the origin and do several iterations
+                #incrasing tolerance will reduce most of the lines to two-point features
+                simple = sort_and_simplify(simple,origin=Point(0,200000),tolerance=500)
+                simple = sort_and_simplify(simple,origin=Point(0,0),tolerance=1000)
+                simple = sort_and_simplify(simple,origin=Point(0,200000),tolerance=2000)
+                simple = sort_and_simplify(simple,origin=Point(0,0),tolerance=4000)             #finish off with this origin as most features are aligned this way
                 
                 #store
                 lkfs.append(simple)
+    
+    #prepare LKF buffer to work with (larger than the centroid buffer)
+    lkf_buff = unary_union(multipoint.buffer(3000))
+    
+    #divide the lines at all nods
+    lkfs_long=[]
+    for i in range(0,len(lkfs)):
         
-    #divide the lines in all nods
+        #spliting the line on the nods
+        xl,yl=lkfs[i].xy
+        mp = [ Point(p) for p in zip(xl,yl) ]
+        mp = MultiPoint(mp)
+        segments = split(lkfs[i], mp)
     
-    #throw away all very short lines
+        #throw away all short lines
+        i=0
+        for segment in segments.geoms:
+            #print(segment.length)
+            if segment.length>5000:     #5km is a good min lenght for a 60km radius area
+                
+                #keep only lines that are inside the initial buffers
+                if lkf_buff.contains(segment):
+                    
+                    ##uncomment if no line buffering is used
+                    ##extend this segment
+                    #segment = scale(segment, xfact=2.5,yfact=2.5)
+                    ##store
+                    #lkfs_long.append(segment)
+
+                    #uncomment if line buffering is used
+                    if i==1:
+                        #check if we already have a very similar line
+                        if not segment_buffer.contains(segment):
+                            #extend this segment
+                            segment = scale(segment, xfact=2.5,yfact=2.5)
+                            #store
+                            lkfs_long.append(segment)
+                            
+                            #extend the buffer of known lines
+                            segment_buffer = unary_union([segment_buffer,segment.buffer(2000)])
+                    else:
+                        #extend this segment
+                        segment = scale(segment, xfact=2.5,yfact=2.5)
+                        #store
+                        lkfs_long.append(segment)
+
+                        #create the buffer of known lines
+                        segment_buffer = segment.buffer(2000)
+                        
+    ##import ipdb; ipdb.set_trace()
     
-    #extend the remaining lines a bit (500m?)
-    
-    #these are the LKF lines
-    #make buffers along them and give IDs to triangles
-    
-    #the unbuffered lines by ~2km at both ends, to ensure intersections
     #measure all intersection angles
-    #consider connecting all LKFs with angles close to 180 as they are continuation of the same LKF
+    #mask out all angles that are close to 0 or 180
+    #for every line, check if there are crossings and store all angles (do not count of crossings of two distant LKFs)
     
     #convert to plottable multistring/multilines
-    lkfs=MultiLineString(lkfs)
-    print(lkfs)
+    lkfs=MultiLineString(lkfs_long)
+    #lkfs=MultiLineString(lkfs)
     
-    return(lkfs)
-
+    return(lkfs, lkf_buff, split_line)
 
 def save_geotiff(raster_array, area_def, export_path):
     # set manually the number of bands to one, because we know you have only one layer

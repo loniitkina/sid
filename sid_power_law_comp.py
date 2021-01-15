@@ -6,24 +6,27 @@ import matplotlib.pyplot as plt
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_UiT_seed_f_test'
+title = 'ship_radar+buoys+SAR_UiT_seed_f_new'
 #title = 'ship_radar+buoys+SAR_UiT_seed_nofilter_test'
 #radius = '_7km_hes9FW.csv'
 #radius = '_7km_hes9.csv'
 #radius = '_7km_ttdFW.csv'
 #radius = '_7km_n9.csv'
 #radius = '_7km_test5.csv'
+#radius = '_7kmFW.csv'
 #radius = '_20km.csv'
 #radius = '_20km_hes9.csv'
 #radius = '_20km_hes9_1km.csv'
 #radius = '_20km_test.csv'
 #radius = '_20km_test6.csv'
+radius = '_25kmFW.csv'
+radius = '_30kmFW.csv'
 #radius = '_50kmFW.csv'
 #radius = '_20km.csv'
 #radius = '_100kmFW.csv'
 #radius = '_100km_hes9_1km.csv'
 #radius = '_100km_ttd.csv'
-radius = '_100km_n9.csv'
+#radius = '_100km_n9.csv'
 #radius = '_120km.csv'
 rr = radius.split('.')[0]
 name = 'ship_radar+buoys+SAR'
@@ -49,21 +52,16 @@ cx.set_xlim(.001,100)
 
 
 
-meanls_list_sr=[]
-meantd_list_sr=[]
-meanls_list_sr_all=[]
-meantd_list_sr_all=[]
 
 
 meanls_list_sar=[]
 meantd_list_sar=[]
 stdtd_list_sar=[]
+meantd_list_sar_adj=[]
 
 meanls_list_b=[]
 meantd_list_b=[]
 
-ls_list_sr=[]
-td_list_sr=[]
 ls_list_b=[]
 td_list_b=[]
 ls_list_sar=[]
@@ -74,6 +72,224 @@ std_dist_sar=[]
 mean_dist_sr=[]
 std_dist_sr=[]
 
+#put dummy values (detection limits) on the scatter plots
+#radius = '_7km_test1.csv'               #use dummy values from different run
+inpath = '../sidrift/data/80m_stp10_single_filter/'
+inpath = '../sidrift/data/80m_stp10_adj/'
+outpath=inpath
+fname = inpath+'dummy_Lance'+radius
+print(fname)
+
+dum1 = getColumn(fname,0, delimiter=',', header=False)
+dum2 = getColumn(fname,1, delimiter=',', header=False)
+dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
+dum2 = np.array(dum2,dtype=np.float)
+
+ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
+
+#get a power law fit on these dummy values
+a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
+x = np.arange(0.1, 100, 1)
+ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
+
+
+print('***********************ship_radar***************************')
+meanls_list_sr=[]
+meantd_list_sr=[]
+meanls_list_sr_all=[]
+meantd_list_sr_all=[]
+meanls_list_sr_low=[]
+meantd_list_sr_low=[]
+stdtd_list_sr_low=[]
+stdtd_list_sr_all=[]
+
+ls_list_sr=[]
+td_list_sr=[]
+
+r_mean_list=[]
+r_n_list=[]
+
+#ship radar data
+#inpath = '../data/ship_radar/24h/'
+inpath = '../sidrift/data/ship_radar/time_sliced_data/'
+name1 = 'Annu Oikkonen - Period'
+name2 = '_Deformation_L'
+
+lsc_list = range(1,7)
+
+#colors
+color=iter(plt.cm.Purples_r(np.linspace(0,1,len(lsc_list)+1)))
+
+#dummy values for ship radar
+dum2r = [dum2[0],dum2[1],dum2[1],dum2[2],dum2[3],dum2[3]]
+
+for i in range(0,len(lsc_list)):
+    scale = lsc_list[i]
+    print(scale)
+    
+    cl = next(color)
+    
+    #period 1
+    fname = inpath+name1+'1'+name2+str(scale)+'_24h.txt'
+    ls1 = getColumn(fname,0, delimiter=' ')
+    td1 = getColumn(fname,1, delimiter=' ')
+    
+    #period 2
+    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
+    ls2 = getColumn(fname,0, delimiter=' ')
+    td2 = getColumn(fname,1, delimiter=' ')
+    
+    #combine
+    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
+    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
+    
+    ##use only first part
+    #ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
+    #td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
+    
+    #calculate and store averages
+    meanls=np.mean(ls)
+    meantd=np.mean(td)
+    meanls_list_sr_all.append(meanls)
+    meantd_list_sr_all.append(meantd)
+    stdtd_list_sr_all.append(np.std(td))
+    #ls_list_sr.extend(ls)
+    #td_list_sr.extend(td)
+    
+    #plot averages for all the data
+    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
+    #all data in grey
+    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color='0.8')
+    
+    #convert td to displacement
+    tls = 24 *3600 #convert back to seconds
+    lsc = ls *1000 #convert back to meters
+    sigma_x = np.sqrt(td * (2* lsc**2 * tls) /3 )
+    sigma_x_mean = np.mean(sigma_x)
+    cx.scatter(ls, sigma_x, lw=0, alpha=.1, color=cl)
+    cx.plot(meanls,sigma_x_mean,'*',markersize=10,markeredgecolor='w',color=cl)
+    
+    mean_dist_sr.append(sigma_x_mean)
+    std_dist_sr.append(np.std(sigma_x))
+    
+    #mask with the dummy values from SAR
+    no_all = len(td)
+    #mask = (td<dum2r[i])
+    mask = td < a_dum*ls**k_dum
+    
+    #store low values mean
+    ls_low = np.ma.array(ls,mask=~mask)
+    td_low = np.ma.array(td,mask=~mask)
+    ls_low = np.ma.compressed(ls_low)
+    td_low = np.ma.compressed(td_low)
+    meanls_list_sr_low.append(np.mean(ls_low))
+    meantd_list_sr_low.append(np.mean(td_low))
+    stdtd_list_sr_low.append(np.std(td_low))
+    ax.plot(np.mean(ls_low),np.mean(td_low),'s',markersize=7,markeredgecolor='orange', color=cl)
+    n1=td_low.size
+    
+    #high values
+    ls_high = np.ma.array(ls,mask=mask)
+    td_high = np.ma.array(td,mask=mask)
+    ls_high = np.ma.compressed(ls_high)
+    td_high = np.ma.compressed(td_high)
+    no_high = len(td_high)
+    fraction = no_high/no_all
+    print('fraction: '+str(fraction)+'from: '+str(no_all))
+    
+    #calculate and store averages
+    meanls=np.mean(ls_high)
+    meantd=np.mean(td_high)
+    meanls_list_sr.append(meanls)
+    meantd_list_sr.append(meantd)
+    #ls_list_sr.extend(ls)
+    #td_list_sr.extend(td)
+
+    
+    #plot all the data
+    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
+    #ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
+    
+    #get the low value vs all value ratios
+    r_mean=np.mean(td_low)/meantd
+    r_mean_list.append(r_mean)
+    #also get the sample number ratio
+    n2=td.size
+    r_n = n1/n2
+    r_n_list.append(r_n)
+
+    #on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
+
+##power law from the ratios
+#print(r_mean_list)
+#print(r_n_list)
+
+##in the last one there are hardly any values - skip
+#a_ratio,k_ratio,cix,ciy_upp,ciy_low = logfit(meanls_list_sr[:-1],r_mean_list[:-1])
+
+##dummy x data for plotting
+#x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
+
+
+
+##make separate plot
+#fig4 = plt.figure(figsize=(7.5,7))
+#dx = fig4.add_subplot(111)
+#dx.scatter(meanls_list_sr,r_mean_list)
+#dx.loglog(x,a_ratio*x**k_ratio,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a_ratio*10e6,k_ratio),c='darkred')
+#dx.legend()
+
+#fig4.savefig(outpath+'power_law_24h_ratio_'+title+rr)
+
+
+
+#power law from the ratios between high and all values
+print(meantd_list_sr)
+print(meantd_list_sr_all)
+
+ratios = np.array(meantd_list_sr)/np.array(meantd_list_sr_all)
+
+#in the last one there are hardly any values - skip
+a_ratio,k_ratio,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,ratios)
+
+#dummy x data for plotting
+x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
+
+
+
+#make separate plot
+fig4 = plt.figure(figsize=(7.5,7))
+dx = fig4.add_subplot(111)
+dx.scatter(meanls_list_sr,ratios)
+dx.loglog(x,a_ratio*x**k_ratio,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a_ratio*10e6,k_ratio),c='darkred')
+dx.legend()
+
+fig4.savefig(outpath+'power_law_24h_ratio1_'+title+rr)
+
+
+
+print(a_ratio)
+print(k_ratio)
+
+#and standard deviation of the low values
+a_std_sr_low,k_std_sr_low,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,stdtd_list_sr_low)
+
+print(a_std_sr_low)
+print(k_std_sr_low)
+
+#and standard deviation of the low values
+a_std_sr_all,k_std_sr_all,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,stdtd_list_sr_all)
+
+print(a_std_sr_all)
+print(k_std_sr_all)
+
+
+#exit()
+
+#from that power law then calculate the ratio at exact sar lenght scale
+
+print('***********************sar***************************')
+
 #SAR data
 #inpath = '../sidrift/data/whole_series_10stp_factor_def/data/'
 #outpath = '../sidrift/data/whole_series_10stp_factor_def/plots/'
@@ -83,6 +299,7 @@ inpath = '../sidrift/data/80m_stp10/'
 inpath = '../sidrift/data/80m_stp10_canberra/'
 inpath = '../sidrift/data/80m_stp10_nofilter/'
 inpath = '../sidrift/data/80m_stp10_single_filter/'
+inpath = '../sidrift/data/80m_stp10_adj/'
 outpath = inpath
 
 fname_start = 'td_leg1_L'
@@ -95,7 +312,7 @@ fname_start = 'td_seed_f_Lance_L'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
-n=8
+#n=8
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 print(stp)
@@ -119,22 +336,6 @@ margin = np.exp(np.linspace(np.log(.25),np.log(10),n))
 #colors
 color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
 
-#put dummy values (detection limits) on the scatter plots
-#radius = '_7km_test1.csv'               #use dummy values from different run
-fname = inpath+'dummy_Lance'+radius
-print(fname)
-
-dum1 = getColumn(fname,0, delimiter=',', header=False)
-dum2 = getColumn(fname,1, delimiter=',', header=False)
-dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
-dum2 = np.array(dum2,dtype=np.float)
-
-ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
-
-#get a power law fit on these dummy values
-a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
-x = np.arange(0.1, 100, 1)
-ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
 
 
 
@@ -142,7 +343,6 @@ ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
 #fig2 = plt.figure(figsize=(9,9))
 #bx = fig2.add_subplot(111)
 
-print('***********************sar***************************')
 
 for i in range(0,len(stp)-0):                           
 #for i in range(0,len(stp)):    
@@ -182,18 +382,18 @@ for i in range(0,len(stp)-0):
     td = np.ma.compressed(td)
     tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
         
-    ##throw away very low deformation rates (pixel/template edge noise)
-    no_all = len(td)
-    #mask = (td<dum2[i])                 #this is only from the first image pair!
-    mask = td < a_dum*ls**k_dum
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)
-    tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
-    no_part = len(td)
-    fraction = no_part/no_all
-    print('fraction: '+str(fraction)+'from: '+str(no_all))
+    ###throw away very low deformation rates (pixel/template edge noise)
+    #no_all = len(td)
+    ##mask = (td<dum2[i])                 #this is only from the first image pair!
+    #mask = td < a_dum*ls**k_dum
+    #ls = np.ma.array(ls,mask=mask)
+    #td = np.ma.array(td,mask=mask)
+    #ls = np.ma.compressed(ls)
+    #td = np.ma.compressed(td)
+    #tls = np.ma.array(tls,mask=mask); tls = np.ma.compressed(tls)
+    #no_part = len(td)
+    #fraction = no_part/no_all
+    #print('fraction: '+str(fraction)+'from: '+str(no_all))
     
     ##replace low deformation rates by averages
     #mask = (td<dum2[i])
@@ -272,100 +472,37 @@ for i in range(0,len(stp)-0):
 
     cx.scatter(ls/1000, sigma_x, lw=0, alpha=.1, color=cl)
     cx.plot(meanls,sigma_x_mean,'*',markersize=10,markeredgecolor='w',color=cl)
+    
+    ##add some low means
+    ##on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
+    #if meanls < 4:
+        #r_mean = a_ratio*meanls**k_ratio
+        #low_values = (np.ones((int(td.size*r_n)))*meantd*r_mean)
+        ##print(low_values)
+        
+        #tmp=np.append(td,low_values)
+        #meantd_all = np.mean(tmp)
+        #ax.plot(meanls,low_values[0],'*',markersize=10,markeredgecolor='w',color='k')
+        #ax.plot(meanls,meantd_all,'*',markersize=10,markeredgecolor='w',color='k')
+    
+
+    #add some constructed means for case if we had all low values
+    #on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
+    if meanls < 4:
+        ratio = a_ratio*meanls**k_ratio
+        value = meantd/ratio
+        
+        ax.plot(meanls,value,'*',markersize=10,markeredgecolor='w',color='k')
+        
+        meantd_list_sar_adj.append(value)
+    else:
+        meantd_list_sar_adj.append(meantd)
+
 
 #bx.legend()
 #fig2.savefig(outpath+'lkf_ids_len'+title+rr)
 
-#ship radar data
-#inpath = '../data/ship_radar/24h/'
-inpath = '../sidrift/data/ship_radar/time_sliced_data/'
-name1 = 'Annu Oikkonen - Period'
-name2 = '_Deformation_L'
-
-lsc_list = range(1,7)
-
-#colors
-color=iter(plt.cm.Purples_r(np.linspace(0,1,len(lsc_list)+1)))
-
-#dummy values for ship radar
-dum2r = [dum2[0],dum2[1],dum2[1],dum2[2],dum2[3],dum2[3]]
-
-print('***********************ship_radar***************************')
-for i in range(0,len(lsc_list)):
-    scale = lsc_list[i]
-    print(scale)
-    
-    #period 1
-    fname = inpath+name1+'1'+name2+str(scale)+'_24h.txt'
-    ls1 = getColumn(fname,0, delimiter=' ')
-    td1 = getColumn(fname,1, delimiter=' ')
-    
-    #period 2
-    fname = inpath+name1+'2'+name2+str(scale)+'_24h.txt'
-    ls2 = getColumn(fname,0, delimiter=' ')
-    td2 = getColumn(fname,1, delimiter=' ')
-    
-    #combine
-    ls = np.array(np.append(ls1,ls2),dtype=np.float)/1000  #convert from m to km
-    td = np.array(np.append(td1,td2),dtype=np.float)/3600  #convert from h to s   
-    
-    ##use only first part
-    #ls = np.array(ls1,dtype=np.float)/1000  #convert from m to km
-    #td = np.array(td1,dtype=np.float)/3600  #convert from h to s 
-    
-    #calculate and store averages
-    meanls=np.mean(ls)
-    meantd=np.mean(td)
-    meanls_list_sr_all.append(meanls)
-    meantd_list_sr_all.append(meantd)
-    #ls_list_sr.extend(ls)
-    #td_list_sr.extend(td)
-    
-    #plot averages for all the data
-    ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
-    #all data in grey
-    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color='0.8')
-    
-    #convert td to displacement
-    tls = 24 *3600 #convert back to seconds
-    lsc = ls *1000 #convert back to meters
-    sigma_x = np.sqrt(td * (2* lsc**2 * tls) /3 )
-    sigma_x_mean = np.mean(sigma_x)
-    cx.scatter(ls, sigma_x, lw=0, alpha=.1, color=cl)
-    cx.plot(meanls,sigma_x_mean,'*',markersize=10,markeredgecolor='w',color=cl)
-    
-    mean_dist_sr.append(sigma_x_mean)
-    std_dist_sr.append(np.std(sigma_x))
-    
-    #mask with the dummy values from SAR
-    no_all = len(td)
-    #mask = (td<dum2r[i])
-    mask = td < a_dum*ls**k_dum
-    ls = np.ma.array(ls,mask=mask)
-    td = np.ma.array(td,mask=mask)
-    ls = np.ma.compressed(ls)
-    td = np.ma.compressed(td)
-    no_part = len(td)
-    fraction = no_part/no_all
-    print('fraction: '+str(fraction)+'from: '+str(no_all))
-    
-    #calculate and store averages
-    meanls=np.mean(ls)
-    meantd=np.mean(td)
-    meanls_list_sr.append(meanls)
-    meantd_list_sr.append(meantd)
-    #ls_list_sr.extend(ls)
-    #td_list_sr.extend(td)
-
-    
-    #plot all the data
-    cl = next(color)
-    ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
-    #ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
-    
-    
-
-
+print('***********************buoys***************************')
 #buoy data - do we have enough of 1 day data (should be enough for the entire leg 1)
 #scales 2-100km
 inpath = '../sidrift/data/buoys/'
@@ -409,7 +546,6 @@ color=iter(plt.cm.Greens_r(np.linspace(0,1,len(lsc_list)+1)))
 #dummy values for buoys
 dum2b = [dum2[3],dum2[4],dum2[4]]
 
-print('***********************buoys***************************')
 for i in range(0,len(lsc_list)):
     print(i)
     mask = (ls<minlen[i]) | (ls>maxlen[i])
@@ -460,6 +596,8 @@ ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c=
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
+#a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sr_all[:],meantd_list_sr_all[:])
+#ax.loglog(x,a*x**k,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='orange')
 
 
 #buoys
@@ -504,10 +642,19 @@ comb_td=[]
 comb_td.extend(meantd_list_sr_all[:-2])
 comb_td.extend(meantd_list_sar[-4:])
 
-a,k,cix,ciy_upp,ciy_low = logfit(comb_ls,comb_td)
+#a,k,cix,ciy_upp,ciy_low = logfit(comb_ls,comb_td)
+#ax.loglog(x,a*x**k,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
+#ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+#ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+#SAR adjusted with SR ratios
+
+a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar_adj)
 ax.loglog(x,a*x**k,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
 ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+
+
 
 
 

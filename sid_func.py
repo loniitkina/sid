@@ -233,7 +233,7 @@ def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_
     
     return
     
-def coarse_grain(tripts,tripts_seed,div,shr,lkf_id):
+def coarse_grain(tripts,tripts_seed,div,shr):
     #make area-weighted mean of all triangles that are in these triangles
     #weighted-mean deformation - calculating for triangles one by one
     #https://stackoverflow.com/questions/14697442/faster-way-of-polygon-intersection-with-shapely/14804366
@@ -269,14 +269,14 @@ def coarse_grain(tripts,tripts_seed,div,shr,lkf_id):
         dd = div[idxs]
         ss = shr[idxs]
         
-        #collect all lkf IDs of triangles
-        idd = lkf_id[idxs]
-        #get rid of doubles
-        iddd = list(dict.fromkeys(idd))
-        #print(iddd)
-        #get 
-        #print(len(iddd))
-        #exit()
+        ##collect all lkf IDs of triangles
+        #idd = lkf_id[idxs]
+        ##get rid of doubles
+        #iddd = list(dict.fromkeys(idd))
+        ##print(iddd)
+        ##get 
+        ##print(len(iddd))
+        ##exit()
         
         #check that at least 50% of the seeded triangle is covered by the original small triangles (their intersections)
         #get total area covered by small triangles in this seeded traingle
@@ -288,7 +288,7 @@ def coarse_grain(tripts,tripts_seed,div,shr,lkf_id):
             #store area, minang and number of different LKFs contributing to this seed triangle
             area_seed.append(aas)
             minang_seed.append(mas)
-            id_seed.append(len(iddd))
+            #id_seed.append(len(iddd))
             
             #get weighted means
             ds = np.sum(weights*dd)
@@ -301,9 +301,9 @@ def coarse_grain(tripts,tripts_seed,div,shr,lkf_id):
     shr_seed = np.array(shr_seed)
     area_seed = np.array(area_seed)
     minang_seed = np.array(minang_seed)
-    id_seed = np.array(id_seed)
+    #id_seed = np.array(id_seed)
 
-    return(div_seed,shr_seed,area_seed,minang_seed,id_seed)
+    return(div_seed,shr_seed,area_seed,minang_seed)
 
 #find in triangle centroid
 def centroid(vertexes):
@@ -397,6 +397,23 @@ def sort_and_simplify(zigzag,origin=Point(0,0),tolerance=1000):
         
     return(simple)
 
+def lines_angle(l1, l2):
+    import math
+    #α0=atan2(cy−ay,cx−ax)
+    #α1=atan2(dy−by,dx−bx)
+    #angle=α1−α0
+
+    #get line nods
+    xl1,yl1=l1.xy
+    xl2,yl2=l2.xy
+    
+    #calculate both angles to the x-asis and then between themselves
+    alpha1 = math.atan2(yl1[0]-yl1[-1],xl1[0]-xl1[-1])
+    alpha2 = math.atan2(yl2[0]-yl2[-1],xl2[0]-xl2[-1])
+    alpha = math.degrees(alpha2-alpha1)
+    
+    return(alpha)
+
 def get_lkf_angle(tri,tripts,threshold,pindex):
     from shapely.ops import unary_union
     from shapely.ops import split
@@ -405,7 +422,7 @@ def get_lkf_angle(tri,tripts,threshold,pindex):
     #get a list to store LKF lines
     lkfs=[]
     
-    #Get cetroids of all triangles
+    #Get cetroids of all high deformation triangles
     ctrd = []
     for p in pindex:
         ctrd.append(Polygon(tripts[p]).centroid)
@@ -488,7 +505,7 @@ def get_lkf_angle(tri,tripts,threshold,pindex):
         i=0
         for segment in segments.geoms:
             #print(segment.length)
-            if segment.length>5000:     #5km is a good min lenght for a 60km radius area
+            if segment.length>7000:     #5km is a good min lenght for a 60km radius area
                 
                 #keep only lines that are inside the initial buffers
                 if lkf_buff.contains(segment):
@@ -502,7 +519,7 @@ def get_lkf_angle(tri,tripts,threshold,pindex):
                     #uncomment if line buffering is used
                     if i==1:
                         #check if we already have a very similar line
-                        if not segment_buffer.contains(segment):
+                        if not segment_buffer.contains(segment):     #or touches if just lines
                             #extend this segment
                             segment = scale(segment, xfact=2.5,yfact=2.5)
                             #store
@@ -510,26 +527,102 @@ def get_lkf_angle(tri,tripts,threshold,pindex):
                             
                             #extend the buffer of known lines
                             segment_buffer = unary_union([segment_buffer,segment.buffer(2000)])
+                            #segment_buffer = unary_union([segment_buffer,segment])   #for lines
+                            
                     else:
                         #extend this segment
-                        segment = scale(segment, xfact=2.5,yfact=2.5)
+                        segment = scale(segment, xfact=3,yfact=3)
                         #store
                         lkfs_long.append(segment)
 
                         #create the buffer of known lines
                         segment_buffer = segment.buffer(2000)
+                        #segment_buffer = segment   #for lines
                         
     ##import ipdb; ipdb.set_trace()
     
     #measure all intersection angles
-    #mask out all angles that are close to 0 or 180
-    #for every line, check if there are crossings and store all angles (do not count of crossings of two distant LKFs)
-    
+    angles=[]
+    for l1 in lkfs_long:
+        for l2 in lkfs_long:
+            if l1.intersects(l2) and not l1.__eq__(l2):
+                #print(l1)
+                #print(l2)
+                angle=lines_angle(l1,l2)
+                
+                #get smallest postive angle
+                angle = abs(angle)
+                if angle > 180:
+                    angle = angle-180
+                
+                #filter out very small angles (angles that are close to 0 or 180)
+                if angle > 10 and angle < 170:
+                    angles.append(angle)
+
     #convert to plottable multistring/multilines
     lkfs=MultiLineString(lkfs_long)
     #lkfs=MultiLineString(lkfs)
     
-    return(lkfs, lkf_buff, split_line)
+    return(lkfs, lkf_buff, split_line, angles)
+
+def get_distance_order(tri,tripts,pindex,lines):
+    from shapely.ops import unary_union
+    
+    #Get centroids of all high deformation triangles
+    ctrd = []
+    for p in pindex:
+        ctrd.append(Polygon(tripts[p]).centroid)
+    
+    #make buffer
+    multipoint = MultiPoint(ctrd)
+    ctrd_buff = unary_union(multipoint.buffer(200))
+    
+    #Get centroids of all triangles
+    ctrd_all = []
+    for i in range(0,len(tripts)):
+        ctrd_all.append(Polygon(tripts[i]).centroid)
+    
+    #collect all centroids inside the buffer
+    lkfs=[]
+    if ctrd_buff.geom_type == 'MultiPolygon':
+        for geom in ctrd_buff.geoms:
+            lkf_ctrd=[]
+            for j in ctrd_all:
+                if geom.contains(Point(j)):
+                    lkf_ctrd.append(j)
+    
+    #get minimal distance from centroid buffer
+    dist1=[]
+    for j in ctrd_all:
+        d = ctrd_buff.distance(Point(j))
+        dist1.append(d)
+    
+    dist2=0
+    #uncoment this if you really want dist2
+    #currently the angle lines are not good enough for this to be useful!!!
+    #print(lines)
+    #poly=[]
+    #for geom in lines:
+        #print(geom)
+        #poly.append(geom.buffer(200))
+    #lkf_buff = unary_union(poly)
+    
+    #print(lkf_buff)
+    
+    
+    ##get minimal distance from angle line buffer
+    #dist2=[]
+    #for j in ctrd_all:
+        #d = lkf_buff.distance(Point(j))
+        #dist2.append(d)
+    
+    #print(dist2)
+    
+    
+    return(dist1,dist2)
+    
+
+
 
 def save_geotiff(raster_array, area_def, export_path):
     # set manually the number of bands to one, because we know you have only one layer
@@ -628,6 +721,36 @@ def alpha_shape(points, alpha):
     m = geometry.MultiLineString(edge_points)
     triangles = list(polygonize(m))
     return cascaded_union(triangles), edge_points
+
+#create random log normal distributon with prescribed means and standard deviation
+def generate_lognormal_samples(mean, stdev, n=1):
+    """
+    from: https://pythonhealthcare.org/2019/02/07/120-generating-log-normal-samples-from-provided-arithmetic-mean-and-standard-deviation-of-original-population/
+    Returns n samples taken from a lognormal distribution, based on mean and
+    standard deviation calculated from the original non-logged population.
+    
+    Converts mean and standard deviation to underlying lognormal distribution
+    mu and sigma based on calculations desribed at:
+        https://blogs.sas.com/content/iml/2014/06/04/simulate-lognormal-data-
+        with-specified-mean-and-variance.html
+        
+    Returns a numpy array of floats if n > 1, otherwise return a float
+    """
+    
+    # Calculate mu and sigma of underlying lognormal distribution
+    phi = (stdev ** 2 + mean ** 2) ** 0.5
+    mu = np.log(mean ** 2 / phi)
+    sigma = (np.log(phi ** 2 / mean ** 2)) ** 0.5
+    
+    # Generate lognormal population
+    generated_pop = np.random.lognormal(mu, sigma , n)
+    
+    # Convert single sample (if n=1) to a float, otherwise leave as array
+    generated_pop = \
+        generated_pop[0] if len(generated_pop) == 1 else generated_pop
+        
+    return generated_pop
+
 
 #some notes for code development/debugging
 #use 'import ipdb; ipdb.set_trace()' above problematic spot

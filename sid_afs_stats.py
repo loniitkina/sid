@@ -22,6 +22,7 @@ inpath = '../sidrift/data/stp10_asf/'
 #inpath = 'data/stp10_afs/'
 outpath = inpath
 reg = 'Lance'
+metfile = '../sidrift/data/10minute_nounits.csv'
 
 file_name_end = '_60km'
 
@@ -53,6 +54,11 @@ fx      = fig1.add_subplot(616)
 fx.set_title('distance between LKF',fontsize=14, loc='left')
 fx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
+#scatter plot for floe numbers
+fig2    = plt.figure(figsize=(6,6))
+aax      = fig2.add_subplot(111)
+aax.set_xlabel('Sampling Area Diameter (km)',fontsize=25)
+aax.set_ylabel('Number of Floes',fontsize=25)
 
 outname_asf = 'asf_'+reg+file_name_end+'.csv'
 rlist = glob(outpath+outname_asf)
@@ -173,6 +179,11 @@ for i in fl:
     #save this polygons
     with open(outpath+'afs_poly_'+date+'_'+file_name_end, "wb") as poly_file:
         pickle.dump(floes, poly_file, pickle.HIGHEST_PROTOCOL)
+        
+    #simplify polygons
+    #break to lines
+    #calculate angles between them
+    
     
     #Plotting
     fig6    = plt.figure(figsize=(10,10))
@@ -186,11 +197,7 @@ for i in fl:
     
     m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
     m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-    
-    ##Lance
-    #xl, yl = m(Lance_lon, Lance_lat)
-    #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-                
+                    
     #plot the union polygons (typically multipolygons)
     if holes.geom_type == 'Polygon':
         xg, yg = holes.exterior.xy 
@@ -315,8 +322,64 @@ for i in fl:
 
     else:
         print('Just a single polygon')
+        
+    #get radius content
+    
+    #radius area (area over which we observe deformaiton)
+    ra = np.arange(5000,60000,2000) #5km increase from 7km to 60km 
+    
+    n=9 # number of samples
+    ra=np.exp(np.linspace(np.log(5000),np.log(60000),n))
+    ra = ra.astype(int)
+
+    print(ra)
+    #exit()
+    
+    for i in ra:
+        print(i)
+        
+        #center point of the image/polygon area
+        #xl, yl = m(Lance_lon, Lance_lat)
+        #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+        #Lance postion (from Lance's met system)
+        mettime = getColumn(metfile,0)
+        dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
+        mi = np.argmin(abs(np.asarray(dtb)-dt))
+        Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
+        Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
+        xl, yl = m(Lance_lon, Lance_lat)
+        
+        #make buffer (or square) around Lance
+        lance=Point(xl,yl)
+        r_region=lance.buffer(i)
+        
+        #count how many floes we have inside this buffer
+        #it counts if they are partly inside
+        if floes.geom_type == 'MultiPolygon':
+        
+            floe_counter=0
+            
+            #fore every floe
+            for geom in floes.geoms:
+                if r_region.intersects(geom):
+                    floe_counter=floe_counter+1
+        
+        else:
+            floe_counter=1
+            
+        print(floe_counter)
+        
+        #plot
+        aax.scatter(i*2/1000,floe_counter,alpha=.5,color='royalblue')
+        
+        #store to make mean value for each radius
+    
+    #exit()
 
 #save afs time series
 fig1.tight_layout()
 fig1.savefig(outpath+'asf_ts_'+file_name_end,bbox_inches='tight')
 
+#save radius scatter plots
+fig2.tight_layout()
+fig2.savefig(outpath+'asf_ra_'+file_name_end,bbox_inches='tight')

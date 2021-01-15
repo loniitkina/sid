@@ -48,7 +48,7 @@ parcel=True
 parcel=False
 
 #time series
-#time_series=True
+time_series=True        #this will not scale the data - useful also for the angle PDF!
 time_series=False
 
 #
@@ -59,9 +59,13 @@ no_threshold=False
 LKF_filter=True
 #LKF_filter=False
 
+#low mean adjustment
+low_mean=True
+#low_mean=False
+
 #select lenght scale
-radius = 60000
-file_name_end = '_60km'
+radius = 25000
+file_name_end = '_25km'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -78,7 +82,7 @@ elif after_storm==True:
 file_name_end = file_name_end+'.csv'
 
 #-------------------------------------------------------------------
-#also set step aand factor for each input data
+#also set step and factor for each input data
 
 inpath = '../sidrift/data/40m_combo/'
 #inpath = '../sidrift/data/40m_stp1_afternoon/' #files too big to open???
@@ -87,9 +91,10 @@ inpath = '../sidrift/data/40m_combo/'
 
 outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 outpath_def = '../sidrift/data/80m_stp10_nofilter/'
+outpath_def = '../sidrift/data/80m_stp10_adj/'
 
 #parcels 
-inpath = '../sidrift/data/stp10_parcels_f1/'
+#inpath = '../sidrift/data/stp10_parcels_f1/'
 #inpath = '../sidrift/data/stp10_parcels_f1_rs2/'
 #outpath_def = inpath
 
@@ -529,11 +534,7 @@ for i in range(0,len(fl)):
     #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
     #threshold = ~((np.abs(div)>abs(dummy_div)) | (area > (distance*2.5)**2/2))
     
-    
-    ##threshold average
-    #threshold_average_div = 
-    #threshold_average_shr =
-                
+        
     ##apply LKF filter
     #prepare place to store filtered data
     div_f2 = div.copy()
@@ -710,7 +711,7 @@ for i in range(0,len(fl)):
         plt.close(fig5)
         print('Figure saved!')###########################################################################################################3
         #exit()   
-    
+        
         #update pindex (triangle index) for afs and lkf_id
         pindex = np.arange(0,len(tri.vertices));pindex = np.ma.array(pindex, mask=threshold); pindex = np.ma.compressed(pindex)
         
@@ -758,99 +759,293 @@ for i in range(0,len(fl)):
             print('Storing data: ',out_file)
             continue
         
-        #get LKF IDs
-        #result is an array same shape as div, with ID=0 for all sub-threshold triangles and unique ID for each individual LKF 
-        #lkf_id = get_lkf_angle(tri,tripts,threshold,pindex)
-        #print(lkf_id)
-        
-        
-        ##plot them all##################################################################################################3
-        #fig6    = plt.figure(figsize=(10,10))
-        
-        ##plot original divergence field
-        #xx      = fig6.add_subplot(111)
-        #m = pr.plot.area_def2basemap(area_def)
-        #m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-        #m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-        
-        #patches = []
-        #for k in range(threshold.shape[0]):
-            #patch = Polygon(tripts[k,:,:])
-            #patches.append(patch)
-
-        ##plot filled triangles
-        #p = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1)
-        #p.set_array(lkf_id)
-        #xx.add_collection(p)
-        #fig6.savefig(outpath+'LKF_id'+date1,bbox_inches='tight')
-        #print('LKF ID figure saved!')##################################################################################3
-        ##exit()
-        
+        #get LKF angles        
         #this only works at times when LKF are straight lines
-        lkfs, buff, sline = get_lkf_angle(tri,tripts,threshold,pindex)     
+        #it will not work during extensive leads/free drift, but again when the situation calms down again!!!
+        if len(pindex) > 0:
+            lkfs, buff, sline, angles = get_lkf_angle(tri,tripts,threshold,pindex)     
         
-        #Plotting
-        fig6    = plt.figure(figsize=(10,10))
-        px      = fig6.add_subplot(111)
-        
-        #map area definition
-        #area_def_file = glob(inpath+'area_def_'+date+'*'+file_name_end+'*.pkl')[0]
-        #with open(area_def_file, "rb") as pkl:
-            #area_def = pickle.load(pkl)
-        m = pr.plot.area_def2basemap(area_def)
-        
-        m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-        m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-        
-        ##Lance
-        #xl, yl = m(Lance_lon, Lance_lat)
-        #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-                    
-        #plot the lkfs
-        for geom in lkfs:  
-            xg, yg = geom.xy  
-            px.plot(xg, yg, c='b')
+            #Plotting
+            fig6    = plt.figure(figsize=(10,10))
+            px      = fig6.add_subplot(111)
             
-        #plot the split line 
-        xg, yg = sline.xy  
-        px.plot(xg, yg, c='g')
-        
-        #plot the buffers (typically multipolygons)
-        if buff.geom_type == 'Polygon':
-            xg, yg = buff.exterior.xy 
-            px.fill(xg, yg, alpha=1, fc='none', ec='r')
-        if buff.geom_type == 'MultiPolygon':
-            for geom in buff.geoms:  
-                xg, yg = geom.exterior.xy    
+            #map area definition
+            #area_def_file = glob(inpath+'area_def_'+date+'*'+file_name_end+'*.pkl')[0]
+            #with open(area_def_file, "rb") as pkl:
+                #area_def = pickle.load(pkl)
+            m = pr.plot.area_def2basemap(area_def)
+            
+            m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+            m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+            
+            #Lance
+            xl, yl = m(Lance_lon, Lance_lat)
+            px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                        
+            #plot the lkfs
+            for geom in lkfs:  
+                xg, yg = geom.xy  
+                px.plot(xg, yg, c='b')
+                
+            #plot the split line 
+            xg, yg = sline.xy  
+            px.plot(xg, yg, c='g')
+            
+            #plot the buffers (typically multipolygons)
+            if buff.geom_type == 'Polygon':
+                xg, yg = buff.exterior.xy 
                 px.fill(xg, yg, alpha=1, fc='none', ec='r')
+            if buff.geom_type == 'MultiPolygon':
+                for geom in buff.geoms:  
+                    xg, yg = geom.exterior.xy    
+                    px.fill(xg, yg, alpha=1, fc='none', ec='r')
+                                    
+            #plot LKF triangles over
+            patches_p = []
+            for k in pindex:
+                patch = Polygon(tripts[k])
+                patches_p.append(patch)
                 
-        ##plot the buffers (typically multipolygons)
-        #if sline.geom_type == 'Polygon':
-            #xg, yg = sline.exterior.xy 
-            #px.fill(xg, yg, alpha=1, fc='none', ec='g')
-        #if sline.geom_type == 'MultiPolygon':
-            #for geom in sline.geoms:  
-                #xg, yg = geom.exterior.xy    
-                #px.fill(xg, yg, alpha=1, fc='none', ec='g')
-                
+            p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
+            px.add_collection(p)
 
-        #plot LKF triangles over
-        patches_p = []
-        for k in pindex:
-            patch = Polygon(tripts[k])
-            patches_p.append(patch)
+            fig6.savefig(outpath+'test_lkf_lines_'+date1.split('T')[0],bbox_inches='tight')
+            plt.close(fig6)
             
-        p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
-        px.add_collection(p)
+            print('Done with LKF analysis for', date1.split('T')[0])
+        else:
+            angles=[]
+            
+        if low_mean==True:
+            #under-threshold triangles means
+            #the mean of calculated sub-t values is very small and messes up the scaling (steepens the power law)
+            #instead we calculate the mean of the low (sub-threshold) values based on the comparison to the thresholded vs all ship radar data
+            #this is based on emperical values from ship radar total deformaton for the whole period
+            #we assume that the ratios between td, div and shr are same
+            #WARNING: in some cases the estimated low mean can be above the threshold!!! >>> this has to be wrong!!!
+            #WARNING: especially for small radius this low means can only be stimated once the deformation values are filtered by LKF filter
 
-        fig6.savefig(outpath+'test_lkf_lines_'+date1.split('T')[0],bbox_inches='tight')
-        plt.close(fig6)
-        
-        print('Done with LKF analysis for', date1.split('T')[0])
-        #exit()
-        continue
-        
-        
+
+            a_ratio = 1.5310070655098624
+            k_ratio =-0.14707155728256027
+
+            #picking a short ls means high ratio=low td, and high standard deviation
+            ls_low_mean = np.mean(np.sqrt(np.ma.array(area,mask=~threshold)))/1000  #power law is in km
+            #ls_low_mean = np.mean(np.sqrt(area))/1000                               #mean over all triangles
+            #ls_low_mean = np.mean(np.sqrt(np.ma.array(area,mask=threshold)))/1000  #mean over deforming triangles (those that count for #WARNING
+            
+            ratio = a_ratio*ls_low_mean**k_ratio
+            print(ratio)    #since the non-deforming triangles are same big for all days, this ratio will not change actually!
+            
+            
+            n1 = np.ma.compressed(np.ma.array(np.abs(div),mask=threshold)).size
+            n2 = div.size - n1
+            print(n1,n2)
+            
+            td = np.sqrt(div_f2**2 + shr_f2**2)
+            td_high_mean = np.mean(np.ma.array(td,mask=threshold))
+            td_mean = td_high_mean/ratio                                #ratio was estimated based on several days, here used on a single day
+            td_low_mean = (td_mean*(n1+n2) - td_high_mean*n1 ) / n2     #maybe this would work if eare was large (and diverse) enough
+            
+            step_low = np.mean(np.ma.array(td,mask=td>dummy_td))
+            
+            
+            a_std = 2.9243933850630908e-06
+            k_std = -0.6661488984596151
+            sample_std = a_std*ls_low_mean**k_std
+            #sample = generate_lognormal_samples(td_mean, sample_std, n=n1+n2)
+            sample = generate_lognormal_samples(td_mean, sample_std, n=n1*5+n2)    #WARNING: this is a hack to compensate to the large area covered by large tri 
+            #sample = sample[:n1+n2]                                                #same hack, wee below
+            
+            #instead: compare the area in the deforming and undeforming triangles to estimate how many small ones would fit into deforming ones...
+            
+            #also size sample should be smaller for the days when deforming triangles are few - how to adjust for that???
+            
+            
+            
+            
+            
+            #distribution is a bit too spiky (several days)
+            #this can be checked in sid_pl3.py
+            
+            #too spiky distribution could be due to too low sigma (shape parameter)
+            #sigma could be too low due to too high mean - again the use of ratio is questionable!!! (see above)
+            
+            
+            #sea ice deformation is multifractal, so all moments are equally important and it will only scale if all moments are there!
+            #we could get the right moment values from the higher scales of SAR
+            
+            #Yes, Marsan states: if we randomly reshufle the velocity values in RGP, there is no more power law. this means that the spatial structure of the values is the one leading to power law. 
+            #for us that means: only values that are correctly spatially aranged on the map will scale to power law
+            #this also means: we can generate a random sample for a certain lenght scale, but it will never scale accross all different scales unless we distribute it properly in space!!!
+            #this means that we can generate a map for one scale and compute averages
+            #and yes, we can scale means and standard deviation for the time series!
+            
+            #this also means that we would need a construct a filter to spatially concentrate the deformation and mimic natural distribution... That is our plan for the snow topography...
+            
+            #sample_low=np.ma.array(sample,mask=sample>dummy_td)
+            #sample_low=np.ma.compressed(sample_low)
+            #print(sample_low.size)
+            
+            
+            
+            #sort the sample
+            #print(sample)
+            #print(sample.shape)
+            sample = np.sort(sample)
+            sample = sample[:n1+n2]                                                #part of same hack as above
+            
+            sample_low=sample[:n2]
+            
+            #this sample is ordered and so is the triangulation
+            #therefore the maps are blobby (highest values where last triangles were drawn)
+            #should we shuffle these values again???
+            
+            
+            print('check the new low means - total deformation')        
+            print('threshold:', dummy_td)
+            print('high:', td_high_mean)
+            print('est mean:', td_mean)
+            print('sample mean:', np.mean(sample))
+            print('step low:', np.mean(np.ma.array(td,mask=td>dummy_td)))
+            print('est low:', np.mean(sample_low))  #these values should still be lower than threshold
+            print('old mean:', np.mean(td))
+            
+            #td[threshold] = td_low_mean
+            td[threshold] = sample_low
+            
+            ##sample_low has still many high values
+            #print(sample_low[0])
+            #print(sample_low[-1])
+            #print(sample[-1])
+            ##exit()
+
+            
+            
+            #we should also spatially order the reamining high values in sample_low
+            #triangles that are inside the buffer of the high deformation should get priority
+            #or use triangles that are inside the buffer of the angles lines
+            
+            #get distances of all triangles (centroids) from the buffer/lines
+            dist1,dist2 = get_distance_order(tri,tripts,pindex,lkfs)
+            
+            
+            #sort sample from highest to lowest
+            sample = np.array(sorted(sample,reverse=True))
+            
+            #td[threshold] and dist1,dist2 have same order
+            #sample_low needs to be sorted in a same way
+            #indexes that would sort the array from min to max: indexes to arrive to sorted state
+            dist=np.array(dist1)
+            idx = np.argsort(dist)
+            #print(idx)
+                        
+            #we need indexes to arrive from sorted back to unsorted
+            idxu = range(0,len(dist))
+            idxuu = [s for _,s in sorted(zip(dist,idxu))]
+                        
+            sample_a=np.zeros_like(dist)
+            sample_a[idxuu] = sample
+            sample_low = sample_a[threshold]
+            
+            td[threshold] = sample_low
+            
+            ###angle lines
+            #dist=np.array(dist2)
+            #idx = np.argsort(dist)
+            #print(idx)
+                        
+            ##we need indexes to arrive from sorted back to unsorted
+            #idxu = range(0,len(dist))
+            #idxuu = [s for _,s in sorted(zip(dist,idxu))]
+                        
+            #sample_a=np.zeros_like(dist)
+            #sample_a[idxuu] = sample
+            #sample_low = sample_a[threshold]
+            
+            #td[threshold] = sample_low
+
+            
+            
+            
+            
+            
+            
+            print('new mean:', np.mean(td)) #this should be same as estimated mean!
+            #exit()
+            
+            
+            ##this is the problem!!!
+            #ratio2 = np.mean(np.abs(div_f2))/np.mean(shr)
+            ##print(ratio2)
+            ##exit()
+            #div_low_mean = td_low_mean /np.sqrt(2) * ratio2
+            #if np.mean(div_f2) < 0:
+                #div_low_mean = div_low_mean *-1
+            #shr_low_mean = td_low_mean * (1-ratio2)
+            
+            #print('check the new low means - divergence')
+            #print('old mean div:', np.mean(np.abs(div_f2)))
+            #print('threshold:', dummy_div)
+            #print('est low:', div_low_mean)
+            
+            
+            
+            #what if we simply replace the low values by the low ship radar data at this initial scale
+            #we already know that the high values are co-inciding...
+            #and generate a random sample from them
+            
+            #why do we actually need there maps for?
+            #just to recreate a perfect power law?
+            
+            #to keep them for later to generate topography???
+            
+            #is our distribution really log-normal?
+            #or is it logarithmic???
+            
+            #or what if we have to make log-normal distribution for real mean and then use the dummy to get only the low values???
+            
+            #div_f2[threshold] = td_low_mean/np.sqrt(2)
+            
+            
+            ##can we have a randoly distributed values instead?
+            ##log-normal distribution with known mean and standard deviation?
+            #sample_mean = td_low_mean/np.sqrt(2)
+            #sample_mean = np.mean(np.ma.array(div_f2,mask=~threshold))
+            #sample_mean = np.mean(np.ma.array(np.abs(div_f2),mask=td>dummy_td))     #this mean should be much lower!!!
+            #a_std = 1.6299983312588754e-07
+            #k_std = -0.9780933554534802
+            #sample_std = a_std*ls_low_mean**k_std
+            #sample = generate_lognormal_samples(sample_mean, sample_std, n=n2)
+            
+            sample_div = sample_low/np.sqrt(2)
+            
+            #then also randomly multiply by -1???
+            #for example: randrange(0,1), then change all 0 to -1
+            sign = np.random.random_integers(0, 1, size=n2)
+            sign = np.where(sign==0,-1,sign)
+            print(sign)
+            sample_div = sample_div*sign
+            #exit()
+            
+            div_f2[threshold] = sample_div
+            print('new mean div:', np.mean(np.abs(div_f2)))
+                
+            print('check the new low means - shear')        
+            print('old mean shr:', np.mean(shr_f2))
+            print('threshold:', dummy_shr)
+            #print('est low:', shr_low_mean)
+            
+            #shr_f2[threshold] = td_low_mean/np.sqrt(2)
+            sample_shr = sample_low/np.sqrt(2)
+            shr_f2[threshold] = sample_shr
+            print('new mean shr:', np.mean(shr_f2))  
+            
+            test = np.sqrt(np.mean(shr_f2)**2+np.mean(div_f2)**2)       #this ones comes quite low...
+            print(test)
+            
+            #exit()
+
     
     #course-grain these results:
     ddidx = 0
@@ -858,6 +1053,7 @@ for i in range(0,len(fl)):
         print('Step: '+str(j))
         outname_td = 'td_seed_f_'+reg+'_L'+str(j)+file_name_end
         outname_ts = 'ts_seed_f_'+reg+'_L'+str(j)+file_name_end
+        outname_angles = 'angle_seed_f_'+reg+'_L'+str(j)+file_name_end
         td_list=[]
         ls_list=[]
         ang_list=[]
@@ -873,14 +1069,14 @@ for i in range(0,len(fl)):
         mpdiv_sd=[]
         mndiv_sd=[]
         mshr_sd=[]
+        angles_list=[]
         
         
         if j > 1:
             #time series dont need corse-graining
             if time_series==True:
                 print('time series');continue
-            
-            
+
             #get seeding points for each lenght scale step
             #flatten the array
             xs = x.filled()[::j,::j]
@@ -928,41 +1124,40 @@ for i in range(0,len(fl)):
             ###############################################################3
             
             #do area-weighted coarse-graining
-            div_seed,shr_seed,area_seed,minang_seed,id_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2,lkf_id)
+            div_seed,shr_seed,area_seed,minang_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2)
             
-            #mask with threshold that depends on the lenght scale (mask out large triangles)
-            #this is done in the plotting, so not necessary here...
             td_seed = np.sqrt(div_seed**2 + shr_seed**2)
-            dyn_dummy = dummy_td_all[ddidx]
-            ls_dummy = dummy_ls_all[ddidx]
-            if no_threshold==True:
-                dyn_dummy = 0
-            #threshold_seed = (td_seed<dyn_dummy) #| (area_seed > ls_dummy**2)
-            threshold_seed = (td_seed<dyn_dummy)
-            ddidx = ddidx + 1
             
-            #masking
-            div_seed = np.ma.array(div_seed,mask=threshold_seed)
-            shr_seed = np.ma.array(shr_seed,mask=threshold_seed)            
-            area_seed = np.ma.array(area_seed, mask=threshold_seed)
-            minang_seed = np.ma.array(minang_seed, mask=threshold_seed)
-            id_seed = np.ma.array(id_seed,mask=threshold_seed)
+            if low_mean==False:
+                #mask with threshold that depends on the lenght scale (mask out large triangles)
+                #this is done in the plotting, so not necessary here...
+                dyn_dummy = dummy_td_all[ddidx]
+                ls_dummy = dummy_ls_all[ddidx]
+                if no_threshold==True:
+                    dyn_dummy = 0
+                #threshold_seed = (td_seed<dyn_dummy) #| (area_seed > ls_dummy**2)
+                threshold_seed = (td_seed<dyn_dummy)
+                ddidx = ddidx + 1
+                
+                ##masking
+                #div_seed = np.ma.array(div_seed,mask=threshold_seed)
+                #shr_seed = np.ma.array(shr_seed,mask=threshold_seed)            
+                #area_seed = np.ma.array(area_seed, mask=threshold_seed)
+                #minang_seed = np.ma.array(minang_seed, mask=threshold_seed)
+                ##id_seed = np.ma.array(id_seed,mask=threshold_seed)
             
-            #keep all the data
-            
-            
-
         else:
-            if LKF_filter==False:
-                lkf_id = np.zeros_like(area)
+            #if LKF_filter==False:
+                #lkf_id = np.zeros_like(area)
             
-            if time_series==False:
+            if low_mean==False:
                 div_seed=np.ma.array(div_f2, mask=threshold)
                 shr_seed=np.ma.array(shr_f2, mask=threshold)
                 tripts_seed=tripts
                 area_seed = np.ma.array(area, mask=threshold)
                 minang_seed = np.ma.array(minang, mask=threshold)
-                id_seed = np.ma.array(lkf_id,mask=threshold)
+                #id_seed = np.ma.array(lkf_id,mask=threshold)
+                                
             else:
                 #keep all the data
                 div_seed=div_f2
@@ -970,7 +1165,7 @@ for i in range(0,len(fl)):
                 tripts_seed=tripts
                 area_seed = area
                 minang_seed = minang
-                id_seed = lkf_id
+                #id_seed = lkf_id
             
         
         ####################################################################3
@@ -996,6 +1191,7 @@ for i in range(0,len(fl)):
             #print(outname)
             plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,Lance_lon,Lance_lat,radius)
         #####################################################################3
+            #exit()
 
         ##write out lists into csv file
         #tt = [date_list, ls_list, time_list, td_list, ang_list]
@@ -1009,7 +1205,7 @@ for i in range(0,len(fl)):
             ##f.write(b'date, length scale, time difference, total deformation, min angle\n')
             #np.savetxt(f, table, fmt="%s", delimiter=",")
 
-        #this will cause artificially too steep slope as we gradually incorporate more and more low values into the averages of large triangles...
+        
         
         #at high resolution deformation data we cant avoid of having two separate clouds (detectable and un-detectable deformation) - that happens when our method cant detect deformation anymore
         
@@ -1025,13 +1221,13 @@ for i in range(0,len(fl)):
         td = np.sqrt(div_seed**2 + shr_seed**2)
         ls = np.sqrt(area_seed)
         minang = np.array(minang_seed)
-        id_num = np.array(id_seed)
+        #id_num = np.array(id_seed)
         
         
         td_list.extend(np.ma.compressed(td).tolist())
         ls_list.extend(np.ma.compressed(ls).tolist())
         ang_list.extend(np.ma.compressed(minang).tolist())
-        id_list.extend(np.ma.compressed(id_num).tolist())
+        #id_list.extend(np.ma.compressed(id_num).tolist())
         
         #time handing
         dt_tri = np.full_like(td,np.datetime64(dt1))
@@ -1056,7 +1252,7 @@ for i in range(0,len(fl)):
 
         #continue
         #write out lists into csv file
-        tt = [date_list, ls_list, time_list, td_list, ang_list, id_list]
+        tt = [date_list, ls_list, time_list, td_list, ang_list]
         table = zip(*tt)
         #adjusted to python3:
         table = list(zip(*tt))
@@ -1077,7 +1273,16 @@ for i in range(0,len(fl)):
             #header
             #f.write(b'date, pos. divergence, neg. divergence, mean divergence, mean shear\n')
             np.savetxt(f, table, fmt="%s", delimiter=",")
-            
+        
+        #angle data
+        angles_list.extend(angles)
+        #print(angles_list)
+        
+        #write data for angle PDFs
+        output = outpath_def + outname_angles
+        with open(output, 'ab') as f:
+            np.savetxt(f, angles_list, fmt="%s", delimiter=",")
+        
     outname='overview_mesh_seed'+date1
     gx.legend()
     fig4.savefig(outpath+outname)

@@ -9,7 +9,7 @@ title = 'density_lkf'
 #radius = '_50kmFW.csv'
 #radius = '_100kmFW.csv'
 #radius = '_100km_n9.csv'
-radius = '_7km_test.csv'
+radius = '_30kmFW.csv'
 
 #radius = '_100km_ttd.csv'
 
@@ -205,12 +205,14 @@ inpath = '../sidrift/data/80m_stp10/'
 inpath = '../sidrift/data/80m_stp10_canberra/'
 inpath = '../sidrift/data/80m_stp10_single_filter/'
 #inpath = '../sidrift/data/80m_stp10_nofilter/'
+inpath = '../sidrift/data/80m_stp10_adj/'
 
 outpath = inpath
 fname_start = 'td_leg1_L'
 fname_start = 'td_seed_f_Lance_L'
 
 n=8 # number of samples
+n=9
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
 
@@ -308,7 +310,6 @@ cx.set_xlim(.01,100.)
 cx.set_ylim(1e-10,1e-3)
 #cx.set_ylim(1e-10*1e6,1e-3*1e6)
 
-
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 ax.xaxis.set_major_formatter(ScalarFormatter())  
 bx.xaxis.set_major_formatter(ScalarFormatter())
@@ -318,6 +319,12 @@ fig1.tight_layout()
 
 fig1.savefig(outpath+'power_law_24h_'+title)
 print(outpath+'power_law_24h_'+title)
+
+
+
+zx.set_ylim(0,.08)
+xx.set_ylim(0,.08)
+yx.set_ylim(0,.08)
 
 zx.legend()
 xx.legend()

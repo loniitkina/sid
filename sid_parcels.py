@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
-spacing= 600            #at spacing shorter than 500m, there will be lots of nans...
+spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
 
 
 #for output
-fp = 5  #final image pair
+fp = 6  #final image pair
 
 #-------------------------------------------------------------------
 inpath = '../sidrift/data/stp10_parcels_f1/'
@@ -30,11 +30,6 @@ inpath_drift = inpath
 outpath_data = inpath
 outpath = inpath
 outpath = '../sidrift/data/stp10_parcels_test/'
-
-#inpath = '../sidrift/data/80m_stp10_single_filter/'
-#inpath_drift = '../sidrift/data/40m_combo/'
-#outpath_data = inpath
-#outpath = inpath
 
 metfile = '../sidrift/data/10minute_nounits.csv'
 
@@ -58,8 +53,8 @@ xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
 
 #create a grid of spacing of 100m in each direction in the radius from the ship's initial position
 #Lance will be in the center
-xbf = np.arange(xlp-radius, xlp+radius, spacing)    #initial conditions are same as the final grid!
-ybf = np.arange(ylp-radius, ylp+radius, spacing)
+xbf = np.arange(xlp-radius, xlp+radius+spacing, spacing)    #add some space over the edge (will be nan immediately at first step: to keep space for new parcels)
+ybf = np.arange(ylp-radius, ylp+radius, spacing)    #to increase resolution use fractions of spacing: e.g. spacing/3!
 x_buoy,y_buoy = np.meshgrid(xbf,ybf)
 #flatten
 x_buoy = x_buoy.flatten()
@@ -83,7 +78,7 @@ y_path[0,:] = y_buoy
 date = [start]
 
 for i in range(0,len(fl_dmg)):
-    break
+    #break
     #read in the drift data
     print(fl[i])
     container = np.load(fl[i])
@@ -92,13 +87,10 @@ for i in range(0,len(fl_dmg)):
     u = container['upm']
     v = container['vpm']
     hpm = container['hpm'] 
-    
-    #lat2 = container['lat2']
-    #lon2 = container['lon2']   
-    #exit()
-    
+        
     #quality filter 
-    gpi = hpm > 9
+    #strict quality filter (hpm > 9) will leave holes in deforming areas
+    gpi = hpm > 4
     u = u[gpi]
     v = v[gpi]
     lon1 = lon1[gpi]
@@ -127,44 +119,7 @@ for i in range(0,len(fl_dmg)):
     
     #get displacements
     dx = diff*u; dy = diff*v
-    
-    #print(u.shape)
-    #print(x1.shape)
-    #print(dx.shape)
-    #print(np.min(np.ma.masked_invalid(dx)))
-    #print(np.max(np.ma.masked_invalid(dx)))
-    #print(np.mean(np.ma.masked_invalid(dx)))
-    
-    ##check how much Lance drifted in this time and apply one number correction
-    ##this helps keeping the deformed ice in a line (relative location), but it deteriorates the absolute positions
-    #mi = np.argmin(abs(np.asarray(dtb)-dt1))
-    #Lance_lon1 = llon_dtb[mi]
-    #Lance_lat1 = llat_dtb[mi]
-
-    #mi = np.argmin(abs(np.asarray(dtb)-dt2))
-    #Lance_lon2 = llon_dtb[mi]
-    #Lance_lat2 = llat_dtb[mi]
-    
-    #lx1,ly1 = transform(inProj,outProj,Lance_lon1, Lance_lat1)
-    #lx2,ly2 = transform(inProj,outProj,Lance_lon2, Lance_lat2)
-    
-    #ldx = lx2-lx1
-    #ldy = ly2-ly1
         
-    ##find local displacement (closest coordinate) and correct uniformly for that displacement
-    #mask_l = (x1>lx1-spacing) & (x1<lx1+spacing) & (y1>ly1-spacing) & (y1<ly1+spacing)
-    ##print(x1[mask_l], y1[mask_l])
-    #dx_near = np.mean(np.ma.masked_invalid(dx[mask_l]))
-    #dy_near = np.mean(np.ma.masked_invalid(dy[mask_l]))
-    ##print(dx_near, dy_near)
-    
-    #x_correction = dx_near-ldx
-    #y_correction = dy_near-ldy
-    #print(x_correction, y_correction)
-    
-    #dx = dx-x_correction
-    #dy = dy-y_correction
-    
     #estimate positions after drift
     x2 = x1 + dx
     y2 = y1 + dy
@@ -176,6 +131,11 @@ for i in range(0,len(fl_dmg)):
     print(x_buoy.shape[0])
     for m in range(0,x_buoy.shape[0]):
         #print(m)
+        
+        #skip this buoy if already nan
+        if np.isnan(x_buoy[m]) and np.isnan(damage[i,m]):
+            continue
+        
         #sea ice drift/displacement mask for data with 400m resolution, 600m spacing between buoys, 300 m drift precission (based on buoys)    
         mask = (x1>x_buoy[m]-spacing) & (x1<x_buoy[m]+spacing) & (y1>y_buoy[m]-spacing) & (y1<y_buoy[m]+spacing)
         #damage mask for data with ~400m resolution            
@@ -197,6 +157,15 @@ for i in range(0,len(fl_dmg)):
         rr = np.mean(np.ma.masked_invalid(rid[mask_d]))
         ridges[i+1,m] = rr
         
+        ##if we have a coordinate, but nan for deformation, this is a large triangle
+        ##give 1 for deformation
+        ##give 1 for lead
+        #if not np.isnan(x_buoy[m]) and np.isnan(dd):
+            #print('found a hole!')
+            #damage[i+1,m] = 1
+            #leads[i+1,m] = 1
+        
+        
         #how can i track the area change over this triangle???
         #for that i need to always use the same nods and keep record of the area
         
@@ -208,7 +177,7 @@ for i in range(0,len(fl_dmg)):
         #then track volume of lead ice and ridge ice in every parcel...
         #no, parcels are just points, how should i distribute the values from triangles to them???
         
-        #use some simple themodynamice model for sea ice growth inside the parcel
+        #use some simple themodynamical model for sea ice growth inside the parcel
         #dynamic components based on area change creates leads and ridges
         #these new, ridge ice needs to be distributed somehow inside the parcels
         #what can we learn from Albeldyl et al, TC???
@@ -275,15 +244,15 @@ container = np.load(out_file, allow_pickle=True)
 date = container['date']
 
 #radius_proj=55000           #big enough to contain all the moving ice
-radius_proj=radius
+radius_proj=radius+2000  #extend to account of VBs that drifted out
 from pyresample.geometry import AreaDefinition
 #Using a projection dictionary
 area_id = 'around Lance'
 description = 'North Pole LAEA'
 proj_id = 'lance'
 proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
-width = radius_proj*2/100 #100 m spacing    (should have same resolution as the final gridded map)
-height = radius_proj*2/100 #100 m spacing
+width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
+height = radius_proj*2/600 #100 m spacing
 area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj)
 area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 #print(area_def)
@@ -355,33 +324,48 @@ classified = np.where((ltotal<.3)&(rtotal>.3),1,0)
 classified = np.where((ltotal>.3)&(rtotal<.3),2,classified)
 classified = np.where((ltotal>.3)&(rtotal>.3),3,classified)
 
-radius_proj=radius+1000  #extend to account of VBs that drifted out
+radius_proj=radius_proj+10000  #extend to account of VBs that drifted out
+width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
+height = radius_proj*2/600 #100 m spacing
+
 xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
 area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj) #just the last scene, use last Lance location from previous scene
 area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 
-print(date[fp])
-print(Lance_lon, Lance_lat)
-print(xlp,ylp)
+#print(date[fp])
+#print(Lance_lon, Lance_lat)
+#print(xlp,ylp)
 
 #m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
 #m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 fig2    = plt.figure(figsize=(40,10))
 ax      = fig2.add_subplot(141)
+m = pr.plot.area_def2basemap(area_def)
+m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
 bx      = fig2.add_subplot(142)
+m = pr.plot.area_def2basemap(area_def)
+m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
 cx      = fig2.add_subplot(143)
+m = pr.plot.area_def2basemap(area_def)
+m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
 dx      = fig2.add_subplot(144)
+m = pr.plot.area_def2basemap(area_def)
+m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
 
 ax.set_title('total damage')
 bx.set_title('leads')
-cx.set_title('ridges')
+cx.set_title('ridges/rafted lead ice')
 dx.set_title('classified damage')
 
 
-#m = pr.plot.area_def2basemap(area_def)
-
-#m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-#m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #x,y = m(lon_path[-1,:,:],lat_path[-1,:,:])
 #ax.pcolormesh(x,y,dtotal)
@@ -418,19 +402,30 @@ dx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolo
 #m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
 start = date[0].strftime('%Y%m%d')
 end = date[fp].strftime('%Y%m%d%H%M%S')
-outname='virtual_buoys_classified_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
+outname='virtual_buoys_classified_v1_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
 fig2.savefig(outpath+outname,bbox_inches='tight')
 plt.close()
 
 #interpolate these parcels to a regular grid, so that they can be saved as geotiff
 swath_def = pr.geometry.SwathDefinition(lons=lop, lats=lap)
-classified_map = pr.kd_tree.resample_gauss(swath_def, cc,area_def, radius_of_influence=500, sigmas=500)
+#classified_map = pr.kd_tree.resample_gauss(swath_def, cc,area_def, radius_of_influence=600, sigmas=500)
+##this will give interpolated values between the classes
+##reclasify back to integer values
+##classified_map = np.where(classified_map<0.1,0,classified_map)
+#classified_map = np.where((classified_map>0) &(classified_map<1.1),1,classified_map)
+#classified_map = np.where((classified_map>1.1) & (classified_map<2.1),2,classified_map)
+#classified_map = np.where(classified_map>2.1,3,classified_map)
 
-plt.imshow(classified_map)
-plt.show()
+#rather use the nearest neighbor
+classified_map = pr.kd_tree.resample_nearest(swath_def, cc,area_def, radius_of_influence=600)
 
+#save as png
+fig3    = plt.figure(figsize=(10,10))
+ax      = fig3.add_subplot(111)
+ax.imshow(classified_map)
+fig3.savefig(outpath+outname+'_nn',bbox_inches='tight')
 
-#save this a geotiff
+#save as geotiff
 geotiff_file = outpath+outname+'.tiff'
 save_geotiff(classified_map, area_def, geotiff_file)
 

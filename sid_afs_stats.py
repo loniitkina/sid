@@ -18,13 +18,16 @@ bf = 2000
 alpha = 0.0005
 
 inpath = '../sidrift/data/stp10_asf/'
-#canberra
-#inpath = 'data/stp10_afs/'
 outpath = inpath
-reg = 'Lance'
 metfile = '../sidrift/data/10minute_nounits.csv'
 
-file_name_end = '_60km'
+#canberra
+inpath = 'data/40m_final/'
+metfile = 'data/10minute_nounits.csv'
+outpath = inpath
+
+reg = 'Lance'
+file_name_end = '_100km'
 
 #time series of afs satistics
 fig1    = plt.figure(figsize=(14,10))

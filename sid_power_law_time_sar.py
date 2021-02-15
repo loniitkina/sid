@@ -81,8 +81,8 @@ for i in lsc_list:
     td = np.ma.compressed(td)   
 
     #limit the lengh scale to 4-5km
-    minlen = 3
-    maxlen = 5
+    minlen = 2
+    maxlen = 4
 
     mask = (ls<minlen) | (ls>maxlen)
     ls_class = np.ma.array(ls,mask=mask)
@@ -107,7 +107,7 @@ for i in lsc_list:
 
 #SAR data
 reg = 'leg1'
-inpath = '../sidrift/data/80m_stp10_time/'
+inpath = '../sidrift/data/80m_stp10_time/'      #WARNING: these data is 80m - the spatial scaling (and filtering) is 40!!!
 outpath = inpath
 fname_start = 'td_seed_f_Lance_L'
 
@@ -121,10 +121,27 @@ fname_start = 'td_seed_f_Lance_L'
 #minlen=2
 #maxlen=3
 
-#this does not have enough data in 7km range
-lscale = 11
-minlen=5
-maxlen=10
+##this does not have enough data in 7km range
+#lscale = 11
+#minlen=5
+#maxlen=10
+
+#10km radius is also quite close to what what we have as he internal buoy ring
+#10km, n=9
+lscale = 4
+minlen=2
+maxlen=4
+
+lscale = 8
+minlen=2
+maxlen=5
+
+#lscale = 17
+#minlen=5
+#maxlen=15
+
+
+
 
 #conclussion: we need ~10km radius (or more) and lenght scale ~6 (3-5km)
 #also try larger temporal scales for buoys and SAR (7 days)
@@ -147,6 +164,8 @@ meantd_list_sar=[]
 
 f = inpath+fname_start+str(lscale)+'_7kmFW.csv'
 f = inpath+fname_start+str(lscale)+'_7km.csv'
+f = inpath+fname_start+str(lscale)+'_10km.csv'
+f = inpath+fname_start+str(lscale)+'_15km.csv'
 #f = inpath+'td_'+reg+'_L'+str(lscale)+'_25km.csv'
 #print(f)
 
@@ -250,4 +269,4 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_3-5km_whole_period'+title)
+fig1.savefig(outpath+'power_law_3-5km_whole_period_15km'+title)

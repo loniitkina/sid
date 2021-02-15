@@ -78,7 +78,7 @@ y_path[0,:] = y_buoy
 date = [start]
 
 for i in range(0,len(fl_dmg)):
-    #break
+    break
     #read in the drift data
     print(fl[i])
     container = np.load(fl[i])
@@ -264,21 +264,28 @@ for i in range(1,fp+1):#lon_path.shape[0]):
     print(i)
     fig1    = plt.figure(figsize=(30,10))
     ax      = fig1.add_subplot(131)
+    #uncomment here if you want it with geographical coordinates (comment to get figure coordinates - and all data)
+    m = pr.plot.area_def2basemap(area_def)                                      #note: this is static/same for all days!!!
+    m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+    m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
     bx      = fig1.add_subplot(132)
+    #uncomment here if you want it with geographical coordinates
+    m = pr.plot.area_def2basemap(area_def)
+    m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+    m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
     cx      = fig1.add_subplot(133)
+    #uncomment here if you want it with geographical coordinates
+    m = pr.plot.area_def2basemap(area_def)
+    m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+    m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+
     
     ax.set_title('damage')
     bx.set_title('leads')
     cx.set_title('ridges')
     
-    #x,y = m(lon_path[i,:,:],lat_path[i,:,:])
-    #ax.pcolormesh(x,y,damage[i])
-    
-    #uncomment here if you want it with geographical coordinates
-    #m = pr.plot.area_def2basemap(area_def)
-    #m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-    #m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-
     lop = np.ma.masked_where(~(np.isfinite(lat_path[i,:])),lon_path[i,:]); lop = np.ma.compressed(lop)
     lap = np.ma.masked_invalid(lat_path[i,:]); lap = np.ma.compressed(lap)
     x,y = m(lop,lap)
@@ -405,6 +412,29 @@ end = date[fp].strftime('%Y%m%d%H%M%S')
 outname='virtual_buoys_classified_v1_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
 fig2.savefig(outpath+outname,bbox_inches='tight')
 plt.close()
+
+#just classified parcels for Jack's YRT proposal
+
+#a bit of extra fiddling with the projection
+#radius_proj=radius+2000
+area_extent = (xlp-radius-10000,ylp-radius-10000,xlp+radius+20000,ylp+radius+10000)
+proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
+area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+
+fig2a = plt.figure(figsize=(10,10))
+ax    = fig2a.add_subplot(111)
+m = pr.plot.area_def2basemap(area_def)
+m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+scatter = ax.scatter(x,y,c=cc,lw=1,s=10)
+handles,labels=scatter.legend_elements()
+legend1 = ax.legend(handles=handles,labels=['No deformation','Mainly convergence','Mainly divergence','Mixed deformation'],
+                    loc="lower left",fontsize=12,title='Deformation 21-27 Jan 2015',title_fontsize=14)
+ax.add_artist(legend1)
+
+fig2a.savefig(outpath+'for_Jack1',bbox_inches='tight')
+plt.close()
+exit()
 
 #interpolate these parcels to a regular grid, so that they can be saved as geotiff
 swath_def = pr.geometry.SwathDefinition(lons=lop, lats=lap)

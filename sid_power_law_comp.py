@@ -2,58 +2,41 @@ from sid_func import *
 from scipy import stats
 import matplotlib.pyplot as plt
 
+threshold=False
+threshold=True
+
 #plotting
 fig1 = plt.figure(figsize=(9,9))
 fig1 = plt.figure(figsize=(7.5,7))
 ax = fig1.add_subplot(111)
-title = 'ship_radar+buoys+SAR_UiT_seed_f_new'
-#title = 'ship_radar+buoys+SAR_UiT_seed_nofilter_test'
-#radius = '_7km_hes9FW.csv'
-#radius = '_7km_hes9.csv'
-#radius = '_7km_ttdFW.csv'
+radius = '_7km_nothreshold.csv'
+radius = '_7km_maxarea.csv'
+#radius = '_7km_nofilter.csv'
+#radius = '_7km.csv'
+#radius = '_20km.csv'
+#radius = '_100km_m0.csv'
 #radius = '_7km_n9.csv'
-#radius = '_7km_test5.csv'
-#radius = '_7kmFW.csv'
-#radius = '_20km.csv'
-#radius = '_20km_hes9.csv'
-#radius = '_20km_hes9_1km.csv'
-#radius = '_20km_test.csv'
-#radius = '_20km_test6.csv'
-radius = '_25kmFW.csv'
-radius = '_30kmFW.csv'
-#radius = '_50kmFW.csv'
-#radius = '_20km.csv'
-#radius = '_100kmFW.csv'
-#radius = '_100km_hes9_1km.csv'
-#radius = '_100km_ttd.csv'
-#radius = '_100km_n9.csv'
-#radius = '_120km.csv'
+#radius = '_20km_80m.csv'
 rr = radius.split('.')[0]
 name = 'ship_radar+buoys+SAR'
-ax.set_title(name,fontsize=29, loc='left')
+#ax.set_title(name,fontsize=29, loc='left')
 ax.set_xlabel(r"Length scale (km)",fontsize=25)
 ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 #ax.set_xscale('log')
 #ax.set_yscale('log')
-
 #ax.set_xlim(.1,10)
-
 
 #scale total divergence to average displacement (in one direction)
 #dux = n * sigma_x**2 / (2* A * dt).
 fig3 = plt.figure(figsize=(7.5,7))
 cx = fig3.add_subplot(111)
-
 cx.set_xlabel(r"Length scale (km)",fontsize=25)
 cx.set_ylabel(r"Total displacement (m)",fontsize=25)
 cx.set_xscale('log')
 cx.set_yscale('log')
 cx.set_xlim(.001,100)
 
-
-
-
-
+#empty lists to collect the data
 meanls_list_sar=[]
 meantd_list_sar=[]
 stdtd_list_sar=[]
@@ -72,25 +55,27 @@ std_dist_sar=[]
 mean_dist_sr=[]
 std_dist_sr=[]
 
-#put dummy values (detection limits) on the scatter plots
-#radius = '_7km_test1.csv'               #use dummy values from different run
-inpath = '../sidrift/data/80m_stp10_single_filter/'
-inpath = '../sidrift/data/80m_stp10_adj/'
-outpath=inpath
-fname = inpath+'dummy_Lance'+radius
-print(fname)
+if threshold:
+    #put dummy values (detection limits) on the scatter plots
+    #radius = '_7km_test1.csv'               #use dummy values from different run
+    #inpath = '../sidrift/data/80m_stp10_single_filter/'
+    inpath = '../sidrift/data/80m_stp10_adj/'
+    #inpath = '../sidrift/data/canberra/40m_final_tests/'
+    outpath=inpath
+    fname = inpath+'dummy_Lance'+radius
+    print(fname)
 
-dum1 = getColumn(fname,0, delimiter=',', header=False)
-dum2 = getColumn(fname,1, delimiter=',', header=False)
-dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
-dum2 = np.array(dum2,dtype=np.float)
+    dum1 = getColumn(fname,0, delimiter=',', header=False)
+    dum2 = getColumn(fname,1, delimiter=',', header=False)
+    dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
+    dum2 = np.array(dum2,dtype=np.float)
 
-ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
+    ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
 
-#get a power law fit on these dummy values
-a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
-x = np.arange(0.1, 100, 1)
-ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
+    #get a power law fit on these dummy values
+    a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
+    x = np.arange(0.1, 100, 1)
+    ax.loglog(x,a_dum*x**k_dum,linewidth=1,c='k')
 
 
 print('***********************ship_radar***************************')
@@ -120,8 +105,9 @@ lsc_list = range(1,7)
 #colors
 color=iter(plt.cm.Purples_r(np.linspace(0,1,len(lsc_list)+1)))
 
-#dummy values for ship radar
-dum2r = [dum2[0],dum2[1],dum2[1],dum2[2],dum2[3],dum2[3]]
+if threshold:
+    #dummy values for ship radar
+    dum2r = [dum2[0],dum2[1],dum2[1],dum2[2],dum2[3],dum2[3]]
 
 for i in range(0,len(lsc_list)):
     scale = lsc_list[i]
@@ -172,31 +158,36 @@ for i in range(0,len(lsc_list)):
     mean_dist_sr.append(sigma_x_mean)
     std_dist_sr.append(np.std(sigma_x))
     
-    #mask with the dummy values from SAR
-    no_all = len(td)
-    #mask = (td<dum2r[i])
-    mask = td < a_dum*ls**k_dum
-    
-    #store low values mean
-    ls_low = np.ma.array(ls,mask=~mask)
-    td_low = np.ma.array(td,mask=~mask)
-    ls_low = np.ma.compressed(ls_low)
-    td_low = np.ma.compressed(td_low)
-    meanls_list_sr_low.append(np.mean(ls_low))
-    meantd_list_sr_low.append(np.mean(td_low))
-    stdtd_list_sr_low.append(np.std(td_low))
-    ax.plot(np.mean(ls_low),np.mean(td_low),'s',markersize=7,markeredgecolor='orange', color=cl)
-    n1=td_low.size
-    
-    #high values
-    ls_high = np.ma.array(ls,mask=mask)
-    td_high = np.ma.array(td,mask=mask)
-    ls_high = np.ma.compressed(ls_high)
-    td_high = np.ma.compressed(td_high)
-    no_high = len(td_high)
-    fraction = no_high/no_all
-    print('fraction: '+str(fraction)+'from: '+str(no_all))
-    
+    if threshold:
+        #mask with the dummy values from SAR
+        no_all = len(td)
+        #mask = (td<dum2r[i])
+        mask = td < a_dum*ls**k_dum
+        
+        #store low values mean
+        ls_low = np.ma.array(ls,mask=~mask)
+        td_low = np.ma.array(td,mask=~mask)
+        ls_low = np.ma.compressed(ls_low)
+        td_low = np.ma.compressed(td_low)
+        meanls_list_sr_low.append(np.mean(ls_low))
+        meantd_list_sr_low.append(np.mean(td_low))
+        stdtd_list_sr_low.append(np.std(td_low))
+        ax.plot(np.mean(ls_low),np.mean(td_low),'s',markersize=7,markeredgecolor='orange', color=cl)
+        n1=td_low.size
+        
+        #high values
+        ls_high = np.ma.array(ls,mask=mask)
+        td_high = np.ma.array(td,mask=mask)
+        ls_high = np.ma.compressed(ls_high)
+        td_high = np.ma.compressed(td_high)
+        no_high = len(td_high)
+        fraction = no_high/no_all
+        print('fraction: '+str(fraction)+'from: '+str(no_all))
+
+    else:
+        ls_high = ls
+        td_high = td
+        
     #calculate and store averages
     meanls=np.mean(ls_high)
     meantd=np.mean(td_high)
@@ -204,21 +195,21 @@ for i in range(0,len(lsc_list)):
     meantd_list_sr.append(meantd)
     #ls_list_sr.extend(ls)
     #td_list_sr.extend(td)
-
     
     #plot all the data
     ax.scatter(ls, td, marker='s', lw=0, alpha=.2, color=cl)  # Data
     #ax.plot(meanls,meantd,'s',markersize=7,markeredgecolor='orange', color=cl)
     
-    #get the low value vs all value ratios
-    r_mean=np.mean(td_low)/meantd
-    r_mean_list.append(r_mean)
-    #also get the sample number ratio
-    n2=td.size
-    r_n = n1/n2
-    r_n_list.append(r_n)
+    if threshold:
+        #get the low value vs all value ratios
+        r_mean=np.mean(td_low)/meantd
+        r_mean_list.append(r_mean)
+        #also get the sample number ratio
+        n2=td.size
+        r_n = n1/n2
+        r_n_list.append(r_n)
 
-    #on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
+        #on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
 
 ##power law from the ratios
 #print(r_mean_list)
@@ -242,46 +233,46 @@ for i in range(0,len(lsc_list)):
 #fig4.savefig(outpath+'power_law_24h_ratio_'+title+rr)
 
 
+if threshold:
+    #power law from the ratios between high and all values
+    print(meantd_list_sr)
+    print(meantd_list_sr_all)
 
-#power law from the ratios between high and all values
-print(meantd_list_sr)
-print(meantd_list_sr_all)
+    ratios = np.array(meantd_list_sr)/np.array(meantd_list_sr_all)
 
-ratios = np.array(meantd_list_sr)/np.array(meantd_list_sr_all)
+    #in the last one there are hardly any values - skip
+    a_ratio,k_ratio,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,ratios)
 
-#in the last one there are hardly any values - skip
-a_ratio,k_ratio,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,ratios)
-
-#dummy x data for plotting
-x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
-
-
-
-#make separate plot
-fig4 = plt.figure(figsize=(7.5,7))
-dx = fig4.add_subplot(111)
-dx.scatter(meanls_list_sr,ratios)
-dx.loglog(x,a_ratio*x**k_ratio,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a_ratio*10e6,k_ratio),c='darkred')
-dx.legend()
-
-fig4.savefig(outpath+'power_law_24h_ratio1_'+title+rr)
+    #dummy x data for plotting
+    x = np.arange(min(meanls_list_sr), max(meanls_list_sr), 1)
 
 
 
-print(a_ratio)
-print(k_ratio)
+    #make separate plot
+    fig4 = plt.figure(figsize=(7.5,7))
+    dx = fig4.add_subplot(111)
+    dx.scatter(meanls_list_sr,ratios)
+    dx.loglog(x,a_ratio*x**k_ratio,linewidth=2,label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a_ratio*10e6,k_ratio),c='darkred')
+    dx.legend()
 
-#and standard deviation of the low values
-a_std_sr_low,k_std_sr_low,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,stdtd_list_sr_low)
+    fig4.savefig(outpath+'power_law_24h_ratio1_'+rr)
 
-print(a_std_sr_low)
-print(k_std_sr_low)
 
-#and standard deviation of the low values
-a_std_sr_all,k_std_sr_all,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,stdtd_list_sr_all)
 
-print(a_std_sr_all)
-print(k_std_sr_all)
+    print(a_ratio)
+    print(k_ratio)
+
+    #and standard deviation of the low values
+    a_std_sr_low,k_std_sr_low,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,stdtd_list_sr_low)
+
+    print(a_std_sr_low)
+    print(k_std_sr_low)
+
+    #and standard deviation of the low values
+    a_std_sr_all,k_std_sr_all,cix,ciy_upp,ciy_low = logfit(meanls_list_sr,stdtd_list_sr_all)
+
+    print(a_std_sr_all)
+    print(k_std_sr_all)
 
 
 #exit()
@@ -294,12 +285,14 @@ print('***********************sar***************************')
 #inpath = '../sidrift/data/whole_series_10stp_factor_def/data/'
 #outpath = '../sidrift/data/whole_series_10stp_factor_def/plots/'
 
-inpath = '../sidrift/data/40m_combo/'
-inpath = '../sidrift/data/80m_stp10/'
-inpath = '../sidrift/data/80m_stp10_canberra/'
-inpath = '../sidrift/data/80m_stp10_nofilter/'
-inpath = '../sidrift/data/80m_stp10_single_filter/'
+#inpath = '../sidrift/data/40m_combo/'
+#inpath = '../sidrift/data/80m_stp10/'
+#inpath = '../sidrift/data/80m_stp10_canberra/'
+#inpath = '../sidrift/data/80m_stp10_nofilter/'
+#inpath = '../sidrift/data/80m_stp10_single_filter/'
 inpath = '../sidrift/data/80m_stp10_adj/'
+#inpath = '../sidrift/data/canberra/40m_final_tests/'
+
 outpath = inpath
 
 fname_start = 'td_leg1_L'
@@ -485,18 +478,18 @@ for i in range(0,len(stp)-0):
         #ax.plot(meanls,low_values[0],'*',markersize=10,markeredgecolor='w',color='k')
         #ax.plot(meanls,meantd_all,'*',markersize=10,markeredgecolor='w',color='k')
     
-
-    #add some constructed means for case if we had all low values
-    #on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
-    if meanls < 4:
-        ratio = a_ratio*meanls**k_ratio
-        value = meantd/ratio
-        
-        ax.plot(meanls,value,'*',markersize=10,markeredgecolor='w',color='k')
-        
-        meantd_list_sar_adj.append(value)
-    else:
-        meantd_list_sar_adj.append(meantd)
+    if threshold:
+        #add some constructed means for case if we had all low values
+        #on the SAR scatter plots of this scale make td.size*r_n times meantd*r_mean: do we get a non-breaking power low then???
+        if meanls < 4:
+            ratio = a_ratio*meanls**k_ratio
+            value = meantd/ratio
+            
+            ax.plot(meanls,value,'*',markersize=10,markeredgecolor='w',color='k')
+            
+            meantd_list_sar_adj.append(value)
+        else:
+            meantd_list_sar_adj.append(meantd)
 
 
 #bx.legend()
@@ -543,8 +536,9 @@ maxlen = [4,7,10]
 #colors
 color=iter(plt.cm.Greens_r(np.linspace(0,1,len(lsc_list)+1)))
 
-#dummy values for buoys
-dum2b = [dum2[3],dum2[4],dum2[4]]
+if threshold:
+    #dummy values for buoys
+    dum2b = [dum2[3],dum2[4],dum2[4]]
 
 for i in range(0,len(lsc_list)):
     print(i)
@@ -554,13 +548,14 @@ for i in range(0,len(lsc_list)):
     ls_class = np.ma.compressed(ls_class)
     td_class = np.ma.compressed(td_class) 
     
-    #mask with the dummy values from SAR
-    #mask = (td_class<dum2b[i])
-    mask = td_class < a_dum*ls_class**k_dum
-    ls_class = np.ma.array(ls_class,mask=mask)
-    td_class = np.ma.array(td_class,mask=mask)
-    ls_class = np.ma.compressed(ls_class)
-    td_class = np.ma.compressed(td_class)
+    if threshold:
+        #mask with the dummy values from SAR
+        #mask = (td_class<dum2b[i])
+        mask = td_class < a_dum*ls_class**k_dum
+        ls_class = np.ma.array(ls_class,mask=mask)
+        td_class = np.ma.array(td_class,mask=mask)
+        ls_class = np.ma.compressed(ls_class)
+        td_class = np.ma.compressed(td_class)
 
       
     #calculate and store averages
@@ -647,12 +642,12 @@ comb_td.extend(meantd_list_sar[-4:])
 #ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 #ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
-#SAR adjusted with SR ratios
-
-a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar_adj)
-ax.loglog(x,a*x**k,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
-ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
-ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
+if threshold:
+    #SAR adjusted with SR ratios
+    a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar_adj)
+    ax.loglog(x,a*x**k,linewidth=2, ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k),c='darkred')
+    ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+    ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 
 
@@ -756,8 +751,8 @@ ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig1.tight_layout()
 
-fig1.savefig(outpath+'power_law_24h_comp_'+title+rr)
-print(outpath+'power_law_24h_comp_'+title+rr)
+fig1.savefig(outpath+'power_law_24h_comp_'+rr)
+print(outpath+'power_law_24h_comp_'+rr)
 
 
 #storing displacements
@@ -773,7 +768,7 @@ cx.set_yticks([.001,.01, .1, 1, 10, 100, 1000, 10000, 100000],[0.001,0.01, 0.1, 
 cx.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig3.tight_layout()
 
-fig3.savefig(outpath+'power_law_24h_disp_'+title+rr)
+fig3.savefig(outpath+'power_law_24h_disp_'+rr)
 
 
 
@@ -818,9 +813,10 @@ bx.loglog(meanls_list_sar,diff_sar,linewidth=2, marker='o')
 bx.loglog(meanls_list_sr,diff_sr,linewidth=2, marker='o')
 bx.loglog(meanls_list_sr,diff_sr_all,linewidth=2, marker='o')
 
-#dummy line
-a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
-bx.loglog(x,a_dum*x**k_dum,linewidth=1,c='k',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k))
+if threshold:
+    #dummy line
+    a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
+    bx.loglog(x,a_dum*x**k_dum,linewidth=1,c='k',label=r'$D=%.2f*10^{-6} L^{%.2f}$' %(a*10e6,k))
 
 #SAR
 x = np.arange(min(meanls_list_sar[:-4]), max(meanls_list_sar[:-4]), 1)
@@ -846,7 +842,7 @@ bx.xaxis.set_major_formatter(ScalarFormatter())
 bx.legend(loc='lower left',prop={'size':16}, fancybox=True, framealpha=0.5,numpoints=1)
 fig2.tight_layout()
 
-fig2.savefig(outpath+'power_law_24h_comp_diff_'+title+rr)
+fig2.savefig(outpath+'power_law_24h_comp_diff_'+rr)
 
 
 

@@ -233,7 +233,7 @@ def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_
     
     return
     
-def coarse_grain(tripts,tripts_seed,div,shr):
+def coarse_grain(tripts,tripts_seed,div,shr,limit):
     #make area-weighted mean of all triangles that are in these triangles
     #weighted-mean deformation - calculating for triangles one by one
     #https://stackoverflow.com/questions/14697442/faster-way-of-polygon-intersection-with-shapely/14804366
@@ -260,11 +260,21 @@ def coarse_grain(tripts,tripts_seed,div,shr):
         #get list of interection area
         aa = [o.intersection(qg).area for o in s.query(qg) if o.intersects(qg)] #this is a list
         aa = np.array(aa)
+        #print(aa)
+        #filter out too big triangles
+        too_big = aa>limit
+        aa = np.ma.array(aa,mask=too_big)
+        aa = np.ma.compressed(aa)
+        #print(aa)
         #get weights for the weighted means
         weights = aa/ars
         #get indexes of idividual polygons
         bb = [(index_by_id[id(o)], o.wkt) for o in s.query(qg) if o.intersects(qg)]
         idxs = [ i[0] for i in bb ]
+        #print(idxs)
+        idxs = np.ma.array(idxs,mask=too_big)
+        idxs = np.ma.compressed(idxs).tolist()
+        #print(idxs)
         #extract deformation values for weighted means
         dd = div[idxs]
         ss = shr[idxs]

@@ -14,9 +14,9 @@ radius = '_7km_maxarea.csv'
 #radius = '_7km_nofilter.csv'
 #radius = '_7km.csv'
 #radius = '_20km.csv'
-#radius = '_100km_m0.csv'
-#radius = '_7km_n9.csv'
-#radius = '_20km_80m.csv'
+#radius = '_100km_maxarea_minang5_15.csv'
+#radius = '_7km_n3.csv'
+#radius = '_20km_maxarea.csv'
 rr = radius.split('.')[0]
 name = 'ship_radar+buoys+SAR'
 #ax.set_title(name,fontsize=29, loc='left')
@@ -60,7 +60,7 @@ if threshold:
     #radius = '_7km_test1.csv'               #use dummy values from different run
     #inpath = '../sidrift/data/80m_stp10_single_filter/'
     inpath = '../sidrift/data/80m_stp10_adj/'
-    #inpath = '../sidrift/data/canberra/40m_final_tests/'
+    inpath = '../sidrift/data/canberra/40m_final_tests/'
     outpath=inpath
     fname = inpath+'dummy_Lance'+radius
     print(fname)
@@ -291,7 +291,7 @@ print('***********************sar***************************')
 #inpath = '../sidrift/data/80m_stp10_nofilter/'
 #inpath = '../sidrift/data/80m_stp10_single_filter/'
 inpath = '../sidrift/data/80m_stp10_adj/'
-#inpath = '../sidrift/data/canberra/40m_final_tests/'
+inpath = '../sidrift/data/canberra/40m_final_tests/'
 
 outpath = inpath
 
@@ -324,7 +324,7 @@ print(stp)
 #print(ls_stp)
 
 #size envelope also needs to increase (from 10m to 3km)
-margin = np.exp(np.linspace(np.log(.25),np.log(10),n))
+margin = np.exp(np.linspace(np.log(.1),np.log(20),n))
 
 #colors
 color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
@@ -337,7 +337,7 @@ color=iter(plt.cm.Blues_r(np.linspace(0,1,len(stp)+1)))
 #bx = fig2.add_subplot(111)
 
 
-for i in range(0,len(stp)-0):                           
+for i in range(0,len(stp)-4):                           
 #for i in range(0,len(stp)):    
     scale = stp[i]
     print(scale)
@@ -411,6 +411,9 @@ for i in range(0,len(stp)-0):
     #center = stats.mode(ls)[0][0]                      #this takes too much time
     print('mean lenght')
     print(center)
+    center = np.sqrt((.4*scale)**2/2)
+    print(center)
+    #exit()
     print(margin[i])
     minlen = center-margin[i]; maxlen = center+margin[i]
     #minlen = center-margin; maxlen = center+margin
@@ -609,6 +612,12 @@ ax.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
 ax.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 #and separate for SAR
+
+#first shorten the lists for very short radius (nans for high scales)
+meanls_list_sar = np.ma.compressed(np.ma.array(meanls_list_sar,mask=np.isnan(meantd_list_sar))).tolist()
+meantd_list_sar = np.ma.compressed(np.ma.array(meantd_list_sar,mask=np.isnan(meantd_list_sar))).tolist()
+meantd_list_sar_adj = np.ma.compressed(np.ma.array(meantd_list_sar_adj,mask=np.isnan(meantd_list_sar_adj))).tolist()
+
 ##fit the line
 #a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar,meantd_list_sar)
 #no binning

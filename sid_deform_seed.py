@@ -29,7 +29,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #How long do you want it to run?
 first_week=True
-first_week=False    #This will make it run for all the data
+#first_week=False    #This will make it run for all the data
 
 after_storm=True
 after_storm=False
@@ -53,20 +53,24 @@ time_series=False
 
 #
 no_threshold=True
-no_threshold=False
+#no_threshold=False
 
 #
-kernel=9    #3 is recommend by Sylvain (but for coarser resolution)
+kernel=3    #3 is recommend by Sylvain (but for coarser resolution)
 LKF_filter=True
-#LKF_filter=False
+LKF_filter=False
 
 #low mean adjustment
 low_mean=True
 low_mean=False
 
-#select lenght scale
+#min angle limit, best set very low or zero when wanting to detect all features (will include MIZ!)
+#can be set to 15, when working with scalling
+minang_limit=5
+
+#select area size
 radius = 100000
-file_name_end = '_100km_80m_n9'
+file_name_end = '_100km_no_threshold'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -114,14 +118,14 @@ factor = 40    #(factor in sid_drift 1)
 extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
 
 #20 was a good margin for factor=80, seems like 25% was a good estimate
-#does cutting out too much destroy power law at long scales???
+#no margin necessary for scaling, but use 10 to get clean LKFs for other analysis where 'less is more' (e.g. parcels)
 extra_margin = 0
 
 
-#CHECK IF WE GET OLD DATA NOW
-step = 10
-factor = 80    #(factor in sid_drift 1)
-extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
+##CHECK IF WE GET OLD DATA NOW
+#step = 10
+#factor = 80    #(factor in sid_drift 1)
+#extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
 
 
 ##inpath = '/media/polona/Polona/s1data/data/stp1_afternoon/'
@@ -548,7 +552,7 @@ for i in range(0,len(fl)):
     #hessian filter got rid of the image artifacts and bad data in the shattered zones (MIZ etc), all large triangle left are of good qualities
     #step function artefacts are all small traingles
     #WARNING: still not all large triangles are part of this!
-    threshold = ~((td>dummy_td) | (area > (distance*1.1)**2/2))
+    threshold = ~( (td>dummy_td) | (area > (distance*1.1)**2/2) & (minang>minang_limit) )
     
     #for high resolution data only:
     #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
@@ -559,6 +563,7 @@ for i in range(0,len(fl)):
     #prepare place to store filtered data
     div_f2 = div.copy()
     shr_f2 = shr.copy()
+    minang_f2 = minang.copy()   #this will be used later for coarsning
     
     if LKF_filter==True:
         ##non-masked triangles
@@ -623,7 +628,7 @@ for i in range(0,len(fl)):
             n = tri.neighbors[p]
             
             #get number of sides of seed triangle occupied by neighbors (max 3) - this will be used to limit the kernel size
-            nmask = (n == -1) | threshold[n] | (minang[n] < 5)
+            nmask = (n == -1) | threshold[n] | (minang[n] < minang_limit) 
             n = np.ma.array(n,mask=nmask); n = np.ma.compressed(n)
             
             #for each side of the seed triangle that has a neighbor
@@ -658,7 +663,7 @@ for i in range(0,len(fl)):
                         used=[]
                         for nnn in nn:
                             used.append(nnn in n_list)
-                        nmask = (nn == -1) | threshold[nn] | used | (minang[nn] < 5)
+                        nmask = (nn == -1) | threshold[nn] | used | (minang[nn] < minang_limit)
                         nn = np.ma.array(nn,mask=nmask); nn = np.ma.compressed(nn)
                         
                         #store values
@@ -1109,12 +1114,12 @@ for i in range(0,len(fl)):
             xs = xs[gpi]
             ys = ys[gpi]
             
-            #add corner points for higher steps
-            if j > 5:
-                xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
-                ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
-                xs = np.append(xs,xlist)
-                ys = np.append(ys,ylist)
+            ##add corner points for higher steps
+            #if j > 5:
+                #xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
+                #ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
+                #xs = np.append(xs,xlist)
+                #ys = np.append(ys,ylist)
 
             #keep only valid data
             xs = np.ma.masked_invalid(xs)
@@ -1143,8 +1148,11 @@ for i in range(0,len(fl)):
             gx.triplot(pts_seed[:,0], pts_seed[:,1], tri_seed.simplices.copy(), color=clm, alpha=alpha, label=str(j))
             ###############################################################3
             
+            #WARNING: these are triangles of various sizes at LKFs, in MIZ and at the scene edges
+            #allow max 2x larger triangles than optimal for smallest scale for seeding
+            max_area = (distance*2)**2/2
             #do area-weighted coarse-graining
-            div_seed,shr_seed,area_seed,minang_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2)
+            div_seed,shr_seed,area_seed,minang_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2,max_area,minang_f2)
             
             td_seed = np.sqrt(div_seed**2 + shr_seed**2)
             

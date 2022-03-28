@@ -13,6 +13,7 @@ radius = '_7km_nothreshold.csv'
 radius = '_7km_maxarea.csv'
 #radius = '_7km_nofilter.csv'
 #radius = '_7km.csv'
+radius = '_7km_maxdefFW.csv'
 #radius = '_20km.csv'
 #radius = '_100km_maxarea_minang5_15.csv'
 #radius = '_7km_n3.csv'
@@ -60,17 +61,20 @@ if threshold:
     #radius = '_7km_test1.csv'               #use dummy values from different run
     #inpath = '../sidrift/data/80m_stp10_single_filter/'
     inpath = '../sidrift/data/80m_stp10_adj/'
-    inpath = '../sidrift/data/canberra/40m_final_tests/'
+    #inpath = '../sidrift/data/canberra/40m_final_tests/'
     outpath=inpath
     fname = inpath+'dummy_Lance'+radius
     print(fname)
 
     dum1 = getColumn(fname,0, delimiter=',', header=False)
     dum2 = getColumn(fname,1, delimiter=',', header=False)
+    dum3 = getColumn(fname,2, delimiter=',', header=False)
     dum1 = np.array(dum1,dtype=np.float)/1000  #convert from m to km
     dum2 = np.array(dum2,dtype=np.float)
+    dum3 = np.array(dum3,dtype=np.float)
 
     ax.plot(dum1, dum2, 'x', color='k', alpha=.2)
+    ax.plot(dum1, dum3, 'x', color='r', alpha=.2)
 
     #get a power law fit on these dummy values
     a_dum,k_dum,cix,ciy_upp,ciy_low = logfit(dum1[:6],dum2[:6])
@@ -291,7 +295,7 @@ print('***********************sar***************************')
 #inpath = '../sidrift/data/80m_stp10_nofilter/'
 #inpath = '../sidrift/data/80m_stp10_single_filter/'
 inpath = '../sidrift/data/80m_stp10_adj/'
-inpath = '../sidrift/data/canberra/40m_final_tests/'
+#inpath = '../sidrift/data/canberra/40m_final_tests/'
 
 outpath = inpath
 

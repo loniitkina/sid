@@ -26,12 +26,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 #no, that does not work use this instead: https://anaconda.org/conda-forge/shapely
 #does not work :(
 
+#where are you running this:
+canberra=False
 
 #How long do you want it to run?
 first_week=True
-#first_week=False    #This will make it run for all the data
+first_week=False    #This will make it run for all the data
 
-#after_storm=True
+after_storm=True
 after_storm=False
 
 #Do you want all output in figures?
@@ -39,7 +41,7 @@ image=True
 #image=False
 
 #active floe size
-#afs=True
+afs=True
 afs=False
 
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
@@ -52,20 +54,25 @@ time_series=True        #this will not scale the data - useful also for the angl
 time_series=False
 
 #
-#no_threshold=True
+no_threshold=True
 no_threshold=False
 
 #
+kernel=3    #3 is recommend by Sylvain (but for coarser resolution)
 LKF_filter=True
 #LKF_filter=False
 
 #low mean adjustment
 low_mean=True
-#low_mean=False
+low_mean=False
 
-#select lenght scale
-radius = 25000
-file_name_end = '_25km'
+#min angle limit, best set very low or zero when wanting to detect all features (will include MIZ!)
+#can be set to 15, when working with scalling
+minang_limit=5
+
+#select area size
+radius = 7000
+file_name_end = '_7km_maxdef'
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -86,12 +93,18 @@ file_name_end = file_name_end+'.csv'
 
 inpath = '../sidrift/data/40m_combo/'
 #inpath = '../sidrift/data/40m_stp1_afternoon/' #files too big to open???
-#canberra
-#inpath = 'data/40m_combo/'
+if canberra:
+    inpath = 'data/40m_combo/'
 
 outpath_def = '../sidrift/data/80m_stp10_single_filter/'
 outpath_def = '../sidrift/data/80m_stp10_nofilter/'
 outpath_def = '../sidrift/data/80m_stp10_adj/'
+
+if canberra:
+    outpath_def = 'data/40m_final/'
+    outpath_def = 'data/40m_final_tests/'
+    #outpath_def = 'data/40m_fixed/'
+
 
 #parcels 
 #inpath = '../sidrift/data/stp10_parcels_f1/'
@@ -105,7 +118,18 @@ outpath_def = '../sidrift/data/80m_stp10_adj/'
 
 step = 10
 factor = 40    #(factor in sid_drift 1)
-extra_margin = 20   #20 in test5 gace best results so far (also lets in the last artifacts in LKF filter)
+extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
+
+#20 was a good margin for factor=80, seems like 25% was a good estimate
+#no margin necessary for scaling, but use 10 to get clean LKFs for other analysis where 'less is more' (e.g. parcels)
+extra_margin = 0
+
+
+##CHECK IF WE GET OLD DATA NOW
+#step = 10
+#factor = 80    #(factor in sid_drift 1)
+#extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
+
 
 ##inpath = '/media/polona/Polona/s1data/data/stp1_afternoon/'
 #outpath_def = '../sidrift/data/80m_stp1/'
@@ -116,16 +140,20 @@ extra_margin = 20   #20 in test5 gace best results so far (also lets in the last
 
 #inpath = '../sidrift/data/drift_full_time/'
 #outpath_def = '../sidrift/data/80m_stp10_time/'
+##canberra
+#inpath = '../../s1data/data/drift_full_factor1/'
+#outpath_def = 'data/40m_stp10_time_margin_m10_k4/'
 #step = 10
-#factor = 80    #(factor in sid_drift 0.5)
-#extra_margin = 20                           #this should get the sub-daily data under control (otherwise very noisy)
+#factor = 40    #(factor in sid_drift 1)
+#extra_margin = -10                           #20m margin cuts out too much, especially at shorter than 12h
 
 #outpath = '../sidrift/plots/'
 outpath = outpath_def
 
 metfile = '../sidrift/data/10minute_nounits.csv'
 #canberra
-#metfile = 'data/10minute_nounits.csv'
+if canberra:
+    metfile = 'data/10minute_nounits.csv'
 reg = 'Lance'
 proj = reg
 #reg = 'FYI'
@@ -153,7 +181,6 @@ outname_dummy = 'dummy_'+reg+file_name_end
 rlist = glob(outpath_def+outname_dummy)
 for fn in rlist:
     os.remove(fn)
-
 
 #supress warnings
 import warnings
@@ -239,7 +266,7 @@ for i in range(0,len(fl)):
 
     
     #if we want just data during/after storm
-    if (dt1 < datetime(2015,2,6)) & (after_storm==True): continue
+    if (dt1 < datetime(2015,2,3)) & (after_storm==True): continue
 
     #select a region around Lance
     
@@ -413,6 +440,7 @@ for i in range(0,len(fl)):
     dst = step*factor
     dummy_td_all = []
     dummy_ls_all = []
+    dummy_max_td_all = []
     for j in stp:
         #print(j)
         distance = dst*j
@@ -436,14 +464,29 @@ for i in range(0,len(fl)):
     
         dummy_td_all.append(dummy_td)
         dummy_ls_all.append(dummy_ls)
+        #print(dummy_td)
         
         #print(dummy_div)
         #print(dummy_shr)
         #print(dummy_td) #little higher than div, because shr is low
         #exit()
+        
+        #now also make some estimates of what is the max deformation/displacement that we measure
+        exag_fac = factor*100                                                        #40*100=4km total displacement!
+        dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac)/diff])
+                     
+        dummy_a,dummy_b,dummy_c,dummy_d,dummy_e,dummy_f=deformation(dummy_vert,dummy_uvert,dummy_vvert)
+                
+        dummy_div = dummy_a+dummy_b
+        dummy_shr = .5*np.sqrt((dummy_a-dummy_d)**2+(dummy_b+dummy_c)**2)
+        dummy_td = np.sqrt(dummy_div**2 + dummy_shr**2)
     
+        dummy_max_td_all.append(dummy_td)
+        #print(dummy_td)
+        #exit()
+        
     #store in a file
-    tt = [dummy_ls_all, dummy_td_all]
+    tt = [dummy_ls_all, dummy_td_all, dummy_max_td_all]
     table = zip(*tt)
     #adjusted to python3:
     table = list(zip(*tt))
@@ -528,7 +571,7 @@ for i in range(0,len(fl)):
     #hessian filter got rid of the image artifacts and bad data in the shattered zones (MIZ etc), all large triangle left are of good qualities
     #step function artefacts are all small traingles
     #WARNING: still not all large triangles are part of this!
-    threshold = ~((td>dummy_td) | (area > (distance*1.1)**2/2))
+    threshold = ~( (td>dummy_td) | (area > (distance*1.1)**2/2) & (minang>minang_limit) )
     
     #for high resolution data only:
     #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
@@ -539,6 +582,7 @@ for i in range(0,len(fl)):
     #prepare place to store filtered data
     div_f2 = div.copy()
     shr_f2 = shr.copy()
+    minang_f2 = minang.copy()   #this will be used later for coarsning
     
     if LKF_filter==True:
         ##non-masked triangles
@@ -603,7 +647,7 @@ for i in range(0,len(fl)):
             n = tri.neighbors[p]
             
             #get number of sides of seed triangle occupied by neighbors (max 3) - this will be used to limit the kernel size
-            nmask = (n == -1) | threshold[n] | (minang[n] < 5)
+            nmask = (n == -1) | threshold[n] | (minang[n] < minang_limit) 
             n = np.ma.array(n,mask=nmask); n = np.ma.compressed(n)
             
             #for each side of the seed triangle that has a neighbor
@@ -638,7 +682,7 @@ for i in range(0,len(fl)):
                         used=[]
                         for nnn in nn:
                             used.append(nnn in n_list)
-                        nmask = (nn == -1) | threshold[nn] | used | (minang[nn] < 5)
+                        nmask = (nn == -1) | threshold[nn] | used | (minang[nn] < minang_limit)
                         nn = np.ma.array(nn,mask=nmask); nn = np.ma.compressed(nn)
                         
                         #store values
@@ -647,7 +691,7 @@ for i in range(0,len(fl)):
                             #and if we still have some unused neighbors
                             #3 is recommended max value by Buollion
                             #use < 3 to get to at least 3 (at least one more will be added after this)
-                            if (len(side)<3) & (len(nn)>0):
+                            if (len(side)<kernel) & (len(nn)>0):
                                 side.append(tripts[j])
                                 side_div.append(div[j])
                                 side_shr.append(shr[j])
@@ -809,7 +853,7 @@ for i in range(0,len(fl)):
             p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
             px.add_collection(p)
 
-            fig6.savefig(outpath+'test_lkf_lines_'+date1.split('T')[0],bbox_inches='tight')
+            fig6.savefig(outpath+'test_lkf_lines_'+date1.split('T')[0]+file_name_end+'.png',bbox_inches='tight')
             plt.close(fig6)
             
             print('Done with LKF analysis for', date1.split('T')[0])
@@ -1089,12 +1133,12 @@ for i in range(0,len(fl)):
             xs = xs[gpi]
             ys = ys[gpi]
             
-            #add corner points for higher steps
-            if j > 5:
-                xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
-                ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
-                xs = np.append(xs,xlist)
-                ys = np.append(ys,ylist)
+            ##add corner points for higher steps
+            #if j > 5:
+                #xlist = [x[idcr1],x[idcr2],x[idcr3],x[idcr4]]
+                #ylist = [y[idcr1],y[idcr2],y[idcr3],y[idcr4]]
+                #xs = np.append(xs,xlist)
+                #ys = np.append(ys,ylist)
 
             #keep only valid data
             xs = np.ma.masked_invalid(xs)
@@ -1123,8 +1167,11 @@ for i in range(0,len(fl)):
             gx.triplot(pts_seed[:,0], pts_seed[:,1], tri_seed.simplices.copy(), color=clm, alpha=alpha, label=str(j))
             ###############################################################3
             
+            #WARNING: these are triangles of various sizes at LKFs, in MIZ and at the scene edges
+            #allow max 2x larger triangles than optimal for smallest scale for seeding
+            max_area = (distance*2)**2/2
             #do area-weighted coarse-graining
-            div_seed,shr_seed,area_seed,minang_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2)
+            div_seed,shr_seed,area_seed,minang_seed = coarse_grain(tripts,tripts_seed,div_f2,shr_f2,max_area,minang_f2)
             
             td_seed = np.sqrt(div_seed**2 + shr_seed**2)
             
@@ -1139,12 +1186,12 @@ for i in range(0,len(fl)):
                 threshold_seed = (td_seed<dyn_dummy)
                 ddidx = ddidx + 1
                 
-                ##masking
-                #div_seed = np.ma.array(div_seed,mask=threshold_seed)
-                #shr_seed = np.ma.array(shr_seed,mask=threshold_seed)            
-                #area_seed = np.ma.array(area_seed, mask=threshold_seed)
-                #minang_seed = np.ma.array(minang_seed, mask=threshold_seed)
-                ##id_seed = np.ma.array(id_seed,mask=threshold_seed)
+                #masking
+                div_seed = np.ma.array(div_seed,mask=threshold_seed)
+                shr_seed = np.ma.array(shr_seed,mask=threshold_seed)            
+                area_seed = np.ma.array(area_seed, mask=threshold_seed)
+                minang_seed = np.ma.array(minang_seed, mask=threshold_seed)
+                #id_seed = np.ma.array(id_seed,mask=threshold_seed)
             
         else:
             #if LKF_filter==False:
@@ -1172,7 +1219,7 @@ for i in range(0,len(fl)):
         if image == True:
             ##Plotting deformation 
             deform = div_seed*1e6
-            outname = outpath+'map_div_seed_f_'+reg+'_L'+str(j)+'_'+date1
+            outname = outpath+'map_div_seed_f_'+reg+'_L'+str(j)+'_'+date1+'_'+date2
             label = r'Divergence (10$^6$s$^{-1}$)'
             interval = [-5, 5]
             cmap=plt.cm.bwr
@@ -1275,13 +1322,14 @@ for i in range(0,len(fl)):
             np.savetxt(f, table, fmt="%s", delimiter=",")
         
         #angle data
-        angles_list.extend(angles)
-        #print(angles_list)
-        
-        #write data for angle PDFs
-        output = outpath_def + outname_angles
-        with open(output, 'ab') as f:
-            np.savetxt(f, angles_list, fmt="%s", delimiter=",")
+        if LKF_filter:
+            angles_list.extend(angles)
+            #print(angles_list)
+            
+            #write data for angle PDFs
+            output = outpath_def + outname_angles
+            with open(output, 'ab') as f:
+                np.savetxt(f, angles_list, fmt="%s", delimiter=",")
         
     outname='overview_mesh_seed'+date1
     gx.legend()

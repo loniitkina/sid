@@ -4,7 +4,8 @@ from sid_func import getColumn
 from pyproj import Proj, transform
 from sid_creodias_func import download_from_polygon
 
-#This script will make a polygon of 100x100km around Polarstern and download the S-1 scenes
+#This script will make a polygon of 100x100km around Polarstern and download the S-1 scenes to out_folder
+out_folder='/home/polona/Downloads/'
 
 #read the PS positions
 ps_file='../transect/data/floenavi/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
@@ -55,10 +56,7 @@ for i in range(0,len(dt_noon)):
     end_date=start_date
     
     print(start_date)
-    
-    continue
-    
-    out_folder='/home/polona/Downloads/'
+    #continue
 
     output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, start_hour = '00', end_hour = '23', coverage=.5)
     print(output)

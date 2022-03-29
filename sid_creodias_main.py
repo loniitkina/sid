@@ -5,12 +5,12 @@ from pyproj import Proj, transform
 from sid_creodias_func import download_from_polygon
 
 #This script will make a polygon of 100x100km around Polarstern and download the S-1 scenes to out_folder
-out_folder='/home/polona/Downloads/'
+out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
 
 #read the PS positions
-ps_file='../transect/data/floenavi/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-ps_file='../transect/data/floenavi/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
-#ps_file='../coord_trans/dshipextracts/transect_legs/position_leg3_nh-track.csv'
+ps_file='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#ps_file='../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
+ps_file='../../downloads/position_leg3_nh-track.csv'
 
 dt = getColumn(ps_file,0)
 lon = getColumn(ps_file,1)
@@ -58,7 +58,7 @@ for i in range(0,len(dt_noon)):
     print(start_date)
     #continue
 
-    output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, start_hour = '00', end_hour = '23', coverage=.5)
+    output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, start_hour = '00', end_hour = '23', coverage=.1)
     print(output)
     
 #alternatives: get mosaics from sentinelhub

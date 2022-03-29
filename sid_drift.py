@@ -58,17 +58,19 @@ outpath = '../sidrift/plots/'
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '/Data/sim/data/Sentinel1/'
 
-inpath = '../sidrift/data/Sentinel1/'
+#inpath = '../sidrift/data/Sentinel1/'
+inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
+outpath = inpath
 
-#show Lance position
-def getColumn(filename, column):
-    results = csv.reader(open(filename))
-    next(results, None)
-    return [result[column] for result in results]
-metfile = '../sidrift/data/10minute_nounits.csv'
+##show Lance position
+#def getColumn(filename, column):
+    #results = csv.reader(open(filename))
+    #next(results, None)
+    #return [result[column] for result in results]
+#metfile = '../sidrift/data/10minute_nounits.csv'
 
 #file list
-fl = sorted(glob.glob(inpath+'S1A_EW_GRDM_1SDH_*.zip'))
+fl = sorted(glob.glob(inpath+'S1*.zip'))
 print(fl)
 #fl = fl[40:]    #process only part of the files
 print(fl)

@@ -16,6 +16,16 @@ from nansat import Nansat, Domain, NSR
 
 from sea_ice_drift import SeaIceDrift
 
+
+def getColumn(filename, column, delimiter=',', header=True):
+    results = csv.reader(open(filename),delimiter=delimiter)
+    if header==True:
+        next(results, None)
+    return [result[column] for result in results]
+
+
+
+
 # download Sentinel-1 data with sentinelsat
 #make json point files with qgis (or write with a script)
 #in QGIS: create layer - new temporary scratch layer - draw point - save as
@@ -34,7 +44,7 @@ from sea_ice_drift import SeaIceDrift
 #el: only image from early morning and late afteroon (same date)
 #24h: only early mornming images (2 different dates)
 #all drift files will be in same folder files with same time steps will be overwritten - finally there will be no double files!
-mode = ['all', 'ee', 'el', '24h', '2d', '3d'][3]
+mode = ['all', 'ee', 'el', '24h', '2d', '3d'][0]
 print(mode)
 
 # full resolution (pixel spacing) is 80m (or even 40m - something to check)
@@ -44,6 +54,7 @@ print(mode)
 stp = 1
 stp = 10
 stp = 50
+stp = 100
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
@@ -55,19 +66,19 @@ outpath_drift = '../sidrift/data/'
 outpath = '../sidrift/plots/'
 
 
+
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '/Data/sim/data/Sentinel1/'
 
 #inpath = '../sidrift/data/Sentinel1/'
 inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
+inpath = 'temp/'
 outpath = inpath
+outpath_drift = inpath
 
-##show Lance position
-#def getColumn(filename, column):
-    #results = csv.reader(open(filename))
-    #next(results, None)
-    #return [result[column] for result in results]
-#metfile = '../sidrift/data/10minute_nounits.csv'
+#show ship/CO position
+shipfile = '../sidrift/data/10minute_nounits.csv'
+shipfile = 'temp/position_leg3_nh-track.csv'
 
 #file list
 fl = sorted(glob.glob(inpath+'S1*.zip'))
@@ -117,15 +128,18 @@ for i in range(0,len(fl)):
     else:
         match = i+1
     
-    ##find where Lance is
-    #mettime = getColumn(metfile,0)
-    #dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
-    #if dtb[0]>dt1: continue
-    #if dtb[-1]<dt1: continue
-    #mi = np.argmin(abs(np.asarray(dtb)-dt1))
-    #Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
-    #Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
-    #if np.isnan(Lance_lon): continue
+    #find where ship/CO is
+    mettime = getColumn(shipfile,0)
+    dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
+    if dtb[0]>dt1: continue
+    if dtb[-1]<dt1: continue
+    mi = np.argmin(abs(np.asarray(dtb)-dt1))
+    ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)[mi]
+    ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)[mi]
+    if np.isnan(ship_lon): continue
+
+    print('ship at: ',ship_lon,ship_lat)
+    exit()
 
     # open files, read 'sigma0_HV' band and convert to UInt8 image
     f1 = fl[i]
@@ -163,14 +177,14 @@ for i in range(0,len(fl)):
     # subsample lon,lat with even steps
     lon1pm, lat1pm = lon1pm[::stp, ::stp], lat1pm[::stp, ::stp] 
     
-    # subsample around Lance
+    # subsample around ship
     lonlat_shape = lon1pm.shape
     lon_diff = 3
     lat_diff = 0.3      #approx. 50km
-    near_lance_pix = ((lon1pm > (Lance_lon - lon_diff )) *
-                      (lon1pm < (Lance_lon + lon_diff )) * 
-                      (lat1pm > (Lance_lat - lat_diff )) * 
-                      (lat1pm < (Lance_lat + lat_diff )))
+    near_lance_pix = ((lon1pm > (ship_lon - lon_diff )) *
+                      (lon1pm < (ship_lon + lon_diff )) * 
+                      (lat1pm > (ship_lat - lat_diff )) * 
+                      (lat1pm < (ship_lat + lat_diff )))
     # that will return lon,lat as vectors, not as grids   
     lon1pm, lat1pm  = lon1pm[near_lance_pix] , lat1pm[near_lance_pix] 
     
@@ -260,8 +274,8 @@ for i in range(0,len(fl)):
     # set X/Y limits of figure
     plt.xlim([regw, rege])
     plt.ylim([regs, regn])
-    #plot Lance
-    plt.plot(Lance_lon, Lance_lat, '*', color='purple', markersize=6)
+    #plot ship
+    plt.plot(ship_lon, ship_lat, '*', color='purple', markersize=6)
     
     plt.savefig(outpath+'SeaIceDrift_PM_img2_'+date1+'_'+date2+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
     plt.close('all')

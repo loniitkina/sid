@@ -2,7 +2,7 @@
 
 import numpy as np
 import csv
-import osr, gdal
+#import osr, gdal
 import matplotlib.pyplot as plt
 import pyresample as pr
 from scipy import stats

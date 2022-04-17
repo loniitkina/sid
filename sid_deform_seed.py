@@ -26,9 +26,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 #no, that does not work use this instead: https://anaconda.org/conda-forge/shapely
 #does not work :(
 
-#where are you running this:
-canberra=False
-
 #How long do you want it to run?
 first_week=True
 first_week=False    #This will make it run for all the data
@@ -42,7 +39,7 @@ image=True
 
 #active floe size
 afs=True
-afs=False
+#afs=False
 
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 #just save level 1 data and exit
@@ -71,8 +68,11 @@ low_mean=False
 minang_limit=5
 
 #select area size
-radius = 7000
-file_name_end = '_7km_maxdef'
+radius = 120000
+file_name_end = '_120km'
+
+#expected divergence values (div in s-1 * 10e6)
+interval = [-1, 1]
 
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
@@ -91,19 +91,9 @@ file_name_end = file_name_end+'.csv'
 #-------------------------------------------------------------------
 #also set step and factor for each input data
 
-inpath = '../sidrift/data/40m_combo/'
-#inpath = '../sidrift/data/40m_stp1_afternoon/' #files too big to open???
-if canberra:
-    inpath = 'data/40m_combo/'
+inpath = '../../results/sid/drift/'
+outpath_def = '../../results/sid/afs/'
 
-outpath_def = '../sidrift/data/80m_stp10_single_filter/'
-outpath_def = '../sidrift/data/80m_stp10_nofilter/'
-outpath_def = '../sidrift/data/80m_stp10_adj/'
-
-if canberra:
-    outpath_def = 'data/40m_final/'
-    outpath_def = 'data/40m_final_tests/'
-    #outpath_def = 'data/40m_fixed/'
 
 
 #parcels 
@@ -117,12 +107,12 @@ if canberra:
 #outpath_def = 'data/stp10_afs/'
 
 step = 10
-factor = 40    #(factor in sid_drift 1)
+factor = 80    #(factor in sid_drift, default factor in FT is 0.5, which translates to 80 m here)
 extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
 
 #20 was a good margin for factor=80, seems like 25% was a good estimate
 #no margin necessary for scaling, but use 10 to get clean LKFs for other analysis where 'less is more' (e.g. parcels)
-extra_margin = 0
+#extra_margin = 0
 
 
 ##CHECK IF WE GET OLD DATA NOW
@@ -147,14 +137,10 @@ extra_margin = 0
 #factor = 40    #(factor in sid_drift 1)
 #extra_margin = -10                           #20m margin cuts out too much, especially at shorter than 12h
 
-#outpath = '../sidrift/plots/'
-outpath = outpath_def
+outpath = '../../results/sid/plots/'
 
-metfile = '../sidrift/data/10minute_nounits.csv'
-#canberra
-if canberra:
-    metfile = 'data/10minute_nounits.csv'
-reg = 'Lance'
+shipfile = '../../downloads/position_leg3_nh-track.csv'
+reg = 'ship'
 proj = reg
 #reg = 'FYI'
 #reg = 'SYI'
@@ -193,17 +179,23 @@ inProj = Proj(init='epsg:4326')
 outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=m' % (90, 10))
 
 #Using a projection dictionary
-area_id = 'around Lance'
+area_id = 'around ship'
 description = 'North Pole LAEA Europe'
-proj_id = 'lance'
+proj_id = 'ship'
 #proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'a':6378137, 'b':6356752.3142, 'units':'m'}
 #SRS used in sea ice drift:
 #srs = '+proj=laea lat_0=%f lon_0=%f +datum=WGS84 +ellps=WGS84 +no_defs' % (90, 10)
 #because displacements and velocities are in this projection we should use it here too!
 proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
 
-regn = 84; regs = 81
-regw = 10; rege = 30
+#regn = 84; regs = 81
+#regw = 10; rege = 30
+#specify region
+lon_diff = 15
+ship_lon=17.147909; ship_lat=87.132429      #March/April event start
+regn = ship_lat+.1; regs = ship_lat-4
+regw = ship_lon-lon_diff; rege = ship_lon+lon_diff
+
 xc1,yc1 = transform(inProj,outProj,regw, regs)
 xc2,yc2 = transform(inProj,outProj,rege, regn)
 area_extent = (xc1,yc1,xc2,yc2)
@@ -231,8 +223,11 @@ for i in range(0,len(fl)):
     lat = container['lat1']#[::10,::10]
     lon = container['lon1']#[::10,::10]
     
-    #print('Size of input matrix:')
-    #print(u.size)
+    #print(np.ma.masked_invalid(u).compressed())
+    
+    print('Size of input matrix:')
+    print(u.size)
+    
         
     #get time difference
     date1 = fl[i].split('_')[-2]
@@ -240,56 +235,57 @@ for i in range(0,len(fl)):
     dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
     
-    #if we want just the data until the week-long gap
-    if (dt1 > datetime(2015,1,27)) & (first_week==True): print('First week only') ;break
+    ##if we want just the data until the week-long gap
+    #if (dt1 > datetime(2015,1,27)) & (first_week==True): print('First week only') ;break
 
     diff = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
     
-    #Lance postion (from Lance's met system)
-    mettime = getColumn(metfile,0)
+    #ship postion (from ship's met system)
+    mettime = getColumn(shipfile,0)
     dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
     if dtb[0]>dt1: continue
     if dtb[-1]<dt1: continue
     mi = np.argmin(abs(np.asarray(dtb)-dt1))
-    Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
-    Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
-    if np.isnan(Lance_lon): continue
+    ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)[mi]
+    ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)[mi]
+    if np.isnan(ship_lon): continue
 
-    if reg == 'fixed':   #keep positions from previous step
-        if i==0:
-            llato = Lance_lat
-            llono = Lance_lon        
+    print('ship at: ',ship_lon,ship_lat,dtb[mi])
+
+    #if reg == 'fixed':   #keep positions from previous step
+        #if i==0:
+            #llato = ship_lat
+            #llono = ship_lon        
             
-        else:
-            Lance_lat = llato
-            Lance_lon = llono
+        #else:
+            #ship_lat = llato
+            #ship_lon = llono
 
     
-    #if we want just data during/after storm
-    if (dt1 < datetime(2015,2,3)) & (after_storm==True): continue
+    ##if we want just data during/after storm
+    #if (dt1 < datetime(2015,2,3)) & (after_storm==True): continue
 
-    #select a region around Lance
+    #select a region around ship
     
-    #convert Lance position and sea ice drift array to projected image coordinates
+    #convert ship position and sea ice drift array to projected image coordinates
     #project the coordinates (units of distance have to be meters)
     #use QGIS for the first guess about the coordinates
     #area_def = pr.utils.load_area('area.cfg', proj)
     
-    #Lance centered projection
+    #ship centered projection
     #inProj = Proj(init='epsg:4326')
     #outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +a=6378137 +b=6356752.3142 +units=m' % (90, 10))
-    xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
+    xlp,ylp = transform(inProj,outProj,ship_lon,ship_lat)
     
-    if reg == 'FYI':   #shift region into the pure FYI zone
-        #ylp = ylp-5000
-        xlp = xlp+20000
+    #if reg == 'FYI':   #shift region into the pure FYI zone
+        ##ylp = ylp-5000
+        #xlp = xlp+20000
 
-    if reg == 'SYI':   #shift region into the pure SYI zone
-        #ylp = ylp+5000
-        xlp = xlp-20000
+    #if reg == 'SYI':   #shift region into the pure SYI zone
+        ##ylp = ylp+5000
+        #xlp = xlp-20000
 
-    
-    ##Using a projection dictionary (same stuff is same as above)
+    ##Using a projection dictionary (same stuff as above)
     width = radius*2/factor # m spacing
     height = radius*2/factor # m spacing
     area_extent = (xlp-radius,ylp-radius,xlp+radius,ylp+radius)
@@ -300,16 +296,16 @@ for i in range(0,len(fl)):
     #reproject vertices
     x, y = m(lon, lat)
         
-    ##recalculate u,v
-    #x2, y2 = m(lon2, lat2)
-    #u = (x2-x)/diff
-    #v = (y2-y)/diff
+    ###recalculate u,v
+    ##x2, y2 = m(lon2, lat2)
+    ##u = (x2-x)/diff
+    ##v = (y2-y)/diff
             
-    ##possible fix for old version velocities
+    ##possible fix for old version velocities - check if this is not done already in sid_drift.py
     #u = u/diff
     #v = v/diff
                 
-    #reproject Lance position    ##mask all very small or big triangles
+    #reproject ship position    ##mask all very small or big triangles
     ##if not masked the range of the ls is big and has several clouds (expected ls, twice the ls and all kinds of smaller ls)
     #center = np.mean(ls)
     ##center = stats.mode(ls)[0][0]                      #this takes too much time
@@ -322,38 +318,60 @@ for i in range(0,len(fl)):
     #ls = np.ma.compressed(ls)
     #td = np.ma.compressed(td) #*1e6   
 
-    xl, yl = m(Lance_lon, Lance_lat)
-    xla, yla = ma(Lance_lon, Lance_lat)
+    xl, yl = m(ship_lon, ship_lat)
+    print(xl,yl)
     
     
-    #needs to be cut out from projected space again or coordinates run far beyond the image boundaries and slow down the calculation!
-    if reg == 'FYI':   #shift region southwards into the pure FYI zone
-        #yl = yl-5000
-        xl = xl+20000
+    
+    
+    ##needs to be cut out from projected space again or coordinates run far beyond the image boundaries and slow down the calculation!
+    #if reg == 'FYI':   #shift region southwards into the pure FYI zone
+        ##yl = yl-5000
+        #xl = xl+20000
 
-    if reg == 'SYI':   #shift region northwards into the pure SYI zone
-        #yl = yl+5000
-        xl = xl-20000
+    #if reg == 'SYI':   #shift region northwards into the pure SYI zone
+        ##yl = yl+5000
+        #xl = xl-20000
 
     #cut out region
-    mask = (x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius)
+    mask = ~((x<xl-radius) | (x>xl+radius) | (y<yl-radius) | (y>yl+radius))
     
-    #mask the region and fill in nans
-    x = np.ma.array(x,mask=mask,fill_value=np.nan)
-    y = np.ma.array(y,mask=mask,fill_value=np.nan)
-    u = np.ma.array(u,mask=mask,fill_value=np.nan)
-    v = np.ma.array(v,mask=mask,fill_value=np.nan)
-    hpm = np.ma.array(hpm,mask=mask,fill_value=np.nan)
-    lon = np.ma.array(lon,mask=mask,fill_value=np.nan)
-    lat = np.ma.array(lat,mask=mask,fill_value=np.nan)
+    ##mask the region and fill in nans
+    #x = np.ma.array(x,mask=mask,fill_value=np.nan)
+    #y = np.ma.array(y,mask=mask,fill_value=np.nan)
+    #u = np.ma.array(u,mask=mask,fill_value=np.nan)
+    #v = np.ma.array(v,mask=mask,fill_value=np.nan)
+    #hpm = np.ma.array(hpm,mask=mask,fill_value=np.nan)
+    #lon = np.ma.array(lon,mask=mask,fill_value=np.nan)
+    #lat = np.ma.array(lat,mask=mask,fill_value=np.nan)
     
-    us = u.filled()
-    vs = v.filled()
-    xs = x.filled()
-    ys = y.filled()
-    hpms = hpm.filled()
-    lons = lon.filled()
-    lats = lat.filled()
+    #us = u.filled()
+    #vs = v.filled()
+    #xs = x.filled()
+    #ys = y.filled()
+    #hpms = hpm.filled()
+    #lons = lon.filled()
+    #lats = lat.filled()
+    
+    ##dummies
+    #us = u
+    #vs = v
+    #xs = x
+    #ys = y
+    #hpms = hpm
+    #lons = lon
+    #lats = lat
+    
+    us = u[mask]
+    vs = v[mask]
+    xs = x[mask]
+    ys = y[mask]
+    hpms = hpm[mask]
+    lons = lon[mask]
+    lats = lat[mask]
+    
+    
+    
     
     #mask out all poor quality data: rpm < 0.4
     gpi = hpms > 9    #this maskes out artefacts like images edges and wierd lines on scenes, but still leaves in in the 'rhomboids'
@@ -376,6 +394,12 @@ for i in range(0,len(fl)):
     ys = np.ma.masked_where(~(np.isfinite(us)),ys)
     ys = np.ma.compressed(ys)
 
+
+    print(xs,ys)
+    #exit()
+
+    lons = (np.ma.masked_where(~(np.isfinite(us)),lons))
+    lats = (np.ma.masked_where(~(np.isfinite(us)),lats))
     
     us = np.ma.masked_invalid(us)
     us = np.ma.compressed(us)
@@ -383,17 +407,19 @@ for i in range(0,len(fl)):
     vs = np.ma.compressed(vs)
 
     #check how many values are left in the region
-    #print('Values left for this step:')
-    #print(us.size)
-    if us.size < 100: print(us.size);continue
+    print('Values left for this step:')
+    print(us.size)#; exit()
+    if us.size < 100: continue
     
     #################################################################3
     #plot on overview map
     #reproject vertices
     xa, ya = ma(lons, lats)
+    #reproject ship coordinates
+    xla, yla = ma(ship_lon, ship_lat)
     cl = next(color)
     ax.plot(xa,ya,'.',color=cl, alpha=.3)
-    #Lance
+    #ship
     ax.plot(xla,yla,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
     ##################################################################3
 
@@ -411,12 +437,19 @@ for i in range(0,len(fl)):
     fig4    = plt.figure(figsize=(10,10))
     gx      = fig4.add_subplot(111)
     
-    #Lance
+    #ship
     gx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
     #full mesh
     gx.triplot(pts[:,0], pts[:,1], tri.simplices.copy(), color='k', alpha=0.5, label='full')
     #colors for the nods
     colormesh=iter(plt.cm.jet_r(np.linspace(0,1,len(stp))))
+    
+    #otherwise it never gets saved...
+    outname='overview_mesh_seed'+date1
+    gx.legend()
+    fig4.savefig(outpath+outname)
+    plt.close(fig4)
+
     ##################################################################3
 
     
@@ -566,6 +599,8 @@ for i in range(0,len(fl)):
     div = dux + dvy
     shr = .5*np.sqrt((dux-dvy)**2+(duy+dvx)**2)
     td = np.sqrt(div**2 + shr**2)
+    print(div)
+    print(np.max(np.abs(div)),np.min(np.abs(div)))
     
     #use threshold and triangle size criteria to detect noise due to step function in speed
     #hessian filter got rid of the image artifacts and bad data in the shattered zones (MIZ etc), all large triangle left are of good qualities
@@ -577,6 +612,9 @@ for i in range(0,len(fl)):
     #if increassing hessian mask to 8, we get larger triangles aroud the LKFs
     #threshold = ~((np.abs(div)>abs(dummy_div)) | (area > (distance*2.5)**2/2))
     
+    #first check for MOSAiC
+    threshold = td<dummy_td
+    
         
     ##apply LKF filter
     #prepare place to store filtered data
@@ -585,6 +623,7 @@ for i in range(0,len(fl)):
     minang_f2 = minang.copy()   #this will be used later for coarsning
     
     if LKF_filter==True:
+        print('starting LKF filter')
         ##non-masked triangles
         pindex = np.arange(0,len(tri.vertices))
         pindex = np.ma.array(pindex, mask=threshold)
@@ -599,8 +638,8 @@ for i in range(0,len(fl)):
         m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
         m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
         
-        #Lance
-        xl, yl = m(Lance_lon, Lance_lat)
+        #ship
+        xl, yl = m(ship_lon, ship_lat)
         nx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
         
@@ -612,7 +651,6 @@ for i in range(0,len(fl)):
         #plot filled triangles
         p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=1)
         p.set_array(div*1e6)
-        interval = [-10, 10]
         p.set_clim(interval)
         nx.add_collection(p)
         
@@ -753,7 +791,7 @@ for i in range(0,len(fl)):
 
         fig5.savefig(outpath+'test',bbox_inches='tight')
         plt.close(fig5)
-        print('Figure saved!')###########################################################################################################3
+        print('Test figure saved!')###########################################################################################################3
         #exit()   
         
         #update pindex (triangle index) for afs and lkf_id
@@ -822,8 +860,8 @@ for i in range(0,len(fl)):
             m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
             m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
             
-            #Lance
-            xl, yl = m(Lance_lon, Lance_lat)
+            #ship
+            xl, yl = m(ship_lon, ship_lat)
             px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
                         
             #plot the lkfs
@@ -1236,7 +1274,7 @@ for i in range(0,len(fl)):
 
             
             #print(outname)
-            plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,Lance_lon,Lance_lat,radius)
+            plot_def(area_def,tripts_seed,deform,outname,label,interval,cmap,ship_lon,ship_lat,radius)
         #####################################################################3
             #exit()
 

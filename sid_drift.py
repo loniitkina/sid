@@ -53,8 +53,8 @@ print(mode)
 #stp=10: sufficient for the time scalling law
 stp = 1
 stp = 10
-stp = 50
-stp = 100
+#stp = 50
+#stp = 100
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
@@ -62,8 +62,8 @@ stp = 100
 #outpath = '../plots/drift_full/'
 ##outpath = '../plots/drift_full_time/'
 
-outpath_drift = '../sidrift/data/'
-outpath = '../sidrift/plots/'
+outpath_drift = '../../results/sid/drift/'
+outpath = '../../results/sid/plots/'
 
 
 
@@ -72,18 +72,17 @@ outpath = '../sidrift/plots/'
 
 #inpath = '../sidrift/data/Sentinel1/'
 inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
-inpath = 'temp/'
-outpath = inpath
-outpath_drift = inpath
+inpath = '../../data/'
 
 #show ship/CO position
-shipfile = '../sidrift/data/10minute_nounits.csv'
-shipfile = 'temp/position_leg3_nh-track.csv'
+#shipfile = '../sidrift/data/10minute_nounits.csv'
+shipfile = '../../downloads/position_leg3_nh-track.csv'
 
 #file list
 fl = sorted(glob.glob(inpath+'S1*.zip'))
-print(fl)
-#fl = fl[40:]    #process only part of the files
+#print(fl)
+fl = fl[-80:-55]    #process all March/April event period
+#fl = fl[-80:-78]
 print(fl)
 #exit()
 
@@ -139,7 +138,7 @@ for i in range(0,len(fl)):
     if np.isnan(ship_lon): continue
 
     print('ship at: ',ship_lon,ship_lat)
-    exit()
+    #exit()
 
     # open files, read 'sigma0_HV' band and convert to UInt8 image
     f1 = fl[i]
@@ -157,6 +156,7 @@ for i in range(0,len(fl)):
     print('Time difference: '+str(timediff)+' seconds')
 
     #get sea ice drift
+    #up- or down-sample the images, default factor=0.5 downsamples from 40 to 80m pixels
     sid = SeaIceDrift(f1, f2)
 
     # apply Feature Tracking algorithm and retrieve ice drift speed
@@ -179,8 +179,8 @@ for i in range(0,len(fl)):
     
     # subsample around ship
     lonlat_shape = lon1pm.shape
-    lon_diff = 3
-    lat_diff = 0.3      #approx. 50km
+    lon_diff = 10
+    lat_diff = 2
     near_lance_pix = ((lon1pm > (ship_lon - lon_diff )) *
                       (lon1pm < (ship_lon + lon_diff )) * 
                       (lat1pm > (ship_lat - lat_diff )) * 
@@ -220,14 +220,15 @@ for i in range(0,len(fl)):
     apm2[near_lance_pix] = apm
     rpm2[near_lance_pix] = rpm
     hpm2[near_lance_pix] = hpm
-    lon2pm2[near_lance_pix] = lon2pm
-    lat2pm2[near_lance_pix] = lat2pm
+    #lon2pm2[near_lance_pix] = lon2pm
+    #lat2pm2[near_lance_pix] = lat2pm
     lon1pm2[near_lance_pix] = lon1pm
     lat1pm2[near_lance_pix] = lat1pm
     
     #dump the PM data into numpy file
     out_file = outpath_drift+'SeaIceDrift_'+date1+'_'+date2+'.npz'
-    np.savez(out_file,upm = upm2,vpm = vpm2, apm = apm2, rpm = rpm2, hpm = hpm2, lon1 = lon1pm2, lat1 = lat1pm2, lon2 = lon2pm2, lat2 = lat2pm2)
+    #np.savez(out_file,upm = upm2,vpm = vpm2, apm = apm2, rpm = rpm2, hpm = hpm2, lon1 = lon1pm2, lat1 = lat1pm2, lon2 = lon2pm2, lat2 = lat2pm2)
+    np.savez(out_file,upm = upm2,vpm = vpm2, apm = apm2, rpm = rpm2, hpm = hpm2, lon1 = lon1pm2, lat1 = lat1pm2)
     
     container = np.load(out_file)
     print(container.files)
@@ -240,13 +241,15 @@ for i in range(0,len(fl)):
     lon2, lat2 = sid.n2.get_border()
     
     #specify region
-    regn = 84; regs = 82
-    regw = 10; rege = 25
+    regn = ship_lat+lat_diff; regs = ship_lat-lat_diff
+    regw = ship_lon-lon_diff; rege = ship_lon+lon_diff
 
     ## prepare projected images with sigma0_HV
     #sid.n1.reproject(Domain(NSR().wkt, '-te -10 82 25 84 -ts 1000 1000'))
     #s01 = sid.n1['sigma0_HV']
-    sid.n2.reproject(Domain(NSR().wkt, '-te -10 82 25 84 -ts 1000 1000'))
+    region_text = '-te %f %f %f %f -ts 1000 1000' % (regw,regs,rege,regn)
+    print(region_text)
+    sid.n2.reproject(Domain(NSR().wkt, region_text ))
     s02 = sid.n2['sigma0_HV']
 
     ## plot the projected image from the first SAR scene

@@ -17,17 +17,13 @@ bf = 2000
 #alpha for triangulation in concave hull (0.0002 will give max 5km (1/alpha) triangles inside a concave hull)
 alpha = 0.0005
 
-inpath = '../sidrift/data/stp10_asf/'
+inpath = '../../results/sid/afs/'
 outpath = inpath
-metfile = '../sidrift/data/10minute_nounits.csv'
+shipfile = '../../downloads/position_leg3_nh-track.csv'
 
-#canberra
-inpath = 'data/40m_final/'
-metfile = 'data/10minute_nounits.csv'
-outpath = inpath
 
-reg = 'Lance'
-file_name_end = '_100km'
+reg = 'ship'
+file_name_end = '_120km'
 
 #time series of afs satistics
 fig1    = plt.figure(figsize=(14,10))
@@ -35,27 +31,27 @@ ax      = fig1.add_subplot(611)
 ax.set_title('floe number',fontsize=14, loc='left')
 #ax.set_xlabel(r"Length scale (km)",fontsize=25)
 #ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
-ax.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
+#ax.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 bx      = fig1.add_subplot(612)
 bx.set_title('floe area',fontsize=14, loc='left')
-bx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
+#bx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 cx      = fig1.add_subplot(613)
 cx.set_title('floe roundness',fontsize=14, loc='left')
-cx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
+#cx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 dx      = fig1.add_subplot(614)
 dx.set_title('floe fragmentation',fontsize=14, loc='left')
-dx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
+#dx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 ex      = fig1.add_subplot(615)
 ex.set_title('LKF area',fontsize=14, loc='left')
-ex.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
+#ex.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 fx      = fig1.add_subplot(616)
 fx.set_title('distance between LKF',fontsize=14, loc='left')
-fx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
+#fx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 #scatter plot for floe numbers
 fig2    = plt.figure(figsize=(6,6))
@@ -68,7 +64,9 @@ rlist = glob(outpath+outname_asf)
 for fn in rlist:
     os.remove(fn)
 
-fl = sorted(glob(inpath+'Afs*'+file_name_end+'*.npz'))
+fl = sorted(glob(inpath+'Afs*'+file_name_end+'*.npz'))[:-2]
+
+print(fl)
 
 for i in fl:
     print(i)
@@ -342,17 +340,17 @@ for i in fl:
         print(i)
         
         #center point of the image/polygon area
-        #xl, yl = m(Lance_lon, Lance_lat)
+        #xl, yl = m(ship_lon, ship_lat)
         #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-        #Lance postion (from Lance's met system)
-        mettime = getColumn(metfile,0)
+        #ship postion (from ship's met system)
+        mettime = getColumn(shipfile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
         mi = np.argmin(abs(np.asarray(dtb)-dt))
-        Lance_lon = np.asarray(getColumn(metfile,2),dtype=float)[mi]
-        Lance_lat = np.asarray(getColumn(metfile,1),dtype=float)[mi]
-        xl, yl = m(Lance_lon, Lance_lat)
+        ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)[mi]
+        ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)[mi]
+        xl, yl = m(ship_lon, ship_lat)
         
-        #make buffer (or square) around Lance
+        #make buffer (or square) around ship
         lance=Point(xl,yl)
         r_region=lance.buffer(i)
         

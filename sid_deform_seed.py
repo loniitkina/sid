@@ -44,7 +44,7 @@ afs=True
 ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 #just save level 1 data and exit
 parcel=True
-parcel=False
+#parcel=False
 
 #time series
 time_series=True        #this will not scale the data - useful also for the angle PDF!
@@ -91,9 +91,19 @@ file_name_end = file_name_end+'.csv'
 #-------------------------------------------------------------------
 #also set step and factor for each input data
 
-inpath = '../../results/sid/drift/'
-outpath_def = '../../results/sid/afs/'
+inpath = '../../results/sid/drift/stp10_factor05/'
+step = 10
+factor = 80    #(factor in sid_drift, default factor in FT is 0.5, which translates to 80 m here)
+extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
 
+#inpath = '../../results/sid/drift/stp5_factor1/'
+#step = 5
+#factor = 40    #(factor in sid_drift, default factor in FT is 0.5, which translates to 80 m here)
+#extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
+
+
+outpath_def = '../../results/sid/afs/'
+outpath_def = '../../results/sid/parcels/'
 
 
 #parcels 
@@ -106,40 +116,14 @@ outpath_def = '../../results/sid/afs/'
 #canberra
 #outpath_def = 'data/stp10_afs/'
 
-step = 10
-factor = 80    #(factor in sid_drift, default factor in FT is 0.5, which translates to 80 m here)
-extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
-
 #20 was a good margin for factor=80, seems like 25% was a good estimate
 #no margin necessary for scaling, but use 10 to get clean LKFs for other analysis where 'less is more' (e.g. parcels)
 #extra_margin = 0
 
-
-##CHECK IF WE GET OLD DATA NOW
-#step = 10
-#factor = 80    #(factor in sid_drift 1)
-#extra_margin = 20   #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
-
-
-##inpath = '/media/polona/Polona/s1data/data/stp1_afternoon/'
-#outpath_def = '../sidrift/data/80m_stp1/'
-#inpath = outpath_def
-#step = 2
-#factor = 40     #(factor in sid_drift 1)
-#extra_margin = 10
-
-#inpath = '../sidrift/data/drift_full_time/'
-#outpath_def = '../sidrift/data/80m_stp10_time/'
-##canberra
-#inpath = '../../s1data/data/drift_full_factor1/'
-#outpath_def = 'data/40m_stp10_time_margin_m10_k4/'
-#step = 10
-#factor = 40    #(factor in sid_drift 1)
-#extra_margin = -10                           #20m margin cuts out too much, especially at shorter than 12h
-
 outpath = '../../results/sid/plots/'
 
-shipfile = '../../downloads/position_leg3_nh-track.csv'
+shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 reg = 'ship'
 proj = reg
 #reg = 'FYI'

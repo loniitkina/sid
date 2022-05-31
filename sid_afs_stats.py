@@ -12,45 +12,63 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+
+#coherent dynamics features/element
+#floes - summer idea of separate floes might confuse people
+
+
 #buffer size in m (max distance between two nods to get connected)
-bf = 2000
-#alpha for triangulation in concave hull (0.0002 will give max 5km (1/alpha) triangles inside a concave hull)
-alpha = 0.0005
+#there is a trade-off between connecting ends of two LKFs and across a breath of the two intersecting LKFs
+bf = 3000
+#alpha for triangulation in concave hull/filling in small floes (0.0002 will give max 5km (1/alpha) triangulation distance inside a concave hull)
+#small distance prevents 'micro floes'
+alpha = 0.0005      #max 2km
+#frame buffer - half of max distance between two LKF polygons to be connected
+fbf = 1000
+#additional buffer that increases connectivity of LKF/decreases floe area
+margin_bf = 1700 
 
 inpath = '../../results/sid/afs/'
 outpath = inpath
+#leg1
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#leg3 (and transition to leg 4 until 6 June)
 shipfile = '../../downloads/position_leg3_nh-track.csv'
 
-
 reg = 'ship'
+file_name_date = '2019'	#leg1
+file_name_date = '2020'	#leg3
 file_name_end = '_120km'
 
 #time series of afs satistics
-fig1    = plt.figure(figsize=(14,10))
+fig1    = plt.figure(figsize=(14,12))
 ax      = fig1.add_subplot(611)
-ax.set_title('floe number',fontsize=14, loc='left')
+ax.set_title('Floe number',fontsize=20, loc='left')
 #ax.set_xlabel(r"Length scale (km)",fontsize=25)
 #ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 #ax.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 bx      = fig1.add_subplot(612)
-bx.set_title('floe area',fontsize=14, loc='left')
+bx.set_title('Floe area',fontsize=20, loc='left')
+bx.set_ylabel('$km^2$',fontsize=20)
 #bx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 cx      = fig1.add_subplot(613)
-cx.set_title('floe roundness',fontsize=14, loc='left')
+cx.set_title('Floe roundness',fontsize=20, loc='left')
 #cx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 dx      = fig1.add_subplot(614)
-dx.set_title('floe fragmentation',fontsize=14, loc='left')
+dx.set_title('Floe fragmentation',fontsize=20, loc='left')
 #dx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 ex      = fig1.add_subplot(615)
-ex.set_title('LKF area',fontsize=14, loc='left')
+ex.set_title('LKF area',fontsize=20, loc='left')
+ex.set_ylabel('$km^2$',fontsize=20)
 #ex.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 fx      = fig1.add_subplot(616)
-fx.set_title('distance between LKF',fontsize=14, loc='left')
+fx.set_title('Distance between LKFs',fontsize=20, loc='left')
+fx.set_ylabel('$km$',fontsize=20)
 #fx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 #scatter plot for floe numbers
@@ -59,14 +77,15 @@ aax      = fig2.add_subplot(111)
 aax.set_xlabel('Sampling Area Diameter (km)',fontsize=25)
 aax.set_ylabel('Number of Floes',fontsize=25)
 
-outname_asf = 'asf_'+reg+file_name_end+'.csv'
+outname_asf = 'asf_'+reg+file_name_date+file_name_end+'.csv'
 rlist = glob(outpath+outname_asf)
 for fn in rlist:
     os.remove(fn)
 
-fl = sorted(glob(inpath+'Afs*'+file_name_end+'*.npz'))[:-2]
+fl = sorted(glob(inpath+'Afs*'+file_name_date+'*'+file_name_end+'*.npz'))[:-2]
 
 print(fl)
+#exit()
 
 for i in fl:
     print(i)
@@ -118,13 +137,14 @@ for i in fl:
             if len(poly_nods) > 3:
                 try:
                     poly1a, edge_points = alpha_shape(poly_nods, alpha)
+                    poly1a = poly1a.buffer(bf+margin_bf)    #add some buffer
                     all_lkf.append(poly1a)
                 
                     #check if this polygon has a hole inside
                     #make negative buffer polygon
                     bs = poly1a.buffer(-1*bf)
                     #make difference between whole polygon and negative  buffer
-                    if bs.area > 0:
+                    if bs.area > 1e8:
                         hole = poly1a.intersection(bs)
                         if hole.geom_type == 'MultiPolygon':
                             for geom in hole.geoms: 
@@ -133,24 +153,27 @@ for i in fl:
                                 if whole.geom_type == 'MultiPolygon':
                                     for geom in whole.geoms:
                                         #if there is significant surface left, attach this difference polygon as new floe
-                                        if geom.area > 1e6:
+                                        if geom.area > 1e8:
                                             print('found hole with area:',geom.area)
-                                            holes.append(geom.buffer(bf))          #get this buffer area back
+                                            holes.append(geom.buffer(bf-margin_bf))          #get this buffer area back
                                 else:    
-                                    if whole.area > 1e6:
+                                    if whole.area > 1e8:
                                             print('found hole with area:',whole.area)
-                                            holes.append(whole.buffer(bf))
+                                            holes.append(whole.buffer(bf-margin_bf))
                         else:
                             whole = hole.difference(poly_buff)
-                            if whole.area > 1e7:
+                            if whole.area > 1e8:
                                 print('found hole with area:',whole.area)
-                                holes.append(whole.buffer(bf))
+                                holes.append(whole.buffer(bf-margin_bf))
 
                 except:
                         print('problematic hull, likely too small anyway')  
     
     else:
         continue
+    
+    ##make additional buffer around LKFs to merge more of them
+    #all_lkf = all_lkf.buffer(1000)
     
     poly_lkf = unary_union(all_lkf)
     
@@ -165,9 +188,9 @@ for i in fl:
     #if yes: connect the vertex to closest point in that buffer, draw a line, make buffer around that line, make that into a polygon, unify all 3 polygons
 
     
-    #add a small frame (500m) along the edges of the region
+    #add a small frame (~500m) along the edges of the region
     #this will close any floes that run accros the region edge
-    frame = region.boundary.buffer(500)
+    frame = region.boundary.buffer(fbf)
     poly4 = poly_lkf.union(frame)
 
     #get difference of both = floes!
@@ -237,6 +260,15 @@ for i in fl:
         
     p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
     px.add_collection(p)
+    
+    #plot the ship
+    mettime = getColumn(shipfile,0)
+    dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
+    mi = np.argmin(abs(np.asarray(dtb)-dt))
+    ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)[mi]
+    ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)[mi]
+    xl, yl = m(ship_lon, ship_lat)
+    px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
     fig6.savefig(outpath+'test_afs_'+str(int(bf/1000))+'km'+date.split('T')[0]+'_'+file_name_end,bbox_inches='tight')
     
@@ -271,6 +303,7 @@ for i in fl:
         for geom in floes.geoms:
             #polygon area
             a = geom.area
+            a = a /1000000  #convert to km^2
 
             #shortest radius
             centroid = geom.centroid
@@ -283,7 +316,7 @@ for i in fl:
             rr = rs/rl
                         
             #fragmentation ratio (will be high if this floe is actually a conglomerate that can not be properly separated by LKF)
-            #perimeter/radius ratio
+            #perimeter/radius
             bl = geom.boundary.length
             fr = bl/rs
                         
@@ -291,14 +324,14 @@ for i in fl:
             asf_area.append(a)
             asf_rr.append(rr)
             asf_fr.append(fr)
-            asf_lkfa.append(a_lkf)
+            asf_lkfa.append(a_lkf/1000000)
             
             asf_date.append(dt)
             asf_num.append(len(floes))
             
             #min and max distance between LKFs
-            asf_lkfd_min.append(rs*2)
-            asf_lkfd_max.append(rl*2)
+            asf_lkfd_min.append(rs*2/1000)
+            asf_lkfd_max.append(rl*2/1000)
         
         #print(asf_date,asf_num,asf_area,asf_rr,asf_fr)
         
@@ -314,12 +347,22 @@ for i in fl:
 
         #time series of afs satistics
         ax.scatter(asf_date,asf_num)
-        bx.scatter(asf_date,asf_area)
-        cx.scatter(asf_date,asf_rr)
-        dx.scatter(asf_date,asf_fr)
+        
+        bx.scatter(asf_date,asf_area,c='.5',alpha=.5)
+        bx.plot(asf_date[0],np.mean(np.array(asf_area)),'o',markeredgewidth=1,markeredgecolor='k')
+        
+        cx.scatter(asf_date,asf_rr,c='.5',alpha=.5)
+        cx.plot(asf_date[0],np.mean(np.array(asf_rr)),'o',markeredgewidth=1,markeredgecolor='k')
+        
+        dx.scatter(asf_date,asf_fr,c='.5',alpha=.5)
+        dx.plot(asf_date[0],np.mean(np.array(asf_fr)),'o',markeredgewidth=1,markeredgecolor='k')
+        
         ex.scatter(asf_date,asf_lkfa)
-        fx.scatter(asf_date,asf_lkfd_min)
-        fx.scatter(asf_date,asf_lkfd_max)
+        
+        fx.scatter(asf_date,asf_lkfd_min,c='.5',alpha=.5)
+        fx.plot(asf_date[0],np.mean(np.array(asf_lkfd_min)),'o',markeredgewidth=1,markeredgecolor='k')
+        fx.scatter(asf_date,asf_lkfd_max,c='.5',alpha=.5)
+        fx.plot(asf_date[0],np.mean(np.array(asf_lkfd_max)),'o',markeredgewidth=1,markeredgecolor='k')
 
     else:
         print('Just a single polygon')
@@ -340,9 +383,6 @@ for i in fl:
         print(i)
         
         #center point of the image/polygon area
-        #xl, yl = m(ship_lon, ship_lat)
-        #px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-        #ship postion (from ship's met system)
         mettime = getColumn(shipfile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
         mi = np.argmin(abs(np.asarray(dtb)-dt))
@@ -351,8 +391,8 @@ for i in fl:
         xl, yl = m(ship_lon, ship_lat)
         
         #make buffer (or square) around ship
-        lance=Point(xl,yl)
-        r_region=lance.buffer(i)
+        ship=Point(xl,yl)
+        r_region=ship.buffer(i)
         
         #count how many floes we have inside this buffer
         #it counts if they are partly inside
@@ -379,8 +419,8 @@ for i in fl:
 
 #save afs time series
 fig1.tight_layout()
-fig1.savefig(outpath+'asf_ts_'+file_name_end,bbox_inches='tight')
+fig1.savefig(outpath+'asf_ts_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
 
 #save radius scatter plots
 fig2.tight_layout()
-fig2.savefig(outpath+'asf_ra_'+file_name_end,bbox_inches='tight')
+fig2.savefig(outpath+'asf_ra_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')

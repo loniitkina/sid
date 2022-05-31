@@ -23,9 +23,6 @@ def getColumn(filename, column, delimiter=',', header=True):
         next(results, None)
     return [result[column] for result in results]
 
-
-
-
 # download Sentinel-1 data with sentinelsat
 #make json point files with qgis (or write with a script)
 #in QGIS: create layer - new temporary scratch layer - draw point - save as
@@ -51,38 +48,30 @@ print(mode)
 # template for PM is set to 35x35 pixels, so at 10 step resolution, overlap is substational - how high is it sensible to go?
 #stp=1: only 24h mode needs such high spatial resolution.
 #stp=10: sufficient for the time scalling law
-stp = 1
-stp = 10
-#stp = 50
-#stp = 100
+#stp = 5; factor=1;        #200m step
+stp = 10; factor=0.5    #default run with 800m step (80m averaged pixel, sampled every 100 points)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#outpath_drift = '/Data/sim/polona/sid/drift_full_stp1/'
-##outpath_drift = '/Data/sim/polona/sid/drift_full_time/'
-#outpath = '../plots/drift_full/'
-##outpath = '../plots/drift_full_time/'
-
-outpath_drift = '../../results/sid/drift/'
+outpath_drift = '../../results/sid/drift/stp10_factor05/'
+#outpath_drift = '../../results/sid/drift/stp5_factor1/'
 outpath = '../../results/sid/plots/'
 
-
-
 # ==== ICE DRIFT RETRIEVAL ====
-#inpath = '/Data/sim/data/Sentinel1/'
-
-#inpath = '../sidrift/data/Sentinel1/'
-inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
+#inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/'
 inpath = '../../data/'
 
 #show ship/CO position
 #shipfile = '../sidrift/data/10minute_nounits.csv'
 shipfile = '../../downloads/position_leg3_nh-track.csv'
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 
 #file list
 fl = sorted(glob.glob(inpath+'S1*.zip'))
 #print(fl)
-fl = fl[-80:-55]    #process all March/April event period
-#fl = fl[-80:-78]
+#fl = fl[:-80]   #leg 1
+#fl = fl[56:-80] #leg 1 after processing error (file 47 was last)
+#fl = fl[-80:-55]    #process all March/April event period
+fl = fl[-55:]	#process all the way
 print(fl)
 #exit()
 
@@ -92,7 +81,7 @@ for i in range(0,len(fl)):
     tmp = fl[i].split('/')[-1].split('.zip')[0].split('_')[4]
     date = datetime.strptime(tmp, "%Y%m%dT%H%M%S")
     dl.append(date)
-
+#print(dl)
 
 for i in range(0,len(fl)):    
 
@@ -179,7 +168,7 @@ for i in range(0,len(fl)):
     
     # subsample around ship
     lonlat_shape = lon1pm.shape
-    lon_diff = 10
+    lon_diff = 15
     lat_diff = 2
     near_lance_pix = ((lon1pm > (ship_lon - lon_diff )) *
                       (lon1pm < (ship_lon + lon_diff )) * 

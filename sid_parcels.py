@@ -18,31 +18,38 @@ import matplotlib.pyplot as plt
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
 spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
-
+spacing= 800
 
 #for output
-fp = 6  #final image pair
+#fp = 6  #final image pair
+#fp = 24	#in MOSAiC leg 3 events there is 24 pairs
 
 #-------------------------------------------------------------------
-inpath = '../sidrift/data/stp10_parcels_f1/'
-#inpath = '../sidrift/data/stp10_parcels_f1_rs2/'    #alternative endings
-inpath_drift = inpath
+inpath = '../../results/sid/parcels/'
+inpath_drift = '../../results/sid/drift/stp10_factor05/'
 outpath_data = inpath
 outpath = inpath
-outpath = '../sidrift/data/stp10_parcels_test/'
+outpath = inpath
 
-metfile = '../sidrift/data/10minute_nounits.csv'
+resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
+
+shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+
 
 #get Lance location and seed the parcels
-start = datetime(2015,1,21,6,54,4)                 #this coincides with the 1st SAR image date/time
-#Lance postion (from Lance's met system)
-mettime = getColumn(metfile,0)
+start = datetime(2015,1,21,6,54,4)              #this coincides with the 1st SAR image date/time
+start = datetime(2020,3,14,12,29,54)		#MOSAiC leg 3 events
+start = datetime(2020,3,15,11,32,28)		#MOSAiC leg 3 events - day with better initial coverage   
+#ship postion
+mettime = getColumn(shipfile,0)
 dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
 mi = np.argmin(abs(np.asarray(dtb)-start))
-llon_dtb = np.asarray(getColumn(metfile,2),dtype=float)
-llat_dtb = np.asarray(getColumn(metfile,1),dtype=float)
+llon_dtb = np.asarray(getColumn(shipfile,1),dtype=float)
+llat_dtb = np.asarray(getColumn(shipfile,2),dtype=float)
 Lance_lon = llon_dtb[mi]
 Lance_lat = llat_dtb[mi]
+print(Lance_lat,Lance_lon)
+
 
 #Lance start location in geographical coordinates
 from pyproj import Proj, transform
@@ -61,9 +68,9 @@ x_buoy = x_buoy.flatten()
 y_buoy = y_buoy.flatten()
 
 #read in the drift product and calculate displacements from starting point until the first break in the SAR data (1 week)
-fl = sorted(glob(inpath_drift+'SeaIceDrift*.npz'))
+fl = sorted(glob(inpath_drift+'SeaIceDrift_2020*.npz'))[1:]
 
-fl_dmg = sorted(glob(inpath+'Damage*.npz'))
+fl_dmg = sorted(glob(inpath+'Damage_2020*.npz'))[1:]
 
 #empty arrays to store parcel drifts and damage
 x_path = np.zeros((len(fl_dmg)+1,x_buoy.shape[0]))
@@ -235,7 +242,7 @@ leads = container['leads']
 ridges = container['ridges']
 
 
-print(lat_path[:,10])        #no more data on image 12
+#print(lat_path[:,10])        #no more data on image 12
 #exit()
 
 
@@ -253,15 +260,30 @@ proj_id = 'lance'
 proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
 width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
 height = radius_proj*2/600 #100 m spacing
-area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj)
-area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+#area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj)
+#area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 #print(area_def)
-m = pr.plot.area_def2basemap(area_def)
+#m = pr.plot.area_def2basemap(area_def)
 
 color=iter(plt.cm.rainbow(np.linspace(0,1,lon_path.shape[0])))
 
-for i in range(1,fp+1):#lon_path.shape[0]):
+for i in range(0,lon_path.shape[0]):
     print(i)
+
+    #moving projection with the ship
+    mi = np.argmin(abs(np.asarray(dtb)-date[i]))
+    Lance_lon = llon_dtb[mi]
+    Lance_lat = llat_dtb[mi]
+    xl, yl = transform(inProj,outProj,Lance_lon, Lance_lat)
+
+
+    #Using a projection dictionary
+    area_extent = (xl-radius_proj,yl-radius_proj,xl+radius_proj,yl+radius_proj)
+    area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+    #print(area_def)
+    m = pr.plot.area_def2basemap(area_def)
+
+
     fig1    = plt.figure(figsize=(30,10))
     ax      = fig1.add_subplot(131)
     #uncomment here if you want it with geographical coordinates (comment to get figure coordinates - and all data)
@@ -301,10 +323,6 @@ for i in range(1,fp+1):#lon_path.shape[0]):
     cl = next(color)
     
     #Lance moving with the VBs
-    mi = np.argmin(abs(np.asarray(dtb)-date[i]))
-    Lance_lon = llon_dtb[mi]
-    Lance_lat = llat_dtb[mi]
-    xl, yl = m(Lance_lon, Lance_lat)
     ax.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
     bx.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
     cx.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
@@ -315,16 +333,19 @@ for i in range(1,fp+1):#lon_path.shape[0]):
     plt.close()
 
 
-#total damage plot
-#date = date[-1]
+#total damage plot - best coverage is x days before the end
+fp=-3	#March April event: 6 April
+fp=-33	#whole spring: 30 April there is about half parcels left
+print(date[fp])
+
 damage = np.ma.masked_invalid(damage).filled(fill_value=0)
-dtotal = np.sum(damage[:fp+1,:],axis=0)
+dtotal = np.sum(damage[:fp,:],axis=0)
 
 leads = np.ma.masked_invalid(leads).filled(fill_value=0)
-ltotal = np.sum(leads[:fp+1,:],axis=0)
+ltotal = np.sum(leads[:fp,:],axis=0)
 
 ridges = np.ma.masked_invalid(ridges).filled(fill_value=0)
-rtotal = np.sum(ridges[:fp+1,:],axis=0)
+rtotal = np.sum(ridges[:fp,:],axis=0)
 
 
 classified = np.where((ltotal<.3)&(rtotal>.3),1,0)
@@ -335,9 +356,9 @@ radius_proj=radius_proj+10000  #extend to account of VBs that drifted out
 width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
 height = radius_proj*2/600 #100 m spacing
 
-xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
-area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj) #just the last scene, use last Lance location from previous scene
-area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+#xlp,ylp = transform(inProj,outProj,Lance_lon, Lance_lat)
+#area_extent = (xl-radius_proj,ylp-radius_proj,xl+radius_proj,ylp+radius_proj) #just the last scene, use last Lance location from previous scene
+#area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 
 #print(date[fp])
 #print(Lance_lon, Lance_lat)
@@ -347,6 +368,16 @@ area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, heigh
 #m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 fig2    = plt.figure(figsize=(40,10))
 ax      = fig2.add_subplot(141)
+
+mi = np.argmin(abs(np.asarray(dtb)-date[fp]))
+Lance_lon = llon_dtb[mi]
+Lance_lat = llat_dtb[mi]
+xl, yl = transform(inProj,outProj,Lance_lon, Lance_lat)
+#Using a projection dictionary
+area_extent = (xl-radius_proj,yl-radius_proj,xl+radius_proj,yl+radius_proj)
+area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+
+
 m = pr.plot.area_def2basemap(area_def)
 m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
 m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
@@ -382,13 +413,22 @@ lap = np.ma.masked_invalid(lat_path[fp,:]); lap = np.ma.compressed(lap)
 x,y = m(lop,lap)
 
 dd = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),dtotal); dd = np.ma.compressed(dd)
-ax.scatter(x,y,c=dd,lw=2)
+heat = ax.scatter(x,y,c=dd,lw=2)
+cb = plt.colorbar(heat, ax=ax, pad=.01, orientation="horizontal")
+cb.set_label(label='Number of days',fontsize=20)
+cb.ax.tick_params(labelsize=20)
 
 ll = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),ltotal); ll = np.ma.compressed(ll)
-bx.scatter(x,y,c=ll,lw=2)
+heat = bx.scatter(x,y,c=ll,lw=2)
+cb = plt.colorbar(heat, ax=bx, pad=.01, orientation="horizontal")
+cb.set_label(label='Number of days',fontsize=20)
+cb.ax.tick_params(labelsize=20)
 
 rr = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),rtotal); rr = np.ma.compressed(rr)
-cx.scatter(x,y,c=rr,lw=2)
+heat = cx.scatter(x,y,c=rr,lw=2)
+cb = plt.colorbar(heat, ax=cx, pad=.01, orientation="horizontal")
+cb.set_label(label='Number of days',fontsize=20)
+cb.ax.tick_params(labelsize=20)
 
 cc = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),classified); cc = np.ma.compressed(cc)
 scatter = dx.scatter(x,y,c=cc,lw=2)
@@ -409,7 +449,8 @@ dx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolo
 #m.drawmapscale(Lance_lon, Lance_lat-.3, Lance_lon+8, Lance_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
 start = date[0].strftime('%Y%m%d')
 end = date[fp].strftime('%Y%m%d%H%M%S')
-outname='virtual_buoys_classified_v1_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
+outname='virtual_buoys_classified_wholespring_'+resolution+'_m_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
+print(outpath+outname)
 fig2.savefig(outpath+outname,bbox_inches='tight')
 plt.close()
 
@@ -417,22 +458,25 @@ plt.close()
 
 #a bit of extra fiddling with the projection
 #radius_proj=radius+2000
-area_extent = (xlp-radius-10000,ylp-radius-10000,xlp+radius+20000,ylp+radius+10000)
-proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
-area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
+#area_extent = (xlp-radius-10000,ylp-radius-10000,xlp+radius+20000,ylp+radius+10000)
+#proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
+#area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 
 fig2a = plt.figure(figsize=(10,10))
 ax    = fig2a.add_subplot(111)
 m = pr.plot.area_def2basemap(area_def)
 m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
 m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-scatter = ax.scatter(x,y,c=cc,lw=1,s=10)
+
+#try to use a color map where 'no deformation' is white
+
+scatter = ax.scatter(x,y,c=cc,lw=1,s=20)
 handles,labels=scatter.legend_elements()
 legend1 = ax.legend(handles=handles,labels=['No deformation','Mainly convergence','Mainly divergence','Mixed deformation'],
-                    loc="lower left",fontsize=12,title='Deformation 21-27 Jan 2015',title_fontsize=14)
+                    loc="upper left",fontsize=12,title='Deformation 15 Mar-30 Apr 2020',title_fontsize=14)
 ax.add_artist(legend1)
-
-fig2a.savefig(outpath+'for_Jack1',bbox_inches='tight')
+print(outpath+'final_map')
+fig2a.savefig(outpath+'final_map'+resolution+'_m_wholespring',bbox_inches='tight')
 plt.close()
 exit()
 

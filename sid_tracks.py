@@ -14,7 +14,7 @@ def getColumn(filename, column, delimiter=',', skipinitialspace=False, skipheade
 #take one track and create several neighboring tracks at dfined distance in cardinal/corner directions from the original track
 
 shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-shipfile = 'src/coord_trans/dshipextracts/transect_legs/position_leg3_nh-track.csv'
+#shipfile = 'src/coord_trans/dshipextracts/transect_legs/position_leg3_nh-track.csv'
 
 #ship postion
 mettime = getColumn(shipfile,0)
@@ -31,15 +31,23 @@ xlp,ylp = transform(inProj,outProj,lon_dtb, lat_dtb)
 #get those points
 radius=100000	#100km
 xlp_nw=xlp-radius; ylp_nw=ylp+radius
+xlp_w=xlp-radius; ylp_w=ylp
 xlp_sw=xlp-radius; ylp_sw=ylp-radius
+xlp_s=xlp; ylp_s=ylp-radius
 xlp_se=xlp+radius; ylp_se=ylp-radius
+xlp_e=xlp+radius; ylp_e=ylp
 xlp_ne=xlp+radius; ylp_ne=ylp+radius
+xlp_n=xlp; ylp_n=ylp+radius
 
 #convert back to lon, lat
 lon_nw,lat_nw = transform(outProj,inProj,xlp_nw, ylp_nw)
+lon_w,lat_w = transform(outProj,inProj,xlp_w, ylp_w)
 lon_sw,lat_sw = transform(outProj,inProj,xlp_sw, ylp_sw)
+lon_s,lat_s = transform(outProj,inProj,xlp_s, ylp_s)
 lon_se,lat_se = transform(outProj,inProj,xlp_se, ylp_se)
+lon_e,lat_e = transform(outProj,inProj,xlp_e, ylp_e)
 lon_ne,lat_ne = transform(outProj,inProj,xlp_ne, ylp_ne)
+lon_n,lat_n = transform(outProj,inProj,xlp_n, ylp_n)
 
 print(lon_ne,lat_ne)
 
@@ -47,6 +55,13 @@ print(lon_ne,lat_ne)
 tt = [mettime,lon_nw,lat_nw]
 table = list(zip(*tt))
 outname = shipfile.split('.csv')[0]+'_nw.csv'
+print(outname)
+with open(outname, 'wb') as f:
+        np.savetxt(f, table, fmt="%s", delimiter=",")
+        
+tt = [mettime,lon_w,lat_w]
+table = list(zip(*tt))
+outname = shipfile.split('.csv')[0]+'_w.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
@@ -58,6 +73,13 @@ print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
         
+tt = [mettime,lon_s,lat_s]
+table = list(zip(*tt))
+outname = shipfile.split('.csv')[0]+'_s.csv'
+print(outname)
+with open(outname, 'wb') as f:
+        np.savetxt(f, table, fmt="%s", delimiter=",")
+        
 tt = [mettime,lon_se,lat_se]
 table = list(zip(*tt))
 outname = shipfile.split('.csv')[0]+'_se.csv'
@@ -65,6 +87,13 @@ print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
         
+tt = [mettime,lon_e,lat_e]
+table = list(zip(*tt))
+outname = shipfile.split('.csv')[0]+'_e.csv'
+print(outname)
+with open(outname, 'wb') as f:
+        np.savetxt(f, table, fmt="%s", delimiter=",")
+               
 tt = [mettime,lon_ne,lat_ne]
 table = list(zip(*tt))
 outname = shipfile.split('.csv')[0]+'_ne.csv'
@@ -72,4 +101,9 @@ print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
 
-
+tt = [mettime,lon_n,lat_n]
+table = list(zip(*tt))
+outname = shipfile.split('.csv')[0]+'_n.csv'
+print(outname)
+with open(outname, 'wb') as f:
+        np.savetxt(f, table, fmt="%s", delimiter=",")

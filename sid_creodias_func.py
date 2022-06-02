@@ -54,9 +54,10 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, start_hour 
         os.remove(temp_files)
 
     # Extract the downlod url
-    URL = f'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate={start_date}T{start_hour}%3A00%3A00Z&completionDate={end_date}T{end_hour}%3A59%3A59Z&productType=GRDM&geometry=POLYGON(({polygon[2]}+{polygon[1]}%2C{polygon[3]}+{polygon[1]}%2C{polygon[3]}+{polygon[0]}%2C{polygon[2]}+{polygon[0]}%2C{polygon[2]}+{polygon[1]}))&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
+    URL = f'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate={start_date}T{start_hour}%3A00%3A00Z&completionDate={end_date}T{end_hour}%3A59%3A59Z&productType=GRD&geometry=POLYGON(({polygon[2]}+{polygon[1]}%2C{polygon[3]}+{polygon[1]}%2C{polygon[3]}+{polygon[0]}%2C{polygon[2]}+{polygon[0]}%2C{polygon[2]}+{polygon[1]}))&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
 
     r = find_products(URL)
+        
     if "ErrorCode" in r.json():
         return 0
     
@@ -78,7 +79,7 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, start_hour 
         
     print('Intercestion fractions of individual scenes with your polygon: ',intersection)
 
-    id = np.argmax(intersection)
+    id = np.argmax(intersection)    #we only grab the best match!
     
     # If all products have less than 80% (default) of overlap abort 
     if intersection[id]<=coverage:
@@ -93,12 +94,13 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, start_hour 
     # Extract the url for download
     url_download = f'{r.json()["features"][id]["properties"]["services"]["download"]["url"]}?token={token["access_token"]}'
     
+    fname=r.json()["features"][id]["properties"]["title"]
+    
     # Download file
     pathlib.Path(out_folder).mkdir(parents=True, exist_ok=True)
     r = download_products(url_download, out_folder)
-    return 0 if r is None else 1
+    return 0 if r is None else 1,fname
 
-  
 def OpenID():
     try:
         r = KeycloakOpenID(server_url="https://auth.creodias.eu/auth/",

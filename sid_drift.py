@@ -1,21 +1,18 @@
 # modified from simple.py (part of SeaIceDrift by Anton Korosov)
 import os
+from os.path import exists
 import sys
 from glob import glob
 import unittest
 import inspect
-
 import csv
 from datetime import datetime, timedelta
-
 import numpy as np
 import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
 
 from nansat import Nansat, Domain, NSR
-
 from sea_ice_drift import SeaIceDrift
-
 
 def getColumn(filename, column, delimiter=',', header=True):
     results = csv.reader(open(filename),delimiter=delimiter)
@@ -53,8 +50,9 @@ stp = 10; factor=0.5    #default run with 800m step (80m averaged pixel, sampled
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 outpath_drift = '../../results/sid/drift/stp10_factor05/'
+outpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05_200km/'
 #outpath_drift = '../../results/sid/drift/stp5_factor1/'
-outpath = '../../results/sid/plots/'
+outpath = '/scratch/pit000/results/sid/plots/'
 
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/'
@@ -62,22 +60,28 @@ inpath = '../../data/'  #make ln -s of all files from remote server above: ln -s
 
 #show ship/CO position
 #shipfile = '../sidrift/data/10minute_nounits.csv'
-shipfile = '../../downloads/position_leg3_nh-track.csv'
+#shipfile = '../../downloads/position_leg3_nh-track.csv'
 #shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 
-#cover all quadrants
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
+#cover all tiles
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
+ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
+
+#leg1
+ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1*_200km.csv'))
+
 print(ps_files)
+#exit()
 
 for shipfile in ps_files:
-    print(shipfile)
-    region=shipfile.split('.csv')[0].split('_')[-1]
-    print(region)
+    print('coordinates from file: ',shipfile)
+    region=shipfile.split('.csv')[0].split('_')[-2]
+    print('region: ',region)
     
     #read filelist for SAR images from track filename list
     trackfile=shipfile.split('.csv')[0]+'-fnames.csv'
     print(trackfile)
-    fl = getColumn(trackfile,1)
+    fl = getColumn(trackfile,1,header=False)
     fl = [ inpath+i.split('.SAFE')[0]+'.zip' for i in fl ]
     print(fl)
 
@@ -94,12 +98,16 @@ for shipfile in ps_files:
     #date list
     dl = []
     for i in range(0,len(fl)):
-        tmp = fl[i].split('/')[-1].split('.zip')[0].split('_')[4]
-        date = datetime.strptime(tmp, "%Y%m%dT%H%M%S")
-        dl.append(date)
+        tmp = fl[i].split('/')[-1].split('.zip')[0]
+        if tmp == 'missing file':
+            dl.append(tmp)
+        else:
+            tmp=tmp.split('_')[4]
+            date = datetime.strptime(tmp, "%Y%m%dT%H%M%S")
+            dl.append(date)
     #print(dl)
 
-    for i in range(0,len(fl)):    
+    for i in range(0,len(fl)-1):    
 
         dt1 = dl[i]
         if mode != 'all':
@@ -132,6 +140,95 @@ for shipfile in ps_files:
         else:
             match = i+1
         
+        #check what files we have        
+        f1 = fl[i]
+        f2 = fl[match]
+        print('We have files:')
+        print(f1)
+        print(f2)
+        
+        #sometimes there is no scene for that day
+        #then f[i] or f[match] == 'missing file'
+        j=i
+        while f1==inpath+'missing file.zip':
+            j=j+1
+            f1 = fl[j]
+            try:
+                f2 = fl[j+1]
+            except:
+                #at some point there will be no more files
+                print('no more files in region: ', region)
+                f1='dummy'
+                continue
+            print(f1)
+            print(f2)
+
+        k=j
+        while f2==inpath+'missing file.zip':
+            k=k+1
+            try:
+                f2 = fl[k+1]
+            except:
+                print('no more files in region: ', region)
+                f2='dummy'
+                continue
+            print(f2)
+
+        #check that files really exist
+        file_exists = exists(f1)
+        if file_exists:
+            print(f1)
+        #sometimes there is a small difference in last part of the name
+        else:
+            #../../data/S1B_EW_GRDM_1SDH_20191019T053003_20191019T053107_018540_022EED_E941.zip
+            parts=f1.split('_')
+            first_part=parts[0]+'_'+parts[1]+'_'+parts[2]+'_'+parts[3]+'_'+parts[4]+'_'+parts[5]+'_'
+            try:
+                f1=glob(first_part+'*')[0]
+            except:
+                #or just take another scene from same date
+                #it can be both S1B or S1A
+                alternative = inpath+'S1*_'+parts[1]+'_'+parts[2]+'_'+parts[3]+'_'+parts[4].split('T')[0]+'*.zip'
+                f1=glob(alternative)[0]
+            print(f1)
+        
+        #same for the second file
+        file_exists = exists(f2)
+        if file_exists:
+            print(f2)
+        #sometimes there is a small difference in last part of the name
+        else:
+            #../../data/S1B_EW_GRDM_1SDH_20191019T053003_20191019T053107_018540_022EED_E941.zip
+            parts=f2.split('_')
+            first_part=parts[0]+'_'+parts[1]+'_'+parts[2]+'_'+parts[3]+'_'+parts[4]+'_'+parts[5]+'_'
+            try:
+                f2=glob(first_part+'*')[0]
+            except:
+                #or just take another scene from same date
+                #it can be both S1B or S1A
+                alternative = inpath+'S1*_'+parts[1]+'_'+parts[2]+'_'+parts[3]+'_'+parts[4].split('T')[0]+'*.zip'
+                print(alternative)
+                f2=glob(alternative)[0]
+            print(f2)
+        
+        print('We are working with files: ', region)
+        print(f1)
+        print(f2)
+
+        
+        
+        #WARNING: the file has to be EW, IW wont work with Nansat: ValueError: Cannot find band {'name': 'sigma0_HV'}! band_number is from 1 to 13
+        
+        if f1 == f2: print('same file'); continue
+        
+        date1 = f1.split('/')[-1].split('.zip')[0].split('_')[4]
+        date2 = f2.split('/')[-1].split('.zip')[0].split('_')[4]
+        dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
+        dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
+        print(date1,date2)
+            
+
+        
         #find where ship/CO is
         mettime = getColumn(shipfile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
@@ -143,24 +240,13 @@ for shipfile in ps_files:
         if np.isnan(ship_lon): continue
 
         print('ship at: ',ship_lon,ship_lat)
-        #exit()
 
-        # open files, read 'sigma0_HV' band and convert to UInt8 image
-        f1 = fl[i]
-        f2 = fl[match]
-        print(f1)
-        print(f2)
-        if f1 == f2: print('same file'); continue
-        
-        date1 = datetime.strftime(dl[i], "%Y%m%dT%H%M%S")
-        date2 = datetime.strftime(dl[match], "%Y%m%dT%H%M%S")
-        print(date1,date2)
-        
         #get time difference
-        timediff = (dl[match] - dl[i]).total_seconds()
+        timediff = (dt2 - dt1).total_seconds()
         print('Time difference: '+str(timediff)+' seconds')
 
         #get sea ice drift
+        #open files, read 'sigma0_HV' band and convert to UInt8 image
         #up- or down-sample the images, default factor=0.5 downsamples from 40 to 80m pixels
         sid = SeaIceDrift(f1, f2)
 
@@ -217,7 +303,6 @@ for shipfile in ps_files:
         lat2pm2 = np.zeros(lonlat_shape) + np.nan
         lon1pm2 = np.zeros(lonlat_shape) + np.nan
         lat1pm2 = np.zeros(lonlat_shape) + np.nan
-        
         
         upm2[near_lance_pix] = upm
         vpm2[near_lance_pix] = vpm

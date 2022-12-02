@@ -8,7 +8,7 @@ import pyresample as pr
 from scipy import stats
 from scipy.stats import gaussian_kde
 from scipy.interpolate import interpn
-from shapely.ops import cascaded_union, polygonize
+from shapely.ops import unary_union, polygonize
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon
 from scipy.spatial import Delaunay
 from shapely import geometry
@@ -733,7 +733,8 @@ def alpha_shape(points, alpha):
     edge_points = np.unique(np.concatenate((edge1,edge2,edge3)), axis = 0).tolist()
     m = geometry.MultiLineString(edge_points)
     triangles = list(polygonize(m))
-    return cascaded_union(triangles), edge_points
+    #return cascaded_union(triangles), edge_points
+    return unary_union(triangles), edge_points
 
 #create random log normal distributon with prescribed means and standard deviation
 def generate_lognormal_samples(mean, stdev, n=1):

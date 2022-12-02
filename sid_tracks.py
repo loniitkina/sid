@@ -1,3 +1,5 @@
+import os
+import sys
 from pyproj import Proj, transform
 import numpy as np
 from datetime import datetime
@@ -11,10 +13,21 @@ def getColumn(filename, column, delimiter=',', skipinitialspace=False, skipheade
     return [result[column] for result in results]
 
 
-#take one track and create several neighboring tracks at dfined distance in cardinal/corner directions from the original track
+#take one track and create several neighboring tracks at defined distance in cardinal/corner directions from the original track
 
 shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 #shipfile = 'src/coord_trans/dshipextracts/transect_legs/position_leg3_nh-track.csv'
+
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
+
+#copy this file to region 'c' - central
+f = open(shipfile,"r")
+copy = open(shipfile.split('.csv')[0]+'_c.csv',"wt")
+line = f.read()
+copy.write(str(line))
+f.close()
+copy.close()
 
 #ship postion
 mettime = getColumn(shipfile,0)
@@ -29,7 +42,10 @@ outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=
 xlp,ylp = transform(inProj,outProj,lon_dtb, lat_dtb)
 
 #get those points
+#EW: extra-wide swath mode is 400km wide
+#if we want to collate several tiles/sample from different image pairs - use large radius here > 200km
 radius=100000	#100km
+radius=200000
 xlp_nw=xlp-radius; ylp_nw=ylp+radius
 xlp_w=xlp-radius; ylp_w=ylp
 xlp_sw=xlp-radius; ylp_sw=ylp-radius
@@ -49,61 +65,68 @@ lon_e,lat_e = transform(outProj,inProj,xlp_e, ylp_e)
 lon_ne,lat_ne = transform(outProj,inProj,xlp_ne, ylp_ne)
 lon_n,lat_n = transform(outProj,inProj,xlp_n, ylp_n)
 
-print(lon_ne,lat_ne)
+#print(lon_ne,lat_ne)
 
 #write out files
+tt = [mettime,lon_dtb,lat_dtb]
+table = list(zip(*tt))
+outname = shipfile.split('.csv')[0]+'_c_'+str(int(radius/1000))+'km.csv'
+print(outname)
+with open(outname, 'wb') as f:
+        np.savetxt(f, table, fmt="%s", delimiter=",")
+
 tt = [mettime,lon_nw,lat_nw]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_nw.csv'
+outname = shipfile.split('.csv')[0]+'_nw_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
         
 tt = [mettime,lon_w,lat_w]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_w.csv'
+outname = shipfile.split('.csv')[0]+'_w_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
 
 tt = [mettime,lon_sw,lat_sw]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_sw.csv'
+outname = shipfile.split('.csv')[0]+'_sw_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
         
 tt = [mettime,lon_s,lat_s]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_s.csv'
+outname = shipfile.split('.csv')[0]+'_s_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
         
 tt = [mettime,lon_se,lat_se]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_se.csv'
+outname = shipfile.split('.csv')[0]+'_se_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
         
 tt = [mettime,lon_e,lat_e]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_e.csv'
+outname = shipfile.split('.csv')[0]+'_e_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
                
 tt = [mettime,lon_ne,lat_ne]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_ne.csv'
+outname = shipfile.split('.csv')[0]+'_ne_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")
 
 tt = [mettime,lon_n,lat_n]
 table = list(zip(*tt))
-outname = shipfile.split('.csv')[0]+'_n.csv'
+outname = shipfile.split('.csv')[0]+'_n_'+str(int(radius/1000))+'km.csv'
 print(outname)
 with open(outname, 'wb') as f:
         np.savetxt(f, table, fmt="%s", delimiter=",")

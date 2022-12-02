@@ -2,7 +2,7 @@ import os
 from glob import glob
 from datetime import datetime
 import numpy as np
-from shapely.geometry import Point, MultiPoint
+from shapely.geometry import Point, MultiPoint, MultiPolygon
 from shapely.geometry import Polygon as Shapely_Polygon
 from shapely.ops import unary_union
 import pickle
@@ -16,20 +16,26 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 #coherent dynamics features/element
 #floes - summer idea of separate floes might confuse people
 
-
 #buffer size in m (max distance between two nods to get connected)
 #there is a trade-off between connecting ends of two LKFs and across a breath of the two intersecting LKFs
-bf = 3000
+bf = 8000
 #alpha for triangulation in concave hull/filling in small floes (0.0002 will give max 5km (1/alpha) triangulation distance inside a concave hull)
 #small distance prevents 'micro floes'
 alpha = 0.0005      #max 2km
 #frame buffer - half of max distance between two LKF polygons to be connected
 fbf = 1000
 #additional buffer that increases connectivity of LKF/decreases floe area
-margin_bf = 1700 
+margin_bf = 1700
+#minimal size of the hole to be recognized as floe - the larger the 'bf', smaller holes are worth marking
+#min_hole_area = 1e9
+min_hole_area = 1e7     #good for 6km buffer
+min_hole_area = 1e6 
 
 inpath = '../../results/sid/afs/'
+inpath = '../../results/sid/parcels/'
+inpath = '../../results/sid/deform200km/'
 outpath = inpath
+plotpath = '../../results/sid/plots200km/'
 #leg1
 shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 #leg3 (and transition to leg 4 until 6 June)
@@ -82,22 +88,28 @@ rlist = glob(outpath+outname_asf)
 for fn in rlist:
     os.remove(fn)
 
-fl = sorted(glob(inpath+'Afs*'+file_name_date+'*'+file_name_end+'*.npz'))[:-2]
+fl = sorted(glob(inpath+'Afs*'+file_name_date+'*'+file_name_end+'*_tiled.npz'))[:-2]
+#fl = ['../../results/sid/deform200km/Afs_20200401T114043_20200402T122140_120km.csv_tiled.npz']
+#fl = ['../../results/sid/deform200km/Afs_20200316T121329_20200317T111605_120km.csv_tiled.npz']
+#fl = ['../../results/sid/deform200km/Afs_20200415T112421_20200416T120518_120km.csv_tiled.npz']
+#fl = ['../../results/sid/deform200km/Afs_20200414T122141_20200415T112421_120km.csv_tiled.npz']
 
 print(fl)
-#exit()
 
 for i in fl:
     print(i)
     
     #get date
-    date = i.split('_')[2]
+    date = i.split('_')[1]
+    print(date)
     dt = datetime.strptime(date, "%Y%m%dT%H%M%S")
-
+    
     #load data
     container = np.load(i, allow_pickle=True)
     pindex = container['pindex']
     tripts = container['tripts']
+    region = container['region']    #This is typically a MultiPolygon (or sometimes still matplotlib Polygon)
+    corner_nods = container['corners']
     
     #get all nods of triangles in lkfs
     lkf_tri = [ tripts[p] for p in pindex ]
@@ -105,9 +117,10 @@ for i in fl:
     print('This pair has # LKF nods',len(lkf_nods)) 
     #lkf_nods_extra = lkf_nods.copy()
         
-    #a region for all area where there is data (following image pair edges)
-    all_nods = [val for sublist in tripts for val in sublist]
-    region = MultiPoint(all_nods).convex_hull
+    ##a region for all area where there is data (following image pair edges)
+    ##this does not work well for tiled regions - empty corners are part of the region - read from container instead
+    #all_nods = [val for sublist in tripts for val in sublist]
+    #region = MultiPoint(all_nods).convex_hull
     
     #buffer size in meters
     print('buffer size',bf)
@@ -144,7 +157,7 @@ for i in fl:
                     #make negative buffer polygon
                     bs = poly1a.buffer(-1*bf)
                     #make difference between whole polygon and negative  buffer
-                    if bs.area > 1e8:
+                    if bs.area > min_hole_area:
                         hole = poly1a.intersection(bs)
                         if hole.geom_type == 'MultiPolygon':
                             for geom in hole.geoms: 
@@ -153,16 +166,16 @@ for i in fl:
                                 if whole.geom_type == 'MultiPolygon':
                                     for geom in whole.geoms:
                                         #if there is significant surface left, attach this difference polygon as new floe
-                                        if geom.area > 1e8:
+                                        if geom.area > min_hole_area:
                                             print('found hole with area:',geom.area)
                                             holes.append(geom.buffer(bf-margin_bf))          #get this buffer area back
                                 else:    
-                                    if whole.area > 1e8:
+                                    if whole.area > min_hole_area:
                                             print('found hole with area:',whole.area)
                                             holes.append(whole.buffer(bf-margin_bf))
                         else:
                             whole = hole.difference(poly_buff)
-                            if whole.area > 1e8:
+                            if whole.area > min_hole_area:
                                 print('found hole with area:',whole.area)
                                 holes.append(whole.buffer(bf-margin_bf))
 
@@ -178,7 +191,8 @@ for i in fl:
     poly_lkf = unary_union(all_lkf)
     
     #leads wider then 1/alpha are lost by hulling, add them back!
-    poly_lkf = poly_lkf.union(poly_tri)
+    #also add a small buffer
+    poly_lkf = poly_lkf.union(poly_tri.buffer(fbf*3))
     
     #how to connect some more LKFs
     #calculate area of each polygon and select only the small ones 
@@ -187,6 +201,27 @@ for i in fl:
     #check if there is another polygon in that buffer (small or big)
     #if yes: connect the vertex to closest point in that buffer, draw a line, make buffer around that line, make that into a polygon, unify all 3 polygons
 
+    #get the region polygon
+    #for some reason storing in numpy will preserve Polyongs, but not MultiPolyong types
+    #print(region)
+    try:
+        region=unary_union(region)
+        #try to merge two distant tiles (max 10km? appart)
+        #add some buffer and see if there is any intersection
+        if region.geom_type == 'MultiPolygon':
+            tmp = region.buffer(5000)
+            region=unary_union(tmp)
+            region = region.buffer(-5000)
+    except:
+        print('matplotlib Polygon')    
+        #WARNING:this is a temporary hack - it produces no desired frame!!!
+        all_nods = [val for sublist in tripts for val in sublist]
+        region = MultiPoint(all_nods).convex_hull 
+    
+    #the totoal coverage is sometimes much larger than the map we make here/region analysed for AFS - limit it to the picture frame
+    plot_corners = Shapely_Polygon(corner_nods)
+    region=region.intersection(plot_corners)
+    #print(region)
     
     #add a small frame (~500m) along the edges of the region
     #this will close any floes that run accros the region edge
@@ -194,13 +229,39 @@ for i in fl:
     poly4 = poly_lkf.union(frame)
 
     #get difference of both = floes!
-    floes = region.difference(poly4)
+    floes1 = region.difference(poly4)
+        
+    #the LKFs are now too wide (floes are too skinny)
+    #we cant increase/fatten the floe inside the union as they will merge
+    #so we increase them one by one instead
+    floes=[]
+    if floes1.geom_type == 'MultiPolygon':
+        used_space=floes1
+        for geom in floes1.geoms:  
+            fat = geom.buffer(bf)   #bloated floe
+            
+            #erode this polygon by already used space
+            used_space = used_space.difference(geom)    #all other floes in the union
+            keep = fat.difference(used_space)           #bloated floe without the area already covered by others
+            used_space = used_space.union(keep)
+            floes.append(keep)
+    else:
+        floes.append(floes1)
     
     #add holes (as floes)
     holes = unary_union(holes)
-    floes = floes.union(holes)
+    if holes.geom_type == 'Polygon':
+        floes.append(holes)
+    if holes.geom_type == 'MultiPolygon':
+        for geom in holes.geoms:  
+            slim = geom.difference(used_space)  #is there any area of this 'hole' already covered now by the fat floe?
+            used_space = used_space.union(slim) #add this 'hole' to the used space
+            floes.append(slim)
     
-    #save this polygons
+    #convert list to MultiPolygon
+    floes = MultiPolygon(floes)
+    
+    #save these polygons
     with open(outpath+'afs_poly_'+date+'_'+file_name_end, "wb") as poly_file:
         pickle.dump(floes, poly_file, pickle.HIGHEST_PROTOCOL)
         
@@ -240,17 +301,31 @@ for i in fl:
             xg, yg = geom.exterior.xy    
             px.fill(xg, yg, alpha=0.5, fc='none', ec='r')
     
-    xg, yg = region.exterior.xy 
-    px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
+    if region.geom_type == 'Polygon':
+        xg, yg = region.exterior.xy 
+        px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
+    if region.geom_type == 'MultiPolygon':
+        for geom in region.geoms:  
+            xg, yg = geom.exterior.xy    
+            px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
+    
+    #xg, yg = region.exterior.xy 
+    #px.fill(xg, yg, alpha=0.5, fc='none', ec='g')
         
-    #plot difference
+    #plot floes
     if floes.geom_type == 'Polygon':
         xg, yg = floes.exterior.xy 
         px.fill(xg, yg, alpha=0.5)
     if floes.geom_type == 'MultiPolygon':
+        
+        print('Floe number: ',len(floes.geoms))
+        colors=iter(plt.cm.tab20(np.linspace(0,1,len(floes.geoms))))
+
         for geom in floes.geoms:  
+            #geom = geom.buffer(bf)          #PROBLEM: holes should not be increased...
             xg, yg = geom.exterior.xy    
-            px.fill(xg, yg, alpha=0.5)
+            cl = next(colors)
+            px.fill(xg, yg, alpha=0.5, c=cl)
 
     #plot LKF triangles over
     patches_p = []
@@ -258,7 +333,7 @@ for i in fl:
         patch = Polygon(tripts[k])
         patches_p.append(patch)
         
-    p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
+    p = PatchCollection(patches_p, ec= 'k')#, fc=None, alpha=1)
     px.add_collection(p)
     
     #plot the ship
@@ -270,7 +345,7 @@ for i in fl:
     xl, yl = m(ship_lon, ship_lat)
     px.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
-    fig6.savefig(outpath+'test_afs_'+str(int(bf/1000))+'km'+date.split('T')[0]+'_'+file_name_end,bbox_inches='tight')
+    fig6.savefig(plotpath+'test_afs_'+str(int(bf/1000))+'km'+date.split('T')[0]+'_'+file_name_end,bbox_inches='tight')
     
     print('Done with ASF analysis for', date.split('T')[0])
     #exit()
@@ -301,6 +376,7 @@ for i in fl:
 
         #fore every floe
         for geom in floes.geoms:
+            
             #polygon area
             a = geom.area
             a = a /1000000  #convert to km^2
@@ -376,11 +452,11 @@ for i in fl:
     ra=np.exp(np.linspace(np.log(5000),np.log(60000),n))
     ra = ra.astype(int)
 
-    print(ra)
+    #print(ra)
     #exit()
     
     for i in ra:
-        print(i)
+        #print(i)
         
         #center point of the image/polygon area
         mettime = getColumn(shipfile,0)
@@ -408,7 +484,7 @@ for i in fl:
         else:
             floe_counter=1
             
-        print(floe_counter)
+        #print('Floe counter: ',floe_counter)
         
         #plot
         aax.scatter(i*2/1000,floe_counter,alpha=.5,color='royalblue')
@@ -419,8 +495,8 @@ for i in fl:
 
 #save afs time series
 fig1.tight_layout()
-fig1.savefig(outpath+'asf_ts_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+fig1.savefig(plotpath+'asf_ts_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
 
 #save radius scatter plots
 fig2.tight_layout()
-fig2.savefig(outpath+'asf_ra_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+fig2.savefig(plotpath+'asf_ra_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')

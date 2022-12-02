@@ -13,12 +13,37 @@ out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1
 #ps_file='../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 ps_file='../../downloads/position_leg3_nh-track.csv'
 
+ps_files=['../../downloads/position_leg3_nh-track_c_200km.csv']
+
 #cover all quadrants
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
+ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
+
+ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
+
+
+ps_files=['../../downloads/position_leg3_nh-track_w_200km.csv','../../downloads/position_leg3_nh-track_nw_200km.csv']
+
+#leg 1
+ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_*_200km.csv'))
+
+##leg 2
+#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_*_200km.csv'))
+
+#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_w_200km.csv'))
+
 print(ps_files)
+
+
+#some important dates
+new_year=datetime(2020,1,1)
+easter=datetime(2020,3,1)
 
 for ps_file in ps_files:
     print(ps_file)
+    
+    region = ps_file.split('_')[-2]
+    print(region)
+    
     dt = getColumn(ps_file,0)
     lon = getColumn(ps_file,1)
     lat = getColumn(ps_file,2)
@@ -43,7 +68,10 @@ for ps_file in ps_files:
 
     #cycle through every day
     for i in range(0,len(dt_noon)):
-        coverage=0.8
+        coverage=0.3
+        
+        #shorten the time if required (e.g. leg 2 has no useful data after new year anyway)
+        if (dt_noon[i] > new_year) and (dt_noon[i] < easter): print('NO DATA FOR JAN>>MARCH 2020');continue
         
         #convert to geogaphical coordinates
         x,y = transform(outProj,FloeNaviProj,lon_noon[i],lat_noon[i])
@@ -72,7 +100,7 @@ for ps_file in ps_files:
         start_date=datetime.strftime(dt_noon[i], '%Y-%m-%d')
         end_date=start_date
         
-        print(start_date)
+        print(start_date, region)
         #continue
 
         output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, start_hour = '00', end_hour = '23', coverage=coverage)
@@ -81,6 +109,9 @@ for ps_file in ps_files:
             print(fname)
             fns.append(fname)
             dts.append(dt_noon[i])
+        else:
+            dts.append(dt_noon[i])
+            fns.append('missing file')
 
     tt = [dts,fns]
     table = list(zip(*tt))

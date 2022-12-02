@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 #TASK: make flowchart for parcels
 
+CHECK what is the time difference between the parts of the mosaic and use different drift products for different parts of the mosaic!!!
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
 spacing= 300            #at spacing shorter than 500m, there will be lots of nans...

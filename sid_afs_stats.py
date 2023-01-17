@@ -31,18 +31,18 @@ margin_bf = 1700
 min_hole_area = 1e7     #good for 6km buffer
 min_hole_area = 1e6 
 
-inpath = '../../results/sid/afs/'
-inpath = '../../results/sid/parcels/'
-inpath = '../../results/sid/deform200km/'
+inpath = '/scratch/pit000/results/sid/afs/'
+inpath = '/scratch/pit000/results/sid/parcels/'
+inpath = '/scratch/pit000/results/sid/deform200km/'
 outpath = inpath
-plotpath = '../../results/sid/plots200km/'
+plotpath = '/scratch/pit000/results/sid/plots200km/'
 #leg1
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 #leg3 (and transition to leg 4 until 6 June)
 shipfile = '../../downloads/position_leg3_nh-track.csv'
 
 reg = 'ship'
-file_name_date = '2019'	#leg1
+#file_name_date = '2019'	#leg1
 file_name_date = '2020'	#leg3
 file_name_end = '_120km'
 
@@ -57,6 +57,7 @@ ax.set_title('Floe number',fontsize=20, loc='left')
 bx      = fig1.add_subplot(612)
 bx.set_title('Floe area',fontsize=20, loc='left')
 bx.set_ylabel('$km^2$',fontsize=20)
+bx.set_ylim(0, 10000)
 #bx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 cx      = fig1.add_subplot(613)
@@ -65,6 +66,7 @@ cx.set_title('Floe roundness',fontsize=20, loc='left')
 
 dx      = fig1.add_subplot(614)
 dx.set_title('Floe fragmentation',fontsize=20, loc='left')
+dx.set_ylim(0, 500)
 #dx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 ex      = fig1.add_subplot(615)
@@ -73,8 +75,10 @@ ex.set_ylabel('$km^2$',fontsize=20)
 #ex.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 fx      = fig1.add_subplot(616)
+#min and max floe radius
 fx.set_title('Distance between LKFs',fontsize=20, loc='left')
 fx.set_ylabel('$km$',fontsize=20)
+fx.set_ylim(0, 200)
 #fx.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
 
 #scatter plot for floe numbers
@@ -89,10 +93,10 @@ for fn in rlist:
     os.remove(fn)
 
 fl = sorted(glob(inpath+'Afs*'+file_name_date+'*'+file_name_end+'*_tiled.npz'))[:-2]
-#fl = ['../../results/sid/deform200km/Afs_20200401T114043_20200402T122140_120km.csv_tiled.npz']
-#fl = ['../../results/sid/deform200km/Afs_20200316T121329_20200317T111605_120km.csv_tiled.npz']
-#fl = ['../../results/sid/deform200km/Afs_20200415T112421_20200416T120518_120km.csv_tiled.npz']
-#fl = ['../../results/sid/deform200km/Afs_20200414T122141_20200415T112421_120km.csv_tiled.npz']
+#fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200401T114043_20200402T122140_120km.csv_tiled.npz']
+#fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200316T121329_20200317T111605_120km.csv_tiled.npz']
+#fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200415T112421_20200416T120518_120km.csv_tiled.npz']
+#fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200414T122141_20200415T112421_120km.csv_tiled.npz']
 
 print(fl)
 
@@ -494,9 +498,10 @@ for i in fl:
     #exit()
 
 #save afs time series
+#use the final date in the name
 fig1.tight_layout()
-fig1.savefig(plotpath+'asf_ts_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+fig1.savefig(plotpath+'asf_ts_'+date+'_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
 
 #save radius scatter plots
 fig2.tight_layout()
-fig2.savefig(plotpath+'asf_ra_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+fig2.savefig(plotpath+'asf_ra_'+date+'_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')

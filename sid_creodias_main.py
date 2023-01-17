@@ -5,8 +5,13 @@ from pyproj import Proj, transform
 from sid_creodias_func import download_from_polygon
 from glob import glob
 
+#WARNING: this script downloads EW amd IW, but our drift algorithm only works for EW currently!
+
 #This script will make a polygon of 100x100km around Polarstern and download the S-1 scenes to out_folder
 out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
+#N-ICE
+out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/N-ICE-2015/Satellite_Images/SENTINEL-1A'
+out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1_NICE'  #temporary directory
 
 #read the PS positions
 #ps_file='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
@@ -31,6 +36,11 @@ ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg1-2019101
 
 #ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_w_200km.csv'))
 
+#N-ICE
+ps_files = sorted(glob('../../downloads/lance_leg1*_200km.csv'))
+ps_files = ['../../downloads/lance_leg1_s_200km.csv']+sorted(glob('../../downloads/lance_leg1_[se,sw,nw,ne]?_200km.csv'))
+ps_files = ['../../downloads/lance_leg1_w_200km.csv']
+
 print(ps_files)
 
 
@@ -54,11 +64,15 @@ for ps_file in ps_files:
     #get 12UTC positions
     full_hour= np.where(np.array([ x.minute for x in dt ])==0,1,0)
     noon=np.where(np.array([ x.hour for x in dt ])==12,1,0)*full_hour
+    
+    #N-ICE
+    full_hour= np.where(np.array([ x.minute for x in dt ])==55,1,0)
+    noon=np.where(np.array([ x.hour for x in dt ])==11,1,0)*full_hour
 
     lat_noon=np.ma.array(lat,mask=noon==0).compressed()
     lon_noon=np.ma.array(lon,mask=noon==0).compressed()
     dt_noon=np.ma.array(dt,mask=noon==0).compressed()
-
+    
     outProj = Proj(init='epsg:4326')
     FloeNaviProj = Proj('+proj=stere +lat_0=%f +lon_0=%f +x_0=0 +y_0=0 +ellps=WGS84'%(0,0))
     radius=50000    #50km

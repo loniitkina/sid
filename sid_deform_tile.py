@@ -134,7 +134,8 @@ outpath = '/scratch/pit000/results/sid/plots200km/'
 
 #central tile - for mapping/projection
 shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+shipfile = '../../downloads/lance_leg1.csv'
 reg = shipfile.split('_')[1]
 proj = 'ship'
 
@@ -199,8 +200,11 @@ for fn in rlist:
 regions=['c','sw','s','se','e','ne','n','nw','w']
 regions=['c','s','w','e','n','sw','se','nw','ne']
 
+#WARNING - this is also hard-coded....
 #check how many days there are in the central tile/main track file (the one with the ship)
-main_trackfile='../../downloads/position_leg3_nh-track_c-fnames.csv'
+main_trackfile='../../downloads/position_leg3_nh-track_c_200km-fnames.csv'
+#main_trackfile='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_c_200km-fnames.csv'
+main_trackfile='../../downloads/lance_leg1_c_200km-fnames.csv'
 
 noons = getColumn(main_trackfile,0,header=False)
 noons = [ datetime.strptime(noons[i], "%Y-%m-%d %H:%M:%S") for i in range(len(noons)) ]
@@ -210,8 +214,7 @@ print(days)
 #colors for overview map
 color=iter(plt.cm.jet_r(np.linspace(0,1,len(days)+1)))
 
-#days=['20200401','20200402','20200403']
-#days=['20200507']
+#days=['20200401','20200402','20200403','20200511']
 #days=['20200402']
 #days=['20200323']
 #days=['20200307']
@@ -241,7 +244,7 @@ for day in days:
         #no point in going on if there is nothing in the central tile   ==== central file should always be there: reprocess!!!!!!!
         if region=='c' and fname=='empty': print('no central tile');break
         if fname=='empty': 
-            print(region,' - no tile')
+            print(region,' - no tile',day)
             timestamp1.append('notile');timestamp2.append('notile');timediff.append('notile')
             continue
             
@@ -266,7 +269,9 @@ for day in days:
         timediff.append(diff)
         
         #tile center - from treck file
+        #WARNING this is hard coded!!!!
         shipfile='../../downloads/position_leg3_nh-track_'+region+'.csv'
+        shipfile = '../../downloads/lance_leg1_'+region+'_200km.csv'
         print(shipfile)
         mettime = getColumn(shipfile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
@@ -481,17 +486,21 @@ for day in days:
         #***************************************************************************************
         #alternative for quad  mesh generation: https://scicomp.stackexchange.com/questions/530/unstructured-quad-mesh-generation
         #calculate deformation - calculating for triangles one by one
-        dux=[];duy=[];dvx=[];dvy=[];minang=[];area=[]
+        dux=[];duy=[];dvx=[];dvy=[];minang=[];area=[];utri=[];vtri=[]
         for t in range(0,len(tripts)):
             vert = np.asarray(tripts[t])
             uvert = upts[t]
             vvert = vpts[t]
         
-            #try:
+            #deformation:
             a,b,c,d,e,f=deformation(vert,uvert,vvert)
-            #except:
-            #continue
-            dux.append(a);duy.append(b);dvx.append(c);dvy.append(d);minang.append(e);area.append(f)
+            
+            #mean drift (for parcels):
+            uu = np.mean(uvert)
+            vv = np.mean(vvert)
+            
+            #store
+            dux.append(a);duy.append(b);dvx.append(c);dvy.append(d);minang.append(e);area.append(f);utri.append(uu);vtri.append(vv)
             
         dux = np.array(dux)
         duy = np.array(duy)
@@ -499,6 +508,11 @@ for day in days:
         dvy = np.array(dvy)
         minang = np.array(minang)
         area = np.array(area)
+        
+        #triangle averaged drift and time difference information for the parcels
+        utri = np.array(utri)
+        vtri = np.array(vtri)
+        dt = np.ones_like(utri)*diff
             
         div = dux + dvy
         shr = .5*np.sqrt((dux-dvy)**2+(duy+dvx)**2)
@@ -732,6 +746,9 @@ for day in days:
             shr_f2 = shr_f2[good_nods]
             minang_f2 = minang_f2[good_nods]
             threshold = threshold[good_nods]
+            utri = utri[good_nods]
+            vtri = vtri[good_nods]
+            dt = dt[good_nods]
             
             print('Get refined tile')
             ctr_nods = [ np.array([i,j]) for i,j in zip(ctrdx,ctrdy) ]
@@ -772,6 +789,9 @@ for day in days:
                 tiled_shr_f2=shr_f2.copy()
                 tiled_minang_f2=minang_f2.copy()
                 tiled_threshold=threshold.copy()
+                tiled_utri=utri.copy()
+                tiled_vtri=vtri.copy()
+                tiled_dt=dt.copy()
                 
                 #plot the area covered
                 xg, yg = tiled_cover.exterior.xy 
@@ -800,6 +820,9 @@ for day in days:
                 tiled_shr_f2=np.concatenate((tiled_shr_f2, shr_f2[new_nods]), axis=0)
                 tiled_minang=np.concatenate((tiled_minang_f2, minang_f2[new_nods]), axis=0)
                 tiled_threshold=np.concatenate((tiled_threshold,threshold[new_nods]), axis=0)
+                tiled_utri=np.concatenate((tiled_utri,utri[new_nods]), axis=0)
+                tiled_vtri=np.concatenate((tiled_vtri,vtri[new_nods]), axis=0)
+                tiled_dt=np.concatenate((tiled_dt,dt[new_nods]), axis=0)
                 
                 #plot the new area covered and extend coverage - dont do convex hull yet or intenral area are filled in!
                 if diff_tile.geom_type == 'MultiPolygon':
@@ -877,9 +900,9 @@ for day in days:
             #keep triangulation but apply to lon2,lat2
             #final coordinates can be stored by drift script or calculated from displacements
             
-            #dump damage data into numpy file
+            #dump damage & drift data into numpy file
             out_file = outpath_def+'Damage_'+date1_c+'_'+date2_c+'_tiled.npz'
-            np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge)
+            np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge, u=tiled_utri, v=tiled_vtri, dt=tiled_dt)
 
             print('Storing data: ',out_file)
             #continue

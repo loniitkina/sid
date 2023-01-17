@@ -21,6 +21,14 @@ shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to
 shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 #shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 
+latpos=2
+lonpos=1
+
+#N-ICE
+shipfile = '../../downloads/lance_leg1.csv'
+latpos=1
+lonpos=2
+
 #copy this file to region 'c' - central
 f = open(shipfile,"r")
 copy = open(shipfile.split('.csv')[0]+'_c.csv',"wt")
@@ -32,8 +40,8 @@ copy.close()
 #ship postion
 mettime = getColumn(shipfile,0)
 dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
-lon_dtb = np.asarray(getColumn(shipfile,1),dtype=float)
-lat_dtb = np.asarray(getColumn(shipfile,2),dtype=float)
+lon_dtb = np.asarray(getColumn(shipfile,lonpos),dtype=float)
+lat_dtb = np.asarray(getColumn(shipfile,latpos),dtype=float)
 
 #define projections
 inProj = Proj(init='epsg:4326')

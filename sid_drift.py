@@ -57,6 +57,8 @@ outpath = '/scratch/pit000/results/sid/plots/'
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/'
 inpath = '../../data/'  #make ln -s of all files from remote server above: ln -s /Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/* ../../data/
+#and remove all those duplicates by:
+#rm ../../data/*\(1\).zip*
 
 #show ship/CO position
 #shipfile = '../sidrift/data/10minute_nounits.csv'
@@ -69,6 +71,10 @@ ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,n
 
 #leg1
 ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1*_200km.csv'))
+
+#N-ICE 2015
+ps_files=sorted(glob('../../downloads/lance_leg1*_200km.csv'))
+ps_files=sorted(glob('../../downloads/lance_leg1_[s,w]*_200km.csv'))
 
 print(ps_files)
 #exit()
@@ -173,6 +179,10 @@ for shipfile in ps_files:
                 f2='dummy'
                 continue
             print(f2)
+        
+        #go to next region
+        if f2=='dummy':
+            continue
 
         #check that files really exist
         file_exists = exists(f1)

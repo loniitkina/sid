@@ -18,8 +18,9 @@ import matplotlib.pyplot as plt
 #WARNING: CHECK what is the time difference between the parts of the mosaic and use different drift products for different parts of the mosaic!!!
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
-radius = 100000
-spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
+#radius = 50000
+#radius = 100000
+#spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
 spacing= 800
 
 #for output
@@ -32,13 +33,14 @@ inpath = '/scratch/pit000/results/sid/deform200km/'
 
 inpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05/'
 outpath_data = inpath
-outpath = inpath
-outpath = inpath
+outpath = '/scratch/pit000/results/sid/parcels200km/'
+
 
 resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
 
 #get ship location
-shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 ship_time = getColumn(shipfile,0)
 ship_time = [ datetime.strptime(ship_time[i], "%Y-%m-%d %H:%M:%S") for i in range(len(ship_time)) ]
 ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)
@@ -60,9 +62,17 @@ ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
 #start = datetime(2020,3,15,11,32,28)		#MOSAiC leg 3 events - day with better initial coverage   
 #start = datetime(2020,3,12,11,32,28)		#MOSAiC leg 3 events - day with reasonable initial coverage  
 
-fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
-#print(fl)
-#exit()
+#fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+
+#small time span for DYNAMIC: 9-22 Nov 2019
+fl = sorted(glob(inpath+'Damage_2019*.npz'))[24:36]
+#fl = sorted(glob(inpath+'Damage_2019*.npz'))[26:28]
+print(fl)
+outpath_name = 'DYNAMIC_'
+outpath_name = 'DYNAMIC_keep'   #keep non-covered parcels with mean drift and zero values
+simba_file = '../../downloads/2019T58_300234065171790_TS.csv'
+
+
 start = fl[0].split('_')[-3]
 start = datetime.strptime(start, "%Y%m%dT%H%M%S")
 print(start)
@@ -101,7 +111,7 @@ y_path[0,:] = y_buoy
 date = [start]
 
 for i in range(0,len(fl)):
-    #break
+    break
     ##read in the drift data
     #print(fl[i])
     #container = np.load(fl[i])
@@ -151,6 +161,9 @@ for i in range(0,len(fl)):
     x2 = x1 + dx
     y2 = y1 + dy
     
+    dxm = np.mean(np.ma.masked_invalid(dx))
+    dym = np.mean(np.ma.masked_invalid(dy))
+    
     #save the date 
     date.append(dt2)
     
@@ -159,9 +172,9 @@ for i in range(0,len(fl)):
     for m in range(0,x_buoy.shape[0]):
         #print(m)
         
-        #skip this buoy if already nan
-        if np.isnan(x_buoy[m]) and np.isnan(damage[i,m]):
-            continue
+        ##skip this buoy if already nan
+        #if np.isnan(x_buoy[m]) and np.isnan(damage[i,m]):
+            #continue
         
         ##sea ice drift/displacement mask for data with 400m resolution, 600m spacing between buoys, 300 m drift precission (based on buoys)    
         #mask = (x1>x_buoy[m]-spacing) & (x1<x_buoy[m]+spacing) & (y1>y_buoy[m]-spacing) & (y1<y_buoy[m]+spacing)
@@ -169,20 +182,36 @@ for i in range(0,len(fl)):
         mask = (x1>x_buoy[m]-spacing/2) & (x1<x_buoy[m]+spacing/2) & (y1>y_buoy[m]-spacing/2) & (y1<y_buoy[m]+spacing/2)
         
         #get the mean location for parcel (and update parcel location for the search in next step)
-        #print(np.ma.compressed(np.ma.masked_invalid(x2[mask])))
-        x_buoy[m] = np.mean(np.ma.masked_invalid(x2[mask]))
-        y_buoy[m] = np.mean(np.ma.masked_invalid(y2[mask]))
-        x_path[i+1,m] = x_buoy[m]   #step 0 is initial condition, step 1 is reached after one day etc.
-        y_path[i+1,m] = y_buoy[m]
-        
-        #check if there was any deformation
-        #print(np.ma.compressed(np.ma.masked_invalid(dmg[mask_d])))
-        dd = np.mean(np.ma.masked_invalid(dmg[mask])) #this is just 0 and 1 data, if empty, we get a nan and loose the buoy...
-        damage[i+1,m] = dd
-        ll = np.mean(np.ma.masked_invalid(lea[mask]))
-        leads[i+1,m] = ll
-        rr = np.mean(np.ma.masked_invalid(rid[mask]))
-        ridges[i+1,m] = rr
+        #if there is no coverage, put in a mean displacement/zero damage to keep the buoy (otherwise: converting a masked element to nan)
+        tmp = np.ma.masked_invalid(x2[mask]).compressed()
+        if tmp.size == 0:
+
+            x_buoy[m] = x_buoy[m]+dxm
+            y_buoy[m] = y_buoy[m]+dym
+            #print(x_buoy[m])
+
+            x_path[i+1,m] = x_buoy[m]
+            y_path[i+1,m] = y_buoy[m]
+            
+            damage[i+1,m] = 0
+            leads[i+1,m] = 0
+            ridges[i+1,m] = 0
+        else:
+            x_buoy[m] = np.mean(np.ma.masked_invalid(x2[mask]))
+            y_buoy[m] = np.mean(np.ma.masked_invalid(y2[mask]))
+            
+            x_path[i+1,m] = x_buoy[m]   #step 0 is initial condition, step 1 is reached after one day etc.
+            y_path[i+1,m] = y_buoy[m]
+            
+            #check if there was any deformation
+            #this is just 0 and 1 data
+            dd = np.mean(np.ma.masked_invalid(dmg[mask]))
+            damage[i+1,m] = dd
+            ll = np.mean(np.ma.masked_invalid(lea[mask]))
+            leads[i+1,m] = ll
+            rr = np.mean(np.ma.masked_invalid(rid[mask]))
+            ridges[i+1,m] = rr
+            
         
         #parcel age
         #age[i+1,m] = age[i,m]+1
@@ -241,21 +270,21 @@ for i in range(0,len(fl)):
 
             
 
-#save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
-lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
-print(x_path[:,0])
-print(lat_path[:,0]) #does 90 come from nan???
+##save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
+#lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
+#print(x_path[:,0])
+#print(lat_path[:,0]) #does 90 come from nan???
 
-#dump data into numpy file
-out_file = outpath_data+'VB.npz'
-np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
+##dump data into numpy file
+#out_file = outpath_data+outpath_name+'VB.npz'
+#np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
 
-#save dates separatelly
-out_file = outpath_data+'VB_dates.npz'
-np.savez(out_file,date=date)
+##save dates separatelly
+#out_file = outpath_data+outpath_name+'VB_dates.npz'
+#np.savez(out_file,date=date)
 
 #make some plots
-out_file = outpath_data+'VB.npz'
+out_file = outpath_data+outpath_name+'VB.npz'
 container = np.load(out_file)
 print(container.files)
 lon_path = container['lon_path']
@@ -269,7 +298,7 @@ ridges = container['ridges']
 #exit()
 
 
-out_file = outpath_data+'VB_dates.npz'
+out_file = outpath_data+outpath_name+'VB_dates.npz'
 container = np.load(out_file, allow_pickle=True)
 date = container['date']
 
@@ -294,10 +323,10 @@ for i in range(0,lon_path.shape[0]):
     print(i)
 
     #moving projection with the ship
-    mi = np.argmin(abs(np.asarray(dtb)-date[i]))
-    ship_lon = llon_dtb[mi]
-    ship_lat = llat_dtb[mi]
-    xl, yl = transform(inProj,outProj,ship_lon, ship_lat)
+    mi = np.argmin(abs(np.asarray(ship_time)-date[i]))
+    center_lon = ship_lon[mi]
+    center_lat = ship_lat[mi]
+    xl, yl = transform(inProj,outProj,center_lon, center_lat)
 
 
     #Using a projection dictionary
@@ -357,9 +386,13 @@ for i in range(0,lon_path.shape[0]):
 
 
 #total damage plot - best coverage is x days before the end
-fp=-3	#March April event: 6 April
-fp=-33	#whole spring: 30 April there is about half parcels left
+fp=-1
+#fp=-4
+#fp=-3	#March April event: 6 April
+#fp=-33	#whole spring: 30 April there is about half parcels left
 print(date[fp])
+
+
 
 damage = np.ma.masked_invalid(damage).filled(fill_value=0)
 dtotal = np.sum(damage[:fp,:],axis=0)
@@ -370,10 +403,12 @@ ltotal = np.sum(leads[:fp,:],axis=0)
 ridges = np.ma.masked_invalid(ridges).filled(fill_value=0)
 rtotal = np.sum(ridges[:fp,:],axis=0)
 
-
-classified = np.where((ltotal<.3)&(rtotal>.3),1,0)
-classified = np.where((ltotal>.3)&(rtotal<.3),2,classified)
-classified = np.where((ltotal>.3)&(rtotal>.3),3,classified)
+#classify damage
+#ridges/convergence are shorter, give them higher weight (double!)
+#any shear and divergence under 300m deformation product will not be detected, many convergence events are like that!
+classified = np.where((ltotal<.3)&(rtotal>.1),3,0)
+classified = np.where((ltotal>.3)&(rtotal<.1),1,classified)
+classified = np.where((ltotal>.3)&(rtotal>.1),2,classified)
 
 radius_proj=radius_proj+10000  #extend to account of VBs that drifted out
 width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
@@ -392,10 +427,11 @@ height = radius_proj*2/600 #100 m spacing
 fig2    = plt.figure(figsize=(40,10))
 ax      = fig2.add_subplot(141)
 
-mi = np.argmin(abs(np.asarray(dtb)-date[fp]))
-ship_lon = llon_dtb[mi]
-ship_lat = llat_dtb[mi]
-xl, yl = transform(inProj,outProj,ship_lon, ship_lat)
+mi = np.argmin(abs(np.asarray(ship_time)-date[fp]))
+center_lon = ship_lon[mi]
+center_lat = ship_lat[mi]
+print(ship_time[mi],center_lat,center_lon)
+xl, yl = transform(inProj,outProj,center_lon, center_lat)
 #Using a projection dictionary
 area_extent = (xl-radius_proj,yl-radius_proj,xl+radius_proj,yl+radius_proj)
 area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
@@ -462,7 +498,7 @@ legend1 = dx.legend(*scatter.legend_elements(),
 dx.add_artist(legend1)
 
 
-xl, yl = m(ship_lon, ship_lat)
+xl, yl = m(center_lon, center_lat)
 ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 bx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 cx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
@@ -471,8 +507,9 @@ dx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolo
 ##scale
 #m.drawmapscale(ship_lon, ship_lat-.3, ship_lon+8, ship_lat-.2, 50, units='km', barstyle='fancy',fontsize=14)
 start = date[0].strftime('%Y%m%d')
-end = date[fp].strftime('%Y%m%d%H%M%S')
-outname='virtual_buoys_classified_wholespring_'+resolution+'_m_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
+#end = date[fp].strftime('%Y%m%d%H%M%S')
+end = date[fp].strftime('%Y%m%d')
+outname='virtual_buoys_classified'+outpath_name+resolution+'_m_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
 print(outpath+outname)
 fig2.savefig(outpath+outname,bbox_inches='tight')
 plt.close()
@@ -493,13 +530,42 @@ m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #try to use a color map where 'no deformation' is white
 
-scatter = ax.scatter(x,y,c=cc,lw=1,s=20)
+scatter = ax.scatter(x,y,c=cc,lw=1,s=20,alpha=.9)
 handles,labels=scatter.legend_elements()
-legend1 = ax.legend(handles=handles,labels=['No deformation','Mainly convergence','Mainly divergence','Mixed deformation'],
-                    loc="upper left",fontsize=12,title='Deformation 15 Mar-30 Apr 2020',title_fontsize=14)
+
+#add ship and buoy position on the map
+if 'DYNAMIC' in outpath_name:
+    simba_time = getColumn(simba_file,0)
+    simba_time = [ datetime.strptime(simba_time[i], "%Y-%m-%dT%H:%M:%S") for i in range(len(simba_time)) ]
+    simba_lon = np.asarray(getColumn(simba_file,2),dtype=float)
+    simba_lat = np.asarray(getColumn(simba_file,1),dtype=float)
+    
+    #buoy positon at the closest full hour
+    mi = np.argmin(abs(np.asarray(simba_time)-date[fp]))
+    buoy_lon = simba_lon[mi]
+    buoy_lat = simba_lat[mi]
+    print(simba_time[mi],buoy_lat,buoy_lon)
+    xb, yb = m(buoy_lon, buoy_lat)
+    ax.plot(xb,yb,'*',markeredgewidth=2,color='r',markersize=20,markeredgecolor='k')
+    
+    #ship position at this same full hour
+    mi2 = np.argmin(abs(np.asarray(ship_time)-simba_time[mi]))
+    center_lon2 = ship_lon[mi2]
+    center_lat2 = ship_lat[mi2]
+    print(ship_time[mi2],center_lat2,center_lon2)
+    xc, yc = m(center_lon2, center_lat2)
+    ax.plot(xc,yc,'*',markeredgewidth=2,color='royalblue',markersize=20,markeredgecolor='k')
+    
+ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+
+title='Deformation 15 Mar-30 Apr 2020'
+title='Deformation '+start+'-'+end
+legend1 = ax.legend(handles=handles,labels=['No deformation','Mainly divergence','Mixed deformation','Mainly convergence'],
+                    loc="lower left",fontsize=12,title=title,title_fontsize=14)
 ax.add_artist(legend1)
-print(outpath+'final_map')
-fig2a.savefig(outpath+'final_map'+resolution+'_m_wholespring',bbox_inches='tight')
+final_map_name = outpath+'final_map'+resolution+outpath_name+start+'_'+end+'_'+str(int(radius/1000))+'km'
+print(final_map_name)
+fig2a.savefig(final_map_name,bbox_inches='tight')
 plt.close()
 exit()
 

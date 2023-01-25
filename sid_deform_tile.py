@@ -113,8 +113,8 @@ factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, wh
 #factor = 40
 
 #------------------------------------------------------------------OUTPUT
-outpath_def = '/scratch/pit000/results/sid/afs/'
-outpath_def = '/scratch/pit000/results/sid/parcels/'
+#outpath_def = '/scratch/pit000/results/sid/afs/'
+#outpath_def = '/scratch/pit000/results/sid/parcels/'
 
 outpath_def = '/scratch/pit000/results/sid/deform200km/'
 
@@ -133,9 +133,9 @@ outpath = '/scratch/pit000/results/sid/plots/'
 outpath = '/scratch/pit000/results/sid/plots200km/'
 
 #central tile - for mapping/projection
-shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-shipfile = '../../downloads/lance_leg1.csv'
+#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/lance_leg1.csv'
 reg = shipfile.split('_')[1]
 proj = 'ship'
 
@@ -202,9 +202,9 @@ regions=['c','s','w','e','n','sw','se','nw','ne']
 
 #WARNING - this is also hard-coded....
 #check how many days there are in the central tile/main track file (the one with the ship)
-main_trackfile='../../downloads/position_leg3_nh-track_c_200km-fnames.csv'
-#main_trackfile='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_c_200km-fnames.csv'
-main_trackfile='../../downloads/lance_leg1_c_200km-fnames.csv'
+#main_trackfile='../../downloads/position_leg3_nh-track_c_200km-fnames.csv'
+main_trackfile='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_c_200km-fnames.csv'
+#main_trackfile='../../downloads/lance_leg1_c_200km-fnames.csv'
 
 noons = getColumn(main_trackfile,0,header=False)
 noons = [ datetime.strptime(noons[i], "%Y-%m-%d %H:%M:%S") for i in range(len(noons)) ]
@@ -268,18 +268,16 @@ for day in days:
         timestamp2.append(date2)
         timediff.append(diff)
         
-        #tile center - from treck file
-        #WARNING this is hard coded!!!!
-        shipfile='../../downloads/position_leg3_nh-track_'+region+'.csv'
-        shipfile = '../../downloads/lance_leg1_'+region+'_200km.csv'
-        print(shipfile)
-        mettime = getColumn(shipfile,0)
+        #tile center - from track file
+        shipfile_tile = shipfile.split('.csv')[0]+'_'+region+'_200km.csv'
+        print(shipfile_tile)
+        mettime = getColumn(shipfile_tile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
         if dtb[0]>dt1: continue
         if dtb[-1]<dt1: continue
         mi = np.argmin(abs(np.asarray(dtb)-dt1))
-        ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)[mi]
-        ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)[mi]
+        ship_lon = np.asarray(getColumn(shipfile_tile,1),dtype=float)[mi]
+        ship_lat = np.asarray(getColumn(shipfile_tile,2),dtype=float)[mi]
         if np.isnan(ship_lon): continue
         print('center at: ',ship_lon,ship_lat,dtb[mi])
 

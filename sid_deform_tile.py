@@ -134,7 +134,8 @@ outpath = '/scratch/pit000/results/sid/plots200km/'
 
 #central tile - for mapping/projection
 #shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 #shipfile = '../../downloads/lance_leg1.csv'
 reg = shipfile.split('_')[1]
 proj = 'ship'
@@ -203,7 +204,8 @@ regions=['c','s','w','e','n','sw','se','nw','ne']
 #WARNING - this is also hard-coded....
 #check how many days there are in the central tile/main track file (the one with the ship)
 #main_trackfile='../../downloads/position_leg3_nh-track_c_200km-fnames.csv'
-main_trackfile='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_c_200km-fnames.csv'
+#main_trackfile='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_c_200km-fnames.csv'
+main_trackfile='../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_c_200km-fnames.csv'
 #main_trackfile='../../downloads/lance_leg1_c_200km-fnames.csv'
 
 noons = getColumn(main_trackfile,0,header=False)

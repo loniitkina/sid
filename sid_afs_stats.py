@@ -38,18 +38,24 @@ outpath = inpath
 plotpath = '/scratch/pit000/results/sid/plots200km/'
 #leg1
 #shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#leg2
+#shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 #leg3 (and transition to leg 4 until 6 June)
-shipfile = '../../downloads/position_leg3_nh-track.csv'
+#shipfile = '../../downloads/position_leg3_nh-track.csv'
+
+shipfile = '../../downloads/MOSAiC_all_legs.csv'
+
 
 reg = 'ship'
-#file_name_date = '2019'	#leg1
-file_name_date = '2020'	#leg3
+#file_name_date = '2019'	#leg1 and leg2
+#file_name_date = '2020'	#leg 2 and leg3
+file_name_date = '2019-2020'    #all legs
 file_name_end = '_120km'
 
 #time series of afs satistics
 fig1    = plt.figure(figsize=(14,12))
 ax      = fig1.add_subplot(611)
-ax.set_title('Floe number',fontsize=20, loc='left')
+ax.set_title('Floe count',fontsize=20, loc='left')
 #ax.set_xlabel(r"Length scale (km)",fontsize=25)
 #ax.set_ylabel(r"Total deformation (s$^{-1}$)",fontsize=25)
 #ax.set_xlim(datetime(2015, 1, 21), datetime(2015, 2, 9))
@@ -87,18 +93,35 @@ aax      = fig2.add_subplot(111)
 aax.set_xlabel('Sampling Area Diameter (km)',fontsize=25)
 aax.set_ylabel('Number of Floes',fontsize=25)
 
-outname_asf = 'asf_'+reg+file_name_date+file_name_end+'.csv'
-rlist = glob(outpath+outname_asf)
+#previously stored stats
+outname_afs = 'afs_'+reg+file_name_date+file_name_end+'.csv'
+rlist = glob(outpath+outname_afs)
 for fn in rlist:
     os.remove(fn)
 
-fl = sorted(glob(inpath+'Afs*'+file_name_date+'*'+file_name_end+'*_tiled.npz'))[:-2]
+#prepare lists to store the data
+afs_date = []
+afs_num = []
+afs_lkfa = []
+afs_area_m = []
+afs_area_s = []
+afs_rr_m = []
+afs_rr_s = []
+afs_fr_m = []
+afs_fr_s = []
+afs_lkfd_min_m = []
+afs_lkfd_min_s = []
+afs_lkfd_max_m = []
+afs_lkfd_max_s = []
+
+fl = sorted(glob(inpath+'Afs*'+file_name_end+'*_tiled.npz'))#[:-2]
 #fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200401T114043_20200402T122140_120km.csv_tiled.npz']
 #fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200316T121329_20200317T111605_120km.csv_tiled.npz']
 #fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200415T112421_20200416T120518_120km.csv_tiled.npz']
 #fl = ['/scratch/pit000/results/sid/deform200km/Afs_20200414T122141_20200415T112421_120km.csv_tiled.npz']
 
 print(fl)
+
 
 for i in fl:
     print(i)
@@ -351,21 +374,18 @@ for i in fl:
 
     fig6.savefig(plotpath+'test_afs_'+str(int(bf/1000))+'km'+date.split('T')[0]+'_'+file_name_end,bbox_inches='tight')
     
-    print('Done with ASF analysis for', date.split('T')[0])
+    print('Done with AFS analysis for', date.split('T')[0])
     #exit()
     
     #with open(i, "rb") as poly_file:
         #poly = pickle.load(poly_file)
 
     #get some stats
-    asf_date = []
-    asf_num = []
-    asf_area = []
-    asf_rr = []
-    asf_fr = []
-    asf_lkfa = []
-    asf_lkfd_min = []
-    asf_lkfd_max = []
+    afs_area = []
+    afs_rr = []
+    afs_fr = []
+    afs_lkfd_min = []
+    afs_lkfd_max = []
 
     if floes.geom_type == 'MultiPolygon':
         
@@ -378,7 +398,7 @@ for i in fl:
         if poly_tri.geom_type == 'Polygon':
             a_lkf = geom.area
 
-        #fore every floe
+        #for every floe
         for geom in floes.geoms:
             
             #polygon area
@@ -400,50 +420,36 @@ for i in fl:
             bl = geom.boundary.length
             fr = bl/rs
                         
-            #save data in lists
-            asf_area.append(a)
-            asf_rr.append(rr)
-            asf_fr.append(fr)
-            asf_lkfa.append(a_lkf/1000000)
-            
-            asf_date.append(dt)
-            asf_num.append(len(floes))
+            #lists for this image pair
+            afs_area.append(a)
+            afs_rr.append(rr)
+            afs_fr.append(fr)
             
             #min and max distance between LKFs
-            asf_lkfd_min.append(rs*2/1000)
-            asf_lkfd_max.append(rl*2/1000)
-        
-        #print(asf_date,asf_num,asf_area,asf_rr,asf_fr)
-        
-        #write individual floe stats
-        tt = [asf_date,asf_num,asf_area,asf_rr,asf_fr,asf_lkfa,asf_lkfd_min,asf_lkfd_max]
-        table = zip(*tt)
-        #adjusted to python3:
-        table = list(zip(*tt))
+            afs_lkfd_min.append(rs*2/1000)
+            afs_lkfd_max.append(rl*2/1000)
 
-        output = outpath + outname_asf
-        with open(output, 'ab') as f:
-            np.savetxt(f, table, fmt="%s", delimiter=",")
-
-        #time series of afs satistics
-        ax.scatter(asf_date,asf_num)
         
-        bx.scatter(asf_date,asf_area,c='.5',alpha=.5)
-        bx.plot(asf_date[0],np.mean(np.array(asf_area)),'o',markeredgewidth=1,markeredgecolor='k')
+        #time series lists
+        afs_area_m.append(np.mean(afs_area))
+        afs_area_s.append(np.std(afs_area))
         
-        cx.scatter(asf_date,asf_rr,c='.5',alpha=.5)
-        cx.plot(asf_date[0],np.mean(np.array(asf_rr)),'o',markeredgewidth=1,markeredgecolor='k')
+        afs_rr_m.append(np.mean(afs_rr))
+        afs_rr_s.append(np.std(afs_rr))
         
-        dx.scatter(asf_date,asf_fr,c='.5',alpha=.5)
-        dx.plot(asf_date[0],np.mean(np.array(asf_fr)),'o',markeredgewidth=1,markeredgecolor='k')
+        afs_fr_m.append(np.mean(afs_fr))
+        afs_fr_s.append(np.std(afs_fr))
         
-        ex.scatter(asf_date,asf_lkfa)
+        afs_lkfd_min_m.append(np.mean(afs_lkfd_min))
+        afs_lkfd_min_s.append(np.std(afs_lkfd_min))
         
-        fx.scatter(asf_date,asf_lkfd_min,c='.5',alpha=.5)
-        fx.plot(asf_date[0],np.mean(np.array(asf_lkfd_min)),'o',markeredgewidth=1,markeredgecolor='k')
-        fx.scatter(asf_date,asf_lkfd_max,c='.5',alpha=.5)
-        fx.plot(asf_date[0],np.mean(np.array(asf_lkfd_max)),'o',markeredgewidth=1,markeredgecolor='k')
-
+        afs_lkfd_max_m.append(np.mean(afs_lkfd_max))
+        afs_lkfd_max_s.append(np.std(afs_lkfd_max))
+         
+        afs_date.append(dt)
+        afs_num.append(len(floes))
+        afs_lkfa.append(a_lkf/1000000)
+        
     else:
         print('Just a single polygon')
         
@@ -497,11 +503,40 @@ for i in fl:
     
     #exit()
 
-#save afs time series
+
+#time series of statistics
+ax.scatter(afs_date,afs_num)
+
+bx.errorbar(afs_date,afs_area_m,afs_area_s,linestyle='None',marker='o')
+
+cx.errorbar(afs_date,afs_rr_m,afs_rr_s,linestyle='None',marker='o')
+
+dx.errorbar(afs_date,afs_fr_m,afs_fr_s,linestyle='None',marker='o')
+
+ex.scatter(afs_date,afs_lkfa)
+
+fx.errorbar(afs_date,afs_lkfd_min_m,afs_lkfd_min_s,linestyle='None',marker='o')
+fx.errorbar(afs_date,afs_lkfd_max_m,afs_lkfd_max_s,linestyle='None',marker='o')
+
+
+#save afs timeseries
 #use the final date in the name
 fig1.tight_layout()
-fig1.savefig(plotpath+'asf_ts_'+date+'_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+fig1.savefig(plotpath+'afs_ts_'+date+'_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
 
 #save radius scatter plots
 fig2.tight_layout()
-fig2.savefig(plotpath+'asf_ra_'+date+'_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+fig2.savefig(plotpath+'afs_ra_'+date+'_'+str(int(bf/1000))+'km'+file_name_end,bbox_inches='tight')
+
+#save output for replotting
+tt = [afs_date,afs_num,afs_area_m,afs_area_s,afs_rr_m,afs_rr_s,afs_fr_m,afs_fr_s,afs_lkfa,afs_lkfd_min_m,afs_lkfd_min_s,afs_lkfd_max_m,afs_lkfd_max_s]
+table = zip(*tt)
+table = list(zip(*tt))
+
+output = outpath + outname_afs
+print(output)
+with open(output, 'ab') as f:
+    #header
+    f.write(b'date,DE count,DE area_m,DE area_s, DE rr_m,DE rr_s, DE fr_m,DE fr_s,LKF area,LKF d_min_m,LKF d_min_s,LKF d_max_m,LKF d_max_s\n')
+    np.savetxt(f, table, fmt="%s", delimiter=",")
+

@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 #WARNING: CHECK what is the time difference between the parts of the mosaic and use different drift products for different parts of the mosaic!!!
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
-#radius = 50000
+radius = 50000
 #radius = 100000
 #spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
 spacing= 800
@@ -39,8 +39,8 @@ outpath = '/scratch/pit000/results/sid/parcels200km/'
 resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
 
 #get ship location
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 ship_time = getColumn(shipfile,0)
 ship_time = [ datetime.strptime(ship_time[i], "%Y-%m-%d %H:%M:%S") for i in range(len(ship_time)) ]
 ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)
@@ -63,14 +63,18 @@ ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
 #start = datetime(2020,3,12,11,32,28)		#MOSAiC leg 3 events - day with reasonable initial coverage  
 
 #fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+#March case: 16.3 - 5.4
+fl = sorted(glob(inpath+'Damage_2020*.npz'))[9:30]
+outpath_name = 'leg3_event'
 
-#small time span for DYNAMIC: 9-22 Nov 2019
-fl = sorted(glob(inpath+'Damage_2019*.npz'))[24:36]
-#fl = sorted(glob(inpath+'Damage_2019*.npz'))[26:28]
-print(fl)
-outpath_name = 'DYNAMIC_'
-outpath_name = 'DYNAMIC_keep'   #keep non-covered parcels with mean drift and zero values
-simba_file = '../../downloads/2019T58_300234065171790_TS.csv'
+##small time span for DYNAMIC: 9-22 Nov 2019
+#fl = sorted(glob(inpath+'Damage_2019*.npz'))[24:36]
+##fl = sorted(glob(inpath+'Damage_2019*.npz'))[26:28]
+#print(fl)
+#outpath_name = 'DYNAMIC_'
+#outpath_name = 'DYNAMIC_keep'   #keep non-covered parcels with mean drift and zero values
+#simba_file = '../../downloads/2019T58_300234065171790_TS.csv'
+
 
 
 start = fl[0].split('_')[-3]
@@ -111,7 +115,7 @@ y_path[0,:] = y_buoy
 date = [start]
 
 for i in range(0,len(fl)):
-    break
+    #break
     ##read in the drift data
     #print(fl[i])
     #container = np.load(fl[i])
@@ -270,18 +274,18 @@ for i in range(0,len(fl)):
 
             
 
-##save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
-#lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
-#print(x_path[:,0])
-#print(lat_path[:,0]) #does 90 come from nan???
+#save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
+lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
+print(x_path[:,0])
+print(lat_path[:,0]) #does 90 come from nan???
 
-##dump data into numpy file
-#out_file = outpath_data+outpath_name+'VB.npz'
-#np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
+#dump data into numpy file
+out_file = outpath_data+outpath_name+'VB.npz'
+np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
 
-##save dates separatelly
-#out_file = outpath_data+outpath_name+'VB_dates.npz'
-#np.savez(out_file,date=date)
+#save dates separatelly
+out_file = outpath_data+outpath_name+'VB_dates.npz'
+np.savez(out_file,date=date)
 
 #make some plots
 out_file = outpath_data+outpath_name+'VB.npz'

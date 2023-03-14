@@ -9,9 +9,9 @@ from glob import glob
 
 #This script will make a polygon of 100x100km around Polarstern and download the S-1 scenes to out_folder
 out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
-#N-ICE
-out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/N-ICE-2015/Satellite_Images/SENTINEL-1A'
-out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1_NICE'  #temporary directory
+##N-ICE
+#out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/N-ICE-2015/Satellite_Images/SENTINEL-1A'
+#out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1_NICE'  #temporary directory
 
 #read the PS positions
 #ps_file='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
@@ -31,22 +31,22 @@ ps_files=['../../downloads/position_leg3_nh-track_w_200km.csv','../../downloads/
 #leg 1
 ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_*_200km.csv'))
 
-##leg 2
-#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_*_200km.csv'))
+#leg 2
+ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_*_200km.csv'))
 
 #ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_w_200km.csv'))
 
-#N-ICE
-ps_files = sorted(glob('../../downloads/lance_leg1*_200km.csv'))
-ps_files = ['../../downloads/lance_leg1_s_200km.csv']+sorted(glob('../../downloads/lance_leg1_[se,sw,nw,ne]?_200km.csv'))
-ps_files = ['../../downloads/lance_leg1_w_200km.csv']
+##N-ICE
+#ps_files = sorted(glob('../../downloads/lance_leg1*_200km.csv'))
+#ps_files = ['../../downloads/lance_leg1_s_200km.csv']+sorted(glob('../../downloads/lance_leg1_[se,sw,nw,ne]?_200km.csv'))
+#ps_files = ['../../downloads/lance_leg1_w_200km.csv']
 
 print(ps_files)
 
 
 #some important dates
-new_year=datetime(2020,1,1)
-easter=datetime(2020,3,1)
+polehole_start=datetime(2020,1,20)
+polehole_end=datetime(2020,3,1)
 
 for ps_file in ps_files:
     print(ps_file)
@@ -85,7 +85,7 @@ for ps_file in ps_files:
         coverage=0.3
         
         #shorten the time if required (e.g. leg 2 has no useful data after new year anyway)
-        if (dt_noon[i] > new_year) and (dt_noon[i] < easter): print('NO DATA FOR JAN>>MARCH 2020');continue
+        if (dt_noon[i] > polehole_start) and (dt_noon[i] < polehole_end): print('NO DATA FOR JAN>>MARCH 2020');continue
         
         #convert to geogaphical coordinates
         x,y = transform(outProj,FloeNaviProj,lon_noon[i],lat_noon[i])

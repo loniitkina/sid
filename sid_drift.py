@@ -48,6 +48,10 @@ print(mode)
 #stp = 5; factor=1;        #200m step
 stp = 10; factor=0.5    #default run with 800m step (80m averaged pixel, sampled every 100 points)
 
+#subsampling area around the ship (in degrees)
+lon_diff = 15
+lat_diff = 2
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 outpath_drift = '../../results/sid/drift/stp10_factor05/'
 outpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05_200km/'
@@ -57,14 +61,14 @@ outpath = '/scratch/pit000/results/sid/plots/'
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/'
 inpath = '../../data/'  #make ln -s of all files from remote server above: ln -s /Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/* ../../data/
-#and remove all those duplicates by:
+    #and remove all those duplicates by:
 #rm ../../data/*\(1\).zip*
 
 #show ship/CO position
 #shipfile = '../sidrift/data/10minute_nounits.csv'
 #shipfile = '../../downloads/position_leg3_nh-track.csv'
 #shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-
+    
 #cover all tiles
 #ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
 ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
@@ -78,6 +82,7 @@ ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2*_200km.cs
 ##N-ICE 2015
 #ps_files=sorted(glob('../../downloads/lance_leg1*_200km.csv'))
 #ps_files=sorted(glob('../../downloads/lance_leg1_[s,w]*_200km.csv'))
+ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
 
 print(ps_files)
 #exit()
@@ -200,8 +205,8 @@ for shipfile in ps_files:
                 f1=glob(first_part+'*')[0]
             except:
                 #or just take another scene from same date
-                #it can be both S1B or S1A
-                alternative = inpath+'S1*_'+parts[1]+'_'+parts[2]+'_'+parts[3]+'_'+parts[4].split('T')[0]+'*.zip'
+                #it can be both S1B or S1A - but it needs to be EW
+                alternative = inpath+'S1*_EW_GRDM_1SDH_'+parts[4].split('T')[0]+'*.zip'
                 f1=glob(alternative)[0]
             print(f1)
         
@@ -218,8 +223,8 @@ for shipfile in ps_files:
                 f2=glob(first_part+'*')[0]
             except:
                 #or just take another scene from same date
-                #it can be both S1B or S1A
-                alternative = inpath+'S1*_'+parts[1]+'_'+parts[2]+'_'+parts[3]+'_'+parts[4].split('T')[0]+'*.zip'
+                #it can be both S1B or S1A - but it needs to be EW
+                alternative = inpath+'S1*_EW_GRDM_1SDH_'+parts[4].split('T')[0]+'*.zip'
                 print(alternative)
                 f2=glob(alternative)[0]
             print(f2)
@@ -283,8 +288,6 @@ for shipfile in ps_files:
         
         # subsample around ship
         lonlat_shape = lon1pm.shape
-        lon_diff = 15
-        lat_diff = 2
         near_lance_pix = ((lon1pm > (ship_lon - lon_diff )) *
                         (lon1pm < (ship_lon + lon_diff )) * 
                         (lat1pm > (ship_lat - lat_diff )) * 

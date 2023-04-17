@@ -11,9 +11,15 @@ from glob import glob
 import xarray as xr
 from pyproj import Proj, transform
 
-outpath = '../sidrift/plots/'
-outpath_bt = '../sidrift/data/backtraj_fs/'
+#WARNING: runs within py3drift environment
 
+outpath = '/scratch/pit000/results/sid/BREATHE/plots/'
+outpath_bt = '/scratch/pit000/results/sid/BREATHE/bt/'
+
+#limit the data by freeze-up (SAR sea ice deformation will not work for free drift)
+freezeup_limit=False
+#limit the data by pole hole (no data for SAR)
+polehole_limit=False
 
 #search radius for OSI-SAF drift (in km)
 sr = 34  #~half resolution of OSI-SAF sea ice drift product
@@ -29,13 +35,16 @@ outProj = Proj('+proj=stere +a=6378273 +b=6356889.44891 +lat_0=90 +lat_ts=70 +lo
 
 #Fram Strait moorings
 #[ -8, 78.83, 0, 79 ]   #approx bounding box
-moor_lat = [80,80,80,80,80]; moor_lon = [-8,-6,-4,-2,0]
-xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
+#moor_lat = [80,80,80,80,80]; moor_lon = [-8,-6,-4,-2,0]
+#xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
 
 ##N-ICE region
 #moor_lat = [82,82,82,82]; moor_lon = [5,10,15,20]
 #xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
 
+#BREATHE cruise starting locations
+moor_lat = [80,80,80,80,80,80,80]; moor_lon = [-8,-6,-4,-2,0,2,4]
+xmoor_start,ymoor_start = transform(inProj,outProj,moor_lon, moor_lat)
 
 print(xmoor_start,ymoor_start)
 
@@ -46,8 +55,9 @@ ds_drift =xr.open_dataset('https://thredds.met.no/thredds/dodsC/osisaf/met.no/ic
 ds_ic =xr.open_dataset('https://thredds.met.no/thredds/dodsC/osisaf/met.no/ice/conc_nh_pol_agg')
 
 years = np.arange(2016,2021)
-#years = [2010]
+years = [2023]
 months = [1,2,3,4,5,12,11]
+months = [3]
 cls = iter(plt.cm.rainbow_r(np.linspace(0,1,len(months)+1)))
 
 for yr in years:
@@ -142,10 +152,12 @@ for yr in years:
                         date = date - timedelta(days=1)
                         
                         #just stop when reaching freeze-up:
-                        if date < datetime(yr-1,11,1,0,0,0): print('freeze up', date); ice=False
+                        if freezeup_limit==True:
+                            if date < datetime(yr-1,11,1,0,0,0): print('freeze up', date); ice=False
                         
                         #also stop if the ice dirfts north of 87N (SAR polar hole)
-                        if lat>87: print('polar hole', date); ice=False
+                        if polehole_limit==True:
+                            if lat>87: print('polar hole', date); ice=False
                         
                     else:
                         #if we start in December or November (same year) freeze-up will not be identified and the loop will end here

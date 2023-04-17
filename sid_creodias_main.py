@@ -39,7 +39,8 @@ ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-2019121
 ##N-ICE
 #ps_files = sorted(glob('../../downloads/lance_leg1*_200km.csv'))
 #ps_files = ['../../downloads/lance_leg1_s_200km.csv']+sorted(glob('../../downloads/lance_leg1_[se,sw,nw,ne]?_200km.csv'))
-#ps_files = ['../../downloads/lance_leg1_w_200km.csv']
+    #ps_files = ['../../downloads/lance_leg1_w_200km.csv']
+ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
 
 print(ps_files)
 

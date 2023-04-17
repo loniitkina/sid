@@ -252,6 +252,7 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
     area_seed = []
     minang_seed = []
     id_seed = []
+    tripts_seed_keep = []
     for t in range(0,len(tripts_seed)): 
         qg = Polygon(tripts_seed[t])
         #get area and minangle for the seeded triangle
@@ -292,7 +293,7 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
         ##exit()
         
         #check that at least 50% of the seeded triangle is covered by the original small triangles (their intersections)
-        #get total area covered by small triangles in this seeded traingle
+        #get total area covered by small triangles in this seeded triangle
         #none of these values are masked
         aas = np.sum(aa)
         coverage = aas/ars 
@@ -309,14 +310,18 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
                         
             div_seed.append(ds)
             shr_seed.append(sss)
+            
+            #get only the good triangles
+            tripts_seed_keep.append(tripts_seed[t])
 
     div_seed = np.array(div_seed)
     shr_seed = np.array(shr_seed)
     area_seed = np.array(area_seed)
     minang_seed = np.array(minang_seed)
     #id_seed = np.array(id_seed)
+    tripts_seed_keep = np.array(tripts_seed_keep)
 
-    return(div_seed,shr_seed,area_seed,minang_seed)
+    return(div_seed,shr_seed,area_seed,minang_seed,tripts_seed_keep)
 
 #find in triangle centroid
 def centroid(vertexes):
@@ -427,7 +432,7 @@ def lines_angle(l1, l2):
     
     return(alpha)
 
-def get_lkf_angle(tri,tripts,threshold,pindex):
+def get_lkf_angle(tripts,threshold,pindex):
     from shapely.ops import unary_union
     from shapely.ops import split
     from shapely.affinity import scale, rotate
@@ -578,7 +583,7 @@ def get_lkf_angle(tri,tripts,threshold,pindex):
     
     return(lkfs, lkf_buff, split_line, angles)
 
-def get_distance_order(tri,tripts,pindex,lines):
+def get_distance_order(tripts,pindex,lines):
     from shapely.ops import unary_union
     
     #Get centroids of all high deformation triangles

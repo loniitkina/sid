@@ -36,20 +36,24 @@ inpath = '/scratch/pit000/results/sid/parcels/'
 inpath = '/scratch/pit000/results/sid/deform200km/'
 outpath = inpath
 plotpath = '/scratch/pit000/results/sid/plots200km/'
+
+#MOSAiC
 #leg1
 #shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 #leg2
 #shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 #leg3 (and transition to leg 4 until 6 June)
 #shipfile = '../../downloads/position_leg3_nh-track.csv'
-
 shipfile = '../../downloads/MOSAiC_all_legs.csv'
 
+#N-ICE
+shipfile = '../../downloads/lance_leg1.csv'
 
 reg = 'ship'
 #file_name_date = '2019'	#leg1 and leg2
 #file_name_date = '2020'	#leg 2 and leg3
 file_name_date = '2019-2020'    #all legs
+file_name_date = '2015' #N-ICE
 file_name_end = '_120km'
 
 #time series of afs satistics

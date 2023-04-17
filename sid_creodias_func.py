@@ -54,8 +54,8 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, start_hour 
         os.remove(temp_files)
 
     # Extract the downlod url
-    URL = f'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate={start_date}T{start_hour}%3A00%3A00Z&completionDate={end_date}T{end_hour}%3A59%3A59Z&productType=GRD&geometry=POLYGON(({polygon[2]}+{polygon[1]}%2C{polygon[3]}+{polygon[1]}%2C{polygon[3]}+{polygon[0]}%2C{polygon[2]}+{polygon[0]}%2C{polygon[2]}+{polygon[1]}))&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
-
+    URL = f'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate={start_date}T{start_hour}%3A00%3A00Z&completionDate={end_date}T{end_hour}%3A59%3A59Z&productType=GRD&sensorMode=EW&geometry=POLYGON(({polygon[2]}+{polygon[1]}%2C{polygon[3]}+{polygon[1]}%2C{polygon[3]}+{polygon[0]}%2C{polygon[2]}+{polygon[0]}%2C{polygon[2]}+{polygon[1]}))&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
+productType=GRD&sensorMode=EW
     r = find_products(URL)
         
     if "ErrorCode" in r.json():
@@ -77,7 +77,7 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, start_hour 
             inter=0
         intersection.append(inter)
         
-    print('Intercestion fractions of individual scenes with your polygon: ',intersection)
+    print('Intersection fractions of individual scenes with your polygon: ',intersection)
 
     id = np.argmax(intersection)    #we only grab the best match!
     

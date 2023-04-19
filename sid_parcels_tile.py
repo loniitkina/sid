@@ -2,7 +2,7 @@ from datetime import datetime
 from glob import glob
 import numpy as np
 import pyresample as pr
-from sid_func import *
+from sid_func import getColumn, seed_parcels
 import matplotlib.pyplot as plt
 
 #for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
@@ -18,10 +18,11 @@ import matplotlib.pyplot as plt
 #WARNING: CHECK what is the time difference between the parts of the mosaic and use different drift products for different parts of the mosaic!!!
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
-radius = 50000
-#radius = 100000
+#radius = 50000
+radius = 100000
 #spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
 spacing= 800
+spare_parcels=5000
 
 #for output
 #fp = 6  #final image pair
@@ -39,8 +40,8 @@ outpath = '/scratch/pit000/results/sid/parcels200km/'
 resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
 
 #get ship location
-#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 ship_time = getColumn(shipfile,0)
 ship_time = [ datetime.strptime(ship_time[i], "%Y-%m-%d %H:%M:%S") for i in range(len(ship_time)) ]
 ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)
@@ -62,10 +63,17 @@ ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
 #start = datetime(2020,3,15,11,32,28)		#MOSAiC leg 3 events - day with better initial coverage   
 #start = datetime(2020,3,12,11,32,28)		#MOSAiC leg 3 events - day with reasonable initial coverage  
 
-#fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
-#March case: 16.3 - 5.4
-fl = sorted(glob(inpath+'Damage_2020*.npz'))[9:30]
-outpath_name = 'leg3_event'
+##fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+##March case: 15.3 - 25.3 03:00
+#fl = sorted(glob(inpath+'Damage_2020*.npz'))[26:36]
+#outpath_name = 'leg3_event'
+
+#November case: 11.11 04:00 - 24.11 19:00, based on the large scale buoy array from JH
+fl = sorted(glob(inpath+'Damage_2019*.npz'))[25:40]
+outpath_name = 'leg1_event'
+
+
+
 
 ##small time span for DYNAMIC: 9-22 Nov 2019
 #fl = sorted(glob(inpath+'Damage_2019*.npz'))[24:36]
@@ -75,31 +83,17 @@ outpath_name = 'leg3_event'
 #outpath_name = 'DYNAMIC_keep'   #keep non-covered parcels with mean drift and zero values
 #simba_file = '../../downloads/2019T58_300234065171790_TS.csv'
 
-
-
 start = fl[0].split('_')[-3]
 start = datetime.strptime(start, "%Y%m%dT%H%M%S")
 print(start)
 
-#seed the parcels from ship position
-def seed_parcels(target_date,base_time,base_x,base_y,spacing):
-    mi = np.argmin(abs(np.asarray(base_time)-target_date))
-    target_x = base_x[mi]
-    target_y = base_y[mi]
+x_buoy,y_buoy = seed_parcels(start,ship_time,ship_x,ship_y,spacing,radius)
 
-    #create a grid of spacing of X m in each direction in the radius from the ship's initial position
-    xbf = np.arange(target_x-radius, target_x+radius+spacing, spacing)    #add some space over the edge (will be nan immediately at first step: to keep space for new parcels)
-    ybf = np.arange(target_y-radius, target_y+radius, spacing)    #to increase resolution use fractions of spacing: e.g. spacing/3!
-    x_buoy,y_buoy = np.meshgrid(xbf,ybf)
-    #flatten
-    x_buoy = x_buoy.flatten()
-    y_buoy = y_buoy.flatten()
-    
-    return(x_buoy,y_buoy)
-
-x_buoy,y_buoy = seed_parcels(start,ship_time,ship_x,ship_y,spacing)
-
-
+#add some empty coordinates - to be be seeded by new parcels in the leads
+spare_parcel_counter=x_buoy.shape[0]
+tmp=np.zeros((spare_parcels))
+x_buoy = np.concatenate((x_buoy,tmp))
+y_buoy = np.concatenate((y_buoy,tmp))
 
 #empty arrays to store parcel drifts and damage
 x_path = np.zeros((len(fl)+1,x_buoy.shape[0]))
@@ -155,7 +149,7 @@ for i in range(0,len(fl)):
     date2 = fl[i].split('_')[-2].split('.')[0]
     dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
-    #diff = (dt2-dt1).total_seconds()
+    diff = (dt2-dt1).total_seconds()
     #print(diff)
 
     #get displacements
@@ -170,15 +164,17 @@ for i in range(0,len(fl)):
     
     #save the date 
     date.append(dt2)
+        
+    #seed a new grid to compare with
+    #use a smaller radius to avoid filling in parcels at the edges
+    x_seed,y_seed = seed_parcels(dt1,ship_time,ship_x,ship_y,spacing,radius*.6)
     
     #find closest drift/damage coordinate for each parcel
     print(x_buoy.shape[0])
     for m in range(0,x_buoy.shape[0]):
-        #print(m)
-        
-        ##skip this buoy if already nan
-        #if np.isnan(x_buoy[m]) and np.isnan(damage[i,m]):
-            #continue
+        #skip this buoy if still just spare parcel
+        if x_buoy[m]==0:
+            continue
         
         ##sea ice drift/displacement mask for data with 400m resolution, 600m spacing between buoys, 300 m drift precission (based on buoys)    
         #mask = (x1>x_buoy[m]-spacing) & (x1<x_buoy[m]+spacing) & (y1>y_buoy[m]-spacing) & (y1<y_buoy[m]+spacing)
@@ -186,7 +182,7 @@ for i in range(0,len(fl)):
         mask = (x1>x_buoy[m]-spacing/2) & (x1<x_buoy[m]+spacing/2) & (y1>y_buoy[m]-spacing/2) & (y1<y_buoy[m]+spacing/2)
         
         #get the mean location for parcel (and update parcel location for the search in next step)
-        #if there is no coverage, put in a mean displacement/zero damage to keep the buoy (otherwise: converting a masked element to nan)
+        #if there is no damage, put in a mean displacement/zero damage to keep the buoy (otherwise: converting a masked element to nan)
         tmp = np.ma.masked_invalid(x2[mask]).compressed()
         if tmp.size == 0:
 
@@ -215,65 +211,44 @@ for i in range(0,len(fl)):
             leads[i+1,m] = ll
             rr = np.mean(np.ma.masked_invalid(rid[mask]))
             ridges[i+1,m] = rr
-            
         
         #parcel age
-        #age[i+1,m] = age[i,m]+1
+        age[i+1,m] = age[i,m]+diff
         
-    ##fill empty area with undamaged parcels - leads
-    ##make a new mesh and check for every new buoy if it has any buoy in the radius
-    ##if not add this buoy
-    ##track the parcel age
-    #x_seed,y_seed = seed_parcels(dt1,ship_time,ship_x,ship_y,spacing)  
-    #for m in range(0,x_seed.shape[0]):
+    #fill spare_parcels with new undamaged parcels in the leads/empty areas
+    #check for every new buoy if it has any new seed in the radius
+    #if not add this seed/buoy
+    #now this buoy coordinate is not zero anymore and it will be tracked in the next time step
+    print('Checking if we need new parcels')
+    for s in range(0,x_seed.shape[0]):
         
-        #mask = (x_buoy>x_seed[m]-spacing/2) & (x_buoy<x_seed[m]+spacing/2) & (y_buoy>y_seed[m]-spacing/2) & (y_buoy<y_seed[m]+spacing/2)
+        mask = (x_buoy>x_seed[s]-spacing) & (x_buoy<x_seed[s]+spacing) & (y_buoy>y_seed[s]-spacing) & (y_buoy<y_seed[s]+spacing)
         
-        #if len(mask)==0:
-            #print('add new parcel')
-            ##we add coordinates for this step. All previous time steps (i) are nan or masked
+        tmp = np.ma.masked_invalid(x_buoy[mask]).compressed()
+        #print(tmp)
+        if len(tmp)==0:
+            #print('Add a new parcel')
             
+            if spare_parcel_counter > x_buoy.shape[0]:
+                print('We need more spare parcels!')
+                exit()
             
-            #TASK: extend m dimension - this means that for next time step i, the m dimension (number of parcels will be longer)
-            ##concatenate path, damage, leads, ridges, age
+            #we add coordinates for this step
+            x_buoy[spare_parcel_counter]=x_seed[s]
+            y_buoy[spare_parcel_counter]=y_seed[s]
             
-            #parcel age
-            #age[i+1,m] = 0
-
-        
-        #how can i track the area change over this triangle???
-        #for that i need to always use the same nods and keep record of the area
-        
-        #this is only possible if output points from one drift pair are kept as input for the other.
-        #and some mew points are added
-        
-        #or simlpy, why not claculating deformaiton again the parcel script, there cells are tracked...
-        
-        #then track volume of lead ice and ridge ice in every parcel...
-        #no, parcels are just points, how should i distribute the values from triangles to them???
-        
-        #use some simple themodynamical model for sea ice growth inside the parcel
-        #dynamic components based on area change creates leads and ridges
-        #these new, ridge ice needs to be distributed somehow inside the parcels
-        #what can we learn from Albeldyl et al, TC???
-        
+            x_path[i+1,spare_parcel_counter] = x_seed[s]
+            y_path[i+1,spare_parcel_counter] = y_seed[s]
             
-    #plt.plot(damage[i+1,:],label='damage')
-    #plt.plot(leads[i+1,:],label='leads')
-    #plt.plot(ridges[i+1,:],label='ridges')
-    #plt.legend()
-    #plt.show()
-    #exit()
-    
-    #controlling parcels: adding and removing 
+            leads[i+1,spare_parcel_counter] = 1
+        
+            spare_parcel_counter=spare_parcel_counter+1
+    print('Done with adding new parcels')
+    print(x_buoy.shape[0]-spare_parcel_counter,' empty parcels left')
+         
     #mark the bounary VBs and dont search for new parcles next to them
-    #flatten the array into a list, also results need to be flat. add ID to keep the track of individual parcels as their relative position may change!
-    #check for every buoy how far the others are and add new one as soon as the distance in x or y direction < 2x grid step: leads
     #remove buoys if they have distance of less than 50m: ridges
-    
-
             
-
 #save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
 lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
 print(x_path[:,0])
@@ -281,7 +256,7 @@ print(lat_path[:,0]) #does 90 come from nan???
 
 #dump data into numpy file
 out_file = outpath_data+outpath_name+'VB.npz'
-np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path, lat_path=lat_path, damage = damage, leads=leads, ridges=ridges)
+np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path,lat_path=lat_path,damage = damage,leads=leads,ridges=ridges,age=age)
 
 #save dates separatelly
 out_file = outpath_data+outpath_name+'VB_dates.npz'
@@ -296,11 +271,7 @@ lat_path = container['lat_path']
 damage = container['damage']
 leads = container['leads']
 ridges = container['ridges']
-
-
-#print(lat_path[:,10])        #no more data on image 12
-#exit()
-
+age = container['age']
 
 out_file = outpath_data+outpath_name+'VB_dates.npz'
 container = np.load(out_file, allow_pickle=True)
@@ -316,14 +287,10 @@ proj_id = 'lance'
 proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
 width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
 height = radius_proj*2/600 #100 m spacing
-#area_extent = (xlp-radius_proj,ylp-radius_proj,xlp+radius_proj,ylp+radius_proj)
-#area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
-#print(area_def)
-#m = pr.plot.area_def2basemap(area_def)
 
 color=iter(plt.cm.rainbow(np.linspace(0,1,lon_path.shape[0])))
 
-for i in range(0,lon_path.shape[0]):
+for i in range(1,lon_path.shape[0]):
     print(i)
 
     #moving projection with the ship
@@ -372,9 +339,9 @@ for i in range(0,lon_path.shape[0]):
     rr = np.ma.masked_where(~(np.isfinite(lat_path[i,:])),ridges[i,:]); rr = np.ma.compressed(rr)
     ll = np.ma.masked_where(~(np.isfinite(lat_path[i,:])),leads[i,:]); ll = np.ma.compressed(ll)
     
-    ax.scatter(x,y,c=dd,lw=2)         #marker size should be radius dependant
-    bx.scatter(x,y,c=ll,lw=2)
-    cx.scatter(x,y,c=rr,lw=2)
+    ax.scatter(x,y,c=dd,s=10,cmap=plt.cm.Purples,vmin=0.1,vmax=1)         #marker size should be radius dependant
+    bx.scatter(x,y,c=ll,s=10,cmap=plt.cm.Purples,vmin=0.1,vmax=1)
+    cx.scatter(x,y,c=rr,s=10,cmap=plt.cm.Purples,vmin=0.1,vmax=1)
 
     cl = next(color)
     
@@ -383,7 +350,7 @@ for i in range(0,lon_path.shape[0]):
     bx.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
     cx.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
 
-    outname='virtual_buoys_'+date[i].strftime('%Y%m%d')
+    outname='virtual_buoys_'+outpath_name+date[i].strftime('%Y%m%d')
     print(outname)
     fig1.savefig(outpath+outname,bbox_inches='tight')
     plt.close()
@@ -414,7 +381,7 @@ classified = np.where((ltotal<.3)&(rtotal>.1),3,0)
 classified = np.where((ltotal>.3)&(rtotal<.1),1,classified)
 classified = np.where((ltotal>.3)&(rtotal>.1),2,classified)
 
-radius_proj=radius_proj+10000  #extend to account of VBs that drifted out
+radius_proj=radius_proj+5000  #extend to account of VBs that drifted out
 width = radius_proj*2/600 #100 m spacing    (should have same resolution as the final gridded map)
 height = radius_proj*2/600 #100 m spacing
 
@@ -461,10 +428,10 @@ m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
 m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 
-ax.set_title('total damage')
-bx.set_title('leads')
-cx.set_title('ridges/rafted lead ice')
-dx.set_title('classified damage')
+ax.set_title('Total damage',fontsize=20)
+bx.set_title('Leads',fontsize=20)
+cx.set_title('Ridges and rafted lead ice',fontsize=20)
+dx.set_title('Classified damage',fontsize=20)
 
 
 
@@ -476,29 +443,31 @@ lap = np.ma.masked_invalid(lat_path[fp,:]); lap = np.ma.compressed(lap)
 x,y = m(lop,lap)
 
 dd = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),dtotal); dd = np.ma.compressed(dd)
-heat = ax.scatter(x,y,c=dd,lw=2)
+heat = ax.scatter(x,y,c=dd,s=10,cmap=plt.cm.Purples)
 cb = plt.colorbar(heat, ax=ax, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
 
 ll = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),ltotal); ll = np.ma.compressed(ll)
-heat = bx.scatter(x,y,c=ll,lw=2)
+heat = bx.scatter(x,y,c=ll,s=10,cmap=plt.cm.Purples)
 cb = plt.colorbar(heat, ax=bx, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
 
 rr = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),rtotal); rr = np.ma.compressed(rr)
-heat = cx.scatter(x,y,c=rr,lw=2)
+heat = cx.scatter(x,y,c=rr,s=10,cmap=plt.cm.Purples)
 cb = plt.colorbar(heat, ax=cx, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
 
 cc = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),classified); cc = np.ma.compressed(cc)
-scatter = dx.scatter(x,y,c=cc,lw=2)
+scatter = dx.scatter(x,y,c=cc,s=10,cmap=plt.cm.Paired)
 
 # produce a legend with the unique colors from the scatter
-legend1 = dx.legend(*scatter.legend_elements(),
-                    loc="lower right", title="Classes")
+title='Classes'
+handles,labels=scatter.legend_elements()
+legend1 = dx.legend(handles=handles,labels=['No deformation','Mainly divergence','Mixed deformation','Mainly convergence'],
+                    loc="lower left",fontsize=12,title=title,title_fontsize=14)
 dx.add_artist(legend1)
 
 
@@ -522,7 +491,7 @@ plt.close()
 
 #a bit of extra fiddling with the projection
 #radius_proj=radius+2000
-#area_extent = (xlp-radius-10000,ylp-radius-10000,xlp+radius+20000,ylp+radius+10000)
+#area_extent = (xlp-radius-10000,ylp-radius-10000,xlp+radius+20000,ylp+radius+spare_parcels00)
 #proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
 #area_def = AreaDefinition(area_id, description, proj_id, proj_dict, width, height, area_extent)
 
@@ -534,7 +503,7 @@ m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #try to use a color map where 'no deformation' is white
 
-scatter = ax.scatter(x,y,c=cc,lw=1,s=20,alpha=.9)
+scatter = ax.scatter(x,y,c=cc,lw=1,s=20,alpha=.9,cmap=plt.cm.Paired)
 handles,labels=scatter.legend_elements()
 
 #add ship and buoy position on the map
@@ -562,7 +531,7 @@ if 'DYNAMIC' in outpath_name:
     
 ax.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
 
-title='Deformation 15 Mar-30 Apr 2020'
+#title='Deformation 15 Mar-30 Apr 2020'
 title='Deformation '+start+'-'+end
 legend1 = ax.legend(handles=handles,labels=['No deformation','Mainly divergence','Mixed deformation','Mainly convergence'],
                     loc="lower left",fontsize=12,title=title,title_fontsize=14)

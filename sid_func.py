@@ -770,6 +770,22 @@ def generate_lognormal_samples(mean, stdev, n=1):
         
     return generated_pop
 
+#seed the parcels from ship position
+def seed_parcels(target_date,base_time,base_x,base_y,spacing,radius):
+    
+    mi = np.argmin(abs(np.asarray(base_time)-target_date))
+    target_x = base_x[mi]
+    target_y = base_y[mi]
+
+    #create a grid of spacing of X m in each direction in the radius from the ship's initial position
+    xbf = np.arange(target_x-radius, target_x+radius+spacing, spacing)    #add some space over the edge (will be nan immediately at first step: to keep space for new parcels)
+    ybf = np.arange(target_y-radius, target_y+radius, spacing)    #to increase resolution use fractions of spacing: e.g. spacing/3!
+    x_buoy,y_buoy = np.meshgrid(xbf,ybf)
+    #flatten
+    x_buoy = x_buoy.flatten()
+    y_buoy = y_buoy.flatten()
+    
+    return(x_buoy,y_buoy)
 
 #some notes for code development/debugging
 #use 'import ipdb; ipdb.set_trace()' above problematic spot

@@ -103,10 +103,10 @@ factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, wh
 #factor = 40
 
 #MOSAiC
-#reg = 'mosaic'   #used in filenames
+reg = 'mosaic'   #used in filenames
 #for mapping/projection
 #shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 #shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 #Region limits for the overview map
 lon_diff = 15
@@ -114,12 +114,12 @@ ship_lon=17.147909; ship_lat=87.132429      #March/April event start
 regn = ship_lat+.1; regs = ship_lat-4
 regw = ship_lon-lon_diff; rege = ship_lon+lon_diff
 
-#N-ICE
-reg = 'lance_leg1'   #used in filenames
-shipfile = '../../downloads/lance_leg1.csv'
-#Region limits for the overview map
-regn = 84; regs = 81
-regw = 10; rege = 30
+##N-ICE
+#reg = 'lance_leg1'   #used in filenames
+#shipfile = '../../downloads/lance_leg1.csv'
+##Region limits for the overview map
+#regn = 84; regs = 81
+#regw = 10; rege = 30
 
 #for getting timestampts of drift files
 main_trackfile_tail = '_c_200km-fnames.csv'
@@ -382,7 +382,9 @@ for day in days:
 
         dst = step*factor
         exag_fac = factor+extra_margin
-        exag_fac_max = factor*100                   #40*100=4km total displacement!
+        #max deformation rates also follow some powerlaw
+        #is this resolution and product independent? Is there any limit in feature tracking?
+        exag_fac_max = factor*100                   #80*100=8km total displacement!
         
         dummy_td_all = []
         dummy_ls_all = []
@@ -901,6 +903,7 @@ for day in days:
             damage = np.where(~tiled_threshold,1,0)
             lead = np.where((tiled_div_f2>0)&(~tiled_threshold),1,0)
             ridge = np.where((tiled_div_f2<0)&(~tiled_threshold),1,0)
+            shear_zone  = np.where((tiled_shr_f2>0)&(~tiled_threshold),1,0)
             
             #how can i track the area change over this triangle???
             #keep triangulation but apply to lon2,lat2

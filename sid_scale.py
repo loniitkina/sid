@@ -17,8 +17,8 @@ reg = 'lance_leg1'
 
 inpath = '/scratch/pit000/results/sid/deform200km/'
 file_name_end = '_200km'
-outname_td = inpath+'td_nofilter_'+reg+file_name_end+'.csv'
-powerlaw = 'powerlaw_test_nofilter_'+reg+'.png'
+outname_td = inpath+'td_nofilter_'+reg+file_name_end+'_1000.csv'
+powerlaw = 'powerlaw_test_nofilter_'+reg+'_1000.png'
 
 
 outpath = '/scratch/pit000/results/sid/plots200km/'
@@ -35,6 +35,8 @@ ax.set_yscale('log')
 #This is because the coverage needs to be at least 50%
 #create log-spaced vector and convert it to integers
 n=9 # number of samples
+minscale=1  #shortest scale = resolution x minscale - 1x800m=800m
+maxscale=1000#longest scale = resolution x maxscale - 300x800m=24km, 1000x80=80km
 #1=800m, 300=24km
 stp=np.exp(np.linspace(np.log(1),np.log(300),n))
 stp = stp.astype(int)
@@ -172,7 +174,7 @@ for fname in fnames:
             
         idx=idx+1
     
-    multiplot = 'multiplot_nofilter'+reg+'_'+date+'_'+file_name_end+'.png'
+    multiplot = 'multiplot_nofilter'+reg+'_'+date+'_'+file_name_end+'_1000.png'
     fig2.savefig(outpath+multiplot)
 
 fig1.savefig(outpath+powerlaw)

@@ -19,16 +19,16 @@ def getColumn(filename, column, delimiter=',', skipinitialspace=False, skipheade
 shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 #shipfile = 'src/coord_trans/dshipextracts/transect_legs/position_leg3_nh-track.csv'
 
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 #shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
 
 latpos=2
 lonpos=1
 
-#N-ICE
-shipfile = '../../downloads/lance_leg1.csv'
-latpos=1
-lonpos=2
+##N-ICE
+#shipfile = '../../downloads/lance_leg1.csv'
+#latpos=1
+#lonpos=2
 
 #copy this file to region 'c' - central
 f = open(shipfile,"r")

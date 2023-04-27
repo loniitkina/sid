@@ -13,34 +13,26 @@ out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1
 #out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/N-ICE-2015/Satellite_Images/SENTINEL-1A'
 #out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1_NICE'  #temporary directory
 
+#MOSAiC
 #read the PS positions
-#ps_file='../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-#ps_file='../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
-ps_file='../../downloads/position_leg3_nh-track.csv'
-
-ps_files=['../../downloads/position_leg3_nh-track_c_200km.csv']
-
-#cover all quadrants
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
-
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
-
-
-ps_files=['../../downloads/position_leg3_nh-track_w_200km.csv','../../downloads/position_leg3_nh-track_nw_200km.csv']
-
 #leg 1
-ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_*_200km.csv'))
+#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_*_200km.csv'))
+#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_msw*_200km.csv'))
 
 #leg 2
-ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_*_200km.csv'))
+#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_*_200km.csv'))
+#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_m*_200km.csv'))
 
-#ps_files = sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_w_200km.csv'))
+#leg3
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne]_200km.csv'))
+ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
 
 ##N-ICE
 #ps_files = sorted(glob('../../downloads/lance_leg1*_200km.csv'))
 #ps_files = ['../../downloads/lance_leg1_s_200km.csv']+sorted(glob('../../downloads/lance_leg1_[se,sw,nw,ne]?_200km.csv'))
-    #ps_files = ['../../downloads/lance_leg1_w_200km.csv']
-ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
+#ps_files = ['../../downloads/lance_leg1_w_200km.csv']
+#ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
 
 print(ps_files)
 
@@ -119,6 +111,7 @@ for ps_file in ps_files:
         #continue
 
         output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, start_hour = '00', end_hour = '23', coverage=coverage)
+
         if output: 
             fname=output[1]
             print(fname)

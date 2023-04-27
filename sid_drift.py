@@ -75,14 +75,16 @@ ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,n
 
 #leg1
 ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1*_200km.csv'))
+ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_m*_200km.csv'))
 
 #leg2
-ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2*_200km.csv'))
+#ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2*_200km.csv'))
+ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_m*_200km.csv'))
 
 ##N-ICE 2015
 #ps_files=sorted(glob('../../downloads/lance_leg1*_200km.csv'))
 #ps_files=sorted(glob('../../downloads/lance_leg1_[s,w]*_200km.csv'))
-ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
+#ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
 
 print(ps_files)
 #exit()

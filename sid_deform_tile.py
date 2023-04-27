@@ -105,9 +105,9 @@ factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, wh
 #MOSAiC
 reg = 'mosaic'   #used in filenames
 #for mapping/projection
-#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-#shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
+shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
+shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 #Region limits for the overview map
 lon_diff = 15
 ship_lon=17.147909; ship_lat=87.132429      #March/April event start
@@ -911,7 +911,7 @@ for day in days:
             
             #dump damage & drift data into numpy file
             out_file = outpath_def+'Damage_'+date1_c+'_'+date2_c+'_tiled.npz'
-            np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge, u=tiled_utri, v=tiled_vtri, dt=tiled_dt)
+            np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge, s=shear_zone, u=tiled_utri, v=tiled_vtri, dt=tiled_dt)
 
             print('Storing parcel data: ',out_file)
             #continue

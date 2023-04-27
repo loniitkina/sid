@@ -5,6 +5,10 @@ import pyresample as pr
 from sid_func import getColumn, seed_parcels
 import matplotlib.pyplot as plt
 
+#supress warnings
+import warnings
+warnings.filterwarnings("ignore")
+
 #for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 
 #WARNING: how accurate are the input S-1 data? Geolocation in GRD is still approximate... Use snap ESA to imporve geolocaton for s-1
@@ -17,6 +21,10 @@ import matplotlib.pyplot as plt
 
 #WARNING: CHECK what is the time difference between the parts of the mosaic and use different drift products for different parts of the mosaic!!!
 
+#WARNING: completely straight lines are artefacts!!! Missing data at the image edge! - how can we maske them? maybe they have lead==1 and id at [-spare_parcels:]
+
+#================================================================PARAMETERS
+
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
 #radius = 50000
 radius = 100000
@@ -24,35 +32,19 @@ radius = 100000
 spacing= 800
 spare_parcels=5000
 
+just_plot=True
+
 #for output
 #fp = 6  #final image pair
 #fp = 24	#in MOSAiC leg 3 events there is 24 pairs
 
-#-------------------------------------------------------------------
+#-------------------------------------------------------------------START SETUP
 inpath = '/scratch/pit000/results/sid/parcels/'
 inpath = '/scratch/pit000/results/sid/deform200km/'
 
 inpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05/'
 outpath_data = inpath
 outpath = '/scratch/pit000/results/sid/parcels200km/'
-
-
-resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
-
-#get ship location
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-ship_time = getColumn(shipfile,0)
-ship_time = [ datetime.strptime(ship_time[i], "%Y-%m-%d %H:%M:%S") for i in range(len(ship_time)) ]
-ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)
-ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)
-
-#projection conversion parameters
-from pyproj import Proj, transform
-inProj = Proj(init='epsg:4326')
-#Use same projection as in pattern matching part of the sea ice drift algorithm
-outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=m' % (90, 10))
-ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
 
 #read in the drift product and calculate displacements from starting point until the first break in the SAR data (1 week)
 #fl = sorted(glob(inpath_drift+'SeaIceDrift_2020*.npz'))[1:]
@@ -63,17 +55,16 @@ ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
 #start = datetime(2020,3,15,11,32,28)		#MOSAiC leg 3 events - day with better initial coverage   
 #start = datetime(2020,3,12,11,32,28)		#MOSAiC leg 3 events - day with reasonable initial coverage  
 
-##fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+###fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
 ##March case: 15.3 - 25.3 03:00
+#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 #fl = sorted(glob(inpath+'Damage_2020*.npz'))[26:36]
 #outpath_name = 'leg3_event'
 
 #November case: 11.11 04:00 - 24.11 19:00, based on the large scale buoy array from JH
+shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 fl = sorted(glob(inpath+'Damage_2019*.npz'))[25:40]
 outpath_name = 'leg1_event'
-
-
-
 
 ##small time span for DYNAMIC: 9-22 Nov 2019
 #fl = sorted(glob(inpath+'Damage_2019*.npz'))[24:36]
@@ -86,6 +77,23 @@ outpath_name = 'leg1_event'
 start = fl[0].split('_')[-3]
 start = datetime.strptime(start, "%Y%m%dT%H%M%S")
 print(start)
+
+resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
+
+#get ship location
+ship_time = getColumn(shipfile,0)
+ship_time = [ datetime.strptime(ship_time[i], "%Y-%m-%d %H:%M:%S") for i in range(len(ship_time)) ]
+ship_lon = np.asarray(getColumn(shipfile,1),dtype=float)
+ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)
+
+#projection conversion parameters
+from pyproj import Proj, transform
+inProj = Proj(init='epsg:4326')
+#Use same projection as in pattern matching part of the sea ice drift algorithm
+outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=m' % (90, 10))
+ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
+
+#===============================================================================SETUP DONE
 
 x_buoy,y_buoy = seed_parcels(start,ship_time,ship_x,ship_y,spacing,radius)
 
@@ -109,7 +117,9 @@ y_path[0,:] = y_buoy
 date = [start]
 
 for i in range(0,len(fl)):
-    #break
+    if just_plot:
+        print('No calculations - just plotting!')
+        break
     ##read in the drift data
     #print(fl[i])
     #container = np.load(fl[i])
@@ -135,6 +145,7 @@ for i in range(0,len(fl)):
     dmg = container['d']
     rid = container['r']
     lea = container['l']
+    #sz = container['s']    #shear zones - not implemented yet
     
     u = container['u']
     v = container['v']
@@ -167,7 +178,7 @@ for i in range(0,len(fl)):
         
     #seed a new grid to compare with
     #use a smaller radius to avoid filling in parcels at the edges
-    x_seed,y_seed = seed_parcels(dt1,ship_time,ship_x,ship_y,spacing,radius*.6)
+    x_seed,y_seed = seed_parcels(dt1,ship_time,ship_x,ship_y,spacing,radius*.65) #tested with 60%!
     
     #find closest drift/damage coordinate for each parcel
     print(x_buoy.shape[0])
@@ -241,6 +252,7 @@ for i in range(0,len(fl)):
             y_path[i+1,spare_parcel_counter] = y_seed[s]
             
             leads[i+1,spare_parcel_counter] = 1
+            damage[i+1,spare_parcel_counter] = 1
         
             spare_parcel_counter=spare_parcel_counter+1
     print('Done with adding new parcels')
@@ -248,19 +260,20 @@ for i in range(0,len(fl)):
          
     #mark the bounary VBs and dont search for new parcles next to them
     #remove buoys if they have distance of less than 50m: ridges
-            
-#save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
-lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
-print(x_path[:,0])
-print(lat_path[:,0]) #does 90 come from nan???
 
-#dump data into numpy file
-out_file = outpath_data+outpath_name+'VB.npz'
-np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path,lat_path=lat_path,damage = damage,leads=leads,ridges=ridges,age=age)
+if not just_plot:            
+    #save the output locations (in latlon) to be plotted on top of divergence and shear maps by sid_defrom.py
+    lon_path,lat_path = transform(outProj,inProj,x_path,y_path)
+    print(x_path[:,0])
+    print(lat_path[:,0]) #does 90 come from nan???
 
-#save dates separatelly
-out_file = outpath_data+outpath_name+'VB_dates.npz'
-np.savez(out_file,date=date)
+    #dump data into numpy file
+    out_file = outpath_data+outpath_name+'VB.npz'
+    np.savez(out_file,x_path=x_path,y_path=y_path,lon_path=lon_path,lat_path=lat_path,damage = damage,leads=leads,ridges=ridges,age=age)
+
+    #save dates separatelly
+    out_file = outpath_data+outpath_name+'VB_dates.npz'
+    np.savez(out_file,date=date)
 
 #make some plots
 out_file = outpath_data+outpath_name+'VB.npz'
@@ -429,8 +442,8 @@ m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 
 ax.set_title('Total damage',fontsize=20)
-bx.set_title('Leads',fontsize=20)
-cx.set_title('Ridges and rafted lead ice',fontsize=20)
+bx.set_title('Formation of leads',fontsize=20)
+cx.set_title('Formation of ridges and rafting of lead ice',fontsize=20)
 dx.set_title('Classified damage',fontsize=20)
 
 
@@ -442,26 +455,30 @@ lop = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),lon_path[fp,:]); lop = n
 lap = np.ma.masked_invalid(lat_path[fp,:]); lap = np.ma.compressed(lap)
 x,y = m(lop,lap)
 
+#min and max number of days
+vmin=0
+vmax=int(damage[:fp,:].shape[0]/3)  #half of the days should be enough
+
 dd = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),dtotal); dd = np.ma.compressed(dd)
-heat = ax.scatter(x,y,c=dd,s=10,cmap=plt.cm.Purples)
+heat = ax.scatter(x,y,c=dd,s=5,cmap=plt.cm.afmhot_r,vmin=vmin,vmax=vmax)
 cb = plt.colorbar(heat, ax=ax, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
 
 ll = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),ltotal); ll = np.ma.compressed(ll)
-heat = bx.scatter(x,y,c=ll,s=10,cmap=plt.cm.Purples)
+heat = bx.scatter(x,y,c=ll,s=5,cmap=plt.cm.afmhot_r,vmin=vmin,vmax=vmax)
 cb = plt.colorbar(heat, ax=bx, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
 
 rr = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),rtotal); rr = np.ma.compressed(rr)
-heat = cx.scatter(x,y,c=rr,s=10,cmap=plt.cm.Purples)
+heat = cx.scatter(x,y,c=rr,s=5,cmap=plt.cm.afmhot_r,vmin=vmin,vmax=vmax)
 cb = plt.colorbar(heat, ax=cx, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
 
 cc = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),classified); cc = np.ma.compressed(cc)
-scatter = dx.scatter(x,y,c=cc,s=10,cmap=plt.cm.Paired)
+scatter = dx.scatter(x,y,c=cc,s=5,cmap=plt.cm.Paired)
 
 # produce a legend with the unique colors from the scatter
 title='Classes'
@@ -503,7 +520,7 @@ m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #try to use a color map where 'no deformation' is white
 
-scatter = ax.scatter(x,y,c=cc,lw=1,s=20,alpha=.9,cmap=plt.cm.Paired)
+scatter = ax.scatter(x,y,c=cc,lw=1,s=5,alpha=.9,cmap=plt.cm.Paired)
 handles,labels=scatter.legend_elements()
 
 #add ship and buoy position on the map

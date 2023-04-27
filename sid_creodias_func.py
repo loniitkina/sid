@@ -55,7 +55,7 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, start_hour 
 
     # Extract the downlod url
     URL = f'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate={start_date}T{start_hour}%3A00%3A00Z&completionDate={end_date}T{end_hour}%3A59%3A59Z&productType=GRD&sensorMode=EW&geometry=POLYGON(({polygon[2]}+{polygon[1]}%2C{polygon[3]}+{polygon[1]}%2C{polygon[3]}+{polygon[0]}%2C{polygon[2]}+{polygon[0]}%2C{polygon[2]}+{polygon[1]}))&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
-productType=GRD&sensorMode=EW
+
     r = find_products(URL)
         
     if "ErrorCode" in r.json():
@@ -85,16 +85,17 @@ productType=GRD&sensorMode=EW
     if intersection[id]<=coverage:
         return 0
     
+    fname=r.json()["features"][id]["properties"]["title"]
+    
     # Check if the output folder exist 
     if folder_exist(out_folder):
         # If the product exist abort
         if product_exist(out_folder, pathlib.Path(r.json()["features"][id]["properties"]["productIdentifier"]).stem):
-            return 1
+            print('File already downloaded')
+            return 1,fname
         
     # Extract the url for download
     url_download = f'{r.json()["features"][id]["properties"]["services"]["download"]["url"]}?token={token["access_token"]}'
-    
-    fname=r.json()["features"][id]["properties"]["title"]
     
     # Download file
     pathlib.Path(out_folder).mkdir(parents=True, exist_ok=True)
@@ -171,7 +172,7 @@ def folder_exist(folder_name):
     return bool(os.path.exists(f'{folder_name}'))
 
 def product_exist(folder_name, product_name):
-    return bool(os.path.exists(f'{folder_name}{product_name}.SAFE') or os.path.exists(f'{folder_name}{product_name}.zip'))
+    return bool(os.path.exists(f'{folder_name}/{product_name}.SAFE') or os.path.exists(f'{folder_name}/{product_name}.zip'))
 
 def get_lat_long(array):
     if len(array.shape) == 2:

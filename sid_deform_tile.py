@@ -31,9 +31,6 @@ warnings.filterwarnings("ignore")
 #no, that does not work use this instead: https://anaconda.org/conda-forge/shapely
 #does not work :(
 
-#WARNING: The tiling only works for the thresholded and filtered data 
-#- original noisy data can not be tiled and the large scales wont have sufficient data for be used in the power law and scatter plot analysis
-
 #using the treshold to discard the data with poor signal/noise ratio
 threshold_filter=True
 
@@ -53,21 +50,35 @@ min_nod_number=100
 
 #select area size
 #radius = 120000 #will leave gaps between the 200-km tiles
-#file_name_end = '_120km'
 radius = 200000
-file_name_end = '_200km'
+
+#naming and output
+rname = '_'+str(int(radius/1000))+'km'
+if threshold_filter:
+    tname='_thfilter'
+    #such output is only sensible if threshold filter is on
+    #active floe size
+    afs=True
+    ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
+    #just save level 1 data and exit
+    parcel=True
+    #LKF angles
+    lkf_angles=True
+else:
+    tname='_nothfilter'
+    afs=False
+    parcel=False
+    lkf_angles=False
+    
+if lkf_filter:
+    lname='_lkffilter'
+else:
+    lname='_nolkfilter'
+
+file_name_end = rname+tname+lname
+print('Your output will be: ',file_name_end)
 
 file_name_end_csv = file_name_end+'.csv'
-
-#active floe size
-afs=True
-
-##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
-#just save level 1 data and exit
-parcel=True
-
-#LKF angles
-lkf_angles=True
 
 scaling=True
 if scaling:
@@ -93,7 +104,7 @@ extra_margin = 30   #this is a good option for 'less is more': removed most of t
 
 #800 m resolution data (pixel/factor=80m, step=10)
 #inpath = '/scratch/pit000/results/sid/drift/stp10_factor05/'
-inpath = '/scratch/pit000/results/sid/drift/stp10_factor05_200km/'
+inpath = '/scratch/pit000/results/sid/drift/stp10_factor05'+rname+'/'
 step = 10      #grid resolution of drift 
 factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, which translates to 80 m here)
 
@@ -102,34 +113,34 @@ factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, wh
 #step = 5
 #factor = 40
 
-#MOSAiC
-reg = 'mosaic'   #used in filenames
-#for mapping/projection
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
-shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-#Region limits for the overview map
-lon_diff = 15
-ship_lon=17.147909; ship_lat=87.132429      #March/April event start
-regn = ship_lat+.1; regs = ship_lat-4
-regw = ship_lon-lon_diff; rege = ship_lon+lon_diff
-
-##N-ICE
-#reg = 'lance_leg1'   #used in filenames
-#shipfile = '../../downloads/lance_leg1.csv'
+##MOSAiC
+#reg = 'mosaic'   #used in filenames
+##for mapping/projection
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+##shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
+##shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 ##Region limits for the overview map
-#regn = 84; regs = 81
-#regw = 10; rege = 30
+#lon_diff = 15
+#ship_lon=17.147909; ship_lat=87.132429      #March/April event start
+#regn = ship_lat+.1; regs = ship_lat-4
+#regw = ship_lon-lon_diff; rege = ship_lon+lon_diff
+
+#N-ICE
+reg = 'lance_leg1'   #used in filenames
+shipfile = '../../downloads/lance_leg1.csv'
+#Region limits for the overview map
+regn = 84; regs = 81
+regw = 10; rege = 30
 
 #for getting timestampts of drift files
-main_trackfile_tail = '_c_200km-fnames.csv'
+main_trackfile_tail = '_c'+rname+'-fnames.csv'
 main_trackfile=shipfile.split('.csv')[0]+main_trackfile_tail
-print(main_trackfile)
+print('Your study area is: ',main_trackfile)
 
 #------------------------------------------------------------------OUTPUT
 outpath_def = '/scratch/pit000/results/sid/deform200km/'
 
-outpath = '/scratch/pit000/results/sid/plots/'
+#outpath = '/scratch/pit000/results/sid/plots/'
 outpath = '/scratch/pit000/results/sid/plots200km/'
 
 #-------------------------------------------------------------------------------------------------------------------end of parameters
@@ -169,7 +180,7 @@ rlist = glob(outpath_def+'ts_*'+reg+'*'+file_name_end_csv)
 for fn in rlist:
     os.remove(fn)
 
-outname_dummy = 'dummy_'+reg+file_name_end_csv
+outname_dummy = 'dummy_'+reg+rname+'.csv'
 rlist = glob(outpath_def+outname_dummy)
 for fn in rlist:
     os.remove(fn)
@@ -188,10 +199,7 @@ print(days)
 color=iter(plt.cm.jet_r(np.linspace(0,1,len(days)+1)))
 
 #days=['20200401','20200402','20200403','20200511']
-#days=['20200402']
-#days=['20200323']
-#days=['20200307']
-#days=['20200414']
+#days=['20191114']
 
 #lists for time series
 date_ts=[]
@@ -382,7 +390,7 @@ for day in days:
 
         dst = step*factor
         exag_fac = factor+extra_margin
-        #max deformation rates also follow some powerlaw
+        #max deformation rates also follows a powerlaw - with apperantly same slope as the threshold!!!
         #is this resolution and product independent? Is there any limit in feature tracking?
         exag_fac_max = factor*100                   #80*100=8km total displacement!
         
@@ -424,7 +432,7 @@ for day in days:
         #store in a file
         tt = [dummy_ls_all, dummy_td_all, dummy_max_td_all]
         table = list(zip(*tt))
-        outname_dummy = 'dummy_'+reg+'_'+date1+'_'+date2+'_'+region+file_name_end_csv
+        outname_dummy = 'dummy_'+reg+'_'+date1+'_'+date2+'_'+region+rname+'.csv'
         output = outpath_def + outname_dummy
         with open(output, 'wb') as f:
             np.savetxt(f, table, fmt="%s", delimiter=",")
@@ -981,7 +989,7 @@ for day in days:
                 print('Done with LKF angles for', date1.split('T')[0])
                 
         if scaling:
-            
+            #this is 'if anydata' and 'if lkf_filter' - only lkf-filtered/kernel-smoothed data is stored here
             #these are triangles of various sizes at LKFs, in MIZ and at the scene edges
             #allow max 2x larger triangles than optimal for smallest scale for seeding
             max_area = (distance*2)**2/2
@@ -989,13 +997,13 @@ for day in days:
             #store the data for coarse-graining
             out_file = outpath_def+'Scaling_'+str(dst)+'_'+date1_c+'_'+date2_c+file_name_end+'_tiled.npz'
             np.savez(out_file, tripts=tiled_tripts, div=tiled_div_f2, shr=tiled_shr_f2, area=tiled_area_f2, threshold=tiled_threshold,
-                     max_area=max_area, minang=tiled_minang_f2, region=tiled_cover, corners=corner_nods)
+                     max_area=max_area, minang=tiled_minang_f2, region=tiled_cover, corners=corner_nods, dt=tiled_dt)
             #we need to replace xs,ys by corner_nods - the regular seeding grid can be created from them
 
         #store regional timestamps and differences
         tt = [regions,timestamp1,timestamp2,timediff]
         table = list(zip(*tt))
-        outname=outpath_def+'timestamps_'+day+file_name_end_csv
+        outname=outpath_def+'timestamps_'+day+rname+'.csv'
         print(outname)
         with open(outname, 'wb') as f:
                 np.savetxt(f, table, fmt="%s", delimiter=",")

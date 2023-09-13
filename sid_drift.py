@@ -46,7 +46,7 @@ print(mode)
 #stp=1: only 24h mode needs such high spatial resolution.
 #stp=10: sufficient for the time scalling law
 #stp = 5; factor=1;        #200m step
-stp = 10; factor=0.5    #default run with 800m step (80m averaged pixel, sampled every 100 points)
+stp = 10; factor=0.5    #default run with 800m step (80m averaged pixel, sampled every 10 points)
 
 #subsampling area around the ship (in degrees)
 lon_diff = 15
@@ -60,9 +60,9 @@ outpath = '/scratch/pit000/results/sid/plots/'
 
 # ==== ICE DRIFT RETRIEVAL ====
 #inpath = '/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/'
-inpath = '../../data/'  #make ln -s of all files from remote server above: ln -s /Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/* ../../data/
+inpath = '../../data/Sentinel-1/'  #make ln -s of all files from remote server above: ln -s /Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1/* ../../data/Sentinel-1/
     #and remove all those duplicates by:
-#rm ../../data/*\(1\).zip*
+#rm ../../data/Sentinel-1/*\(1\).zip*
 
 #show ship/CO position
 #shipfile = '../sidrift/data/10minute_nounits.csv'
@@ -70,8 +70,6 @@ inpath = '../../data/'  #make ln -s of all files from remote server above: ln -s
 #shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
     
 #cover all tiles
-#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
 
 #leg1
 ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1*_200km.csv'))
@@ -80,6 +78,11 @@ ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-
 #leg2
 #ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2*_200km.csv'))
 ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_m*_200km.csv'))
+
+#leg3
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
+ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
+ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
 
 ##N-ICE 2015
 #ps_files=sorted(glob('../../downloads/lance_leg1*_200km.csv'))

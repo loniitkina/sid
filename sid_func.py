@@ -10,10 +10,13 @@ from scipy.stats import gaussian_kde
 from scipy.interpolate import interpn
 from shapely.ops import unary_union, polygonize
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon
+from shapely.strtree import STRtree
+#from shapely import geometry - likely redundant, covered above, test and delete
 from scipy.spatial import Delaunay
-from shapely import geometry
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+     
 
 def minang_tri(vert):
   #find smallest angle to filter out too acute triangles
@@ -233,12 +236,12 @@ def plot_def(area_def,tripts,deform,outname,label,interval,cmap,Lance_lon,Lance_
     
     return
     
-def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
+def coarse_grain(tripts,tripts_seed,div,shr,minang,size_limit,ang_limit=15,cov_limit=.5):
     #make area-weighted mean of all triangles that are in these triangles
     #weighted-mean deformation - calculating for triangles one by one
     #https://stackoverflow.com/questions/14697442/faster-way-of-polygon-intersection-with-shapely/14804366
-    from shapely.geometry import Polygon
-    from shapely.strtree import STRtree            
+    #from shapely.geometry import Polygon
+    #from shapely.strtree import STRtree            
     polys = [Polygon(tt) for tt in tripts[:]]
     #print(len(polys)); print(len(div))
     s = STRtree(polys)
@@ -250,6 +253,7 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
     div_seed = []
     shr_seed = []
     area_seed = []
+    area_seed_eff =[]
     minang_seed = []
     id_seed = []
     tripts_seed_keep = []
@@ -264,11 +268,11 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
         bb = [(index_by_id[id(o)], o.wkt) for o in s.query(qg) if o.intersects(qg)]
         idxs = [ i[0] for i in bb ]
         
-        #check size
-        too_big = np.array(aa)>limit
+        #check size and shape of seeded triangles
+        too_big = np.array(aa)>size_limit   #looks like this doesnt work...
         #check their min angles
         mm = minang[idxs]
-        too_sharp = mm<15
+        too_sharp = mm<ang_limit
         #mask out bad triangle
         too_bad = too_big | too_sharp
         aa = np.ma.array(aa,mask=too_bad)
@@ -297,22 +301,31 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
         #none of these values are masked
         aas = np.sum(aa)
         coverage = aas/ars 
-        if coverage > .5:
-            
-            #store area, minang and number of different LKFs contributing to this seed triangle
-            area_seed.append(aas)
-            minang_seed.append(mas)
-            #id_seed.append(len(iddd))
+        if coverage > cov_limit:
             
             #get weighted means
+            #e.g. if 50% of triangle is covered by the value, the value for sum is reduced proportionally
             ds = np.sum(weights*dd)
             sss = np.sum(weights*ss)
-                        
+            
+            ##The final value must be however at 100%, so it needs to be scalled up...
+            #This will mess up the scaling - make it quite flat
+            #ds = ds/coverage
+            #sss = sss/coverage
+            
+            #store deformation values
             div_seed.append(ds)
             shr_seed.append(sss)
             
             #get only the good triangles
             tripts_seed_keep.append(tripts_seed[t])
+            
+            #store area, minang and number of different LKFs contributing to this seed triangle
+            area_seed_eff.append(aas) #effective area - area used has a large influence on the interpretation of the TD value
+            area_seed.append(ars) #the whole seeded triangle area should be used or LS will differ between the filterig methods
+            
+            minang_seed.append(mas)
+            #id_seed.append(len(iddd))
 
     div_seed = np.array(div_seed)
     shr_seed = np.array(shr_seed)
@@ -321,7 +334,7 @@ def coarse_grain(tripts,tripts_seed,div,shr,limit,minang):
     #id_seed = np.array(id_seed)
     tripts_seed_keep = np.array(tripts_seed_keep)
 
-    return(div_seed,shr_seed,area_seed,minang_seed,tripts_seed_keep)
+    return(div_seed,shr_seed,area_seed,area_seed_eff,minang_seed,tripts_seed_keep)
 
 #find in triangle centroid
 def centroid(vertexes):
@@ -456,7 +469,10 @@ def get_lkf_angle(tripts,threshold,pindex):
         tmp1,tmp2=ctrd[i].xy
         cx.append(np.array(tmp1)[0]);cy.append(np.array(tmp1)[0])
     
-    ctrd = [ctrd for _,ctrd in sorted(zip(dist,ctrd))]
+    
+    #The problem appears when the first item of the tuple is not unique (i.e. the first tuple item will be equal for some pair of tuples), then comparison will have to compare the second item of the tuple. To avoid this compare only the first item in the list.
+    from operator import itemgetter
+    ctrd = [ctrd for _,ctrd in sorted(zip(dist,ctrd), key=itemgetter(0))]
     
     #make buffers around these centroids and unify
     multipoint = MultiPoint(ctrd)

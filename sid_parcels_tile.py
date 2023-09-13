@@ -31,8 +31,9 @@ radius = 100000
 #spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
 spacing= 800
 spare_parcels=5000
+spare_parcels=100000
 
-just_plot=True
+just_plot=False
 
 #for output
 #fp = 6  #final image pair
@@ -55,16 +56,26 @@ outpath = '/scratch/pit000/results/sid/parcels200km/'
 #start = datetime(2020,3,15,11,32,28)		#MOSAiC leg 3 events - day with better initial coverage   
 #start = datetime(2020,3,12,11,32,28)		#MOSAiC leg 3 events - day with reasonable initial coverage  
 
-###fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+##fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
 ##March case: 15.3 - 25.3 03:00
 #shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-#fl = sorted(glob(inpath+'Damage_2020*.npz'))[26:36]
+#fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:47]#[26:36]
 #outpath_name = 'leg3_event'
 
-#November case: 11.11 04:00 - 24.11 19:00, based on the large scale buoy array from JH
-shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
-fl = sorted(glob(inpath+'Damage_2019*.npz'))[25:40]
-outpath_name = 'leg1_event'
+#fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+#whole spring: 15.3 - 07.5 03:00
+shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+#fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:-2]
+fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:82]
+outpath_name = 'leg3_all'
+
+print(fl)
+#exit()
+
+##November case: 11.11 04:00 - 24.11 19:00, based on the large scale buoy array from JH
+#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+#fl = sorted(glob(inpath+'Damage_2019*.npz'))[25:39]
+#outpath_name = 'leg1_event'
 
 ##small time span for DYNAMIC: 9-22 Nov 2019
 #fl = sorted(glob(inpath+'Damage_2019*.npz'))[24:36]
@@ -222,7 +233,7 @@ for i in range(0,len(fl)):
             leads[i+1,m] = ll
             rr = np.mean(np.ma.masked_invalid(rid[mask]))
             ridges[i+1,m] = rr
-        
+
         #parcel age
         age[i+1,m] = age[i,m]+diff
         
@@ -303,6 +314,16 @@ height = radius_proj*2/600 #100 m spacing
 
 color=iter(plt.cm.rainbow(np.linspace(0,1,lon_path.shape[0])))
 
+#Figure to overlay all time steps
+fig1a    = plt.figure(figsize=(30,10))
+aax      = fig1a.add_subplot(131)
+bbx      = fig1a.add_subplot(132)
+ccx      = fig1a.add_subplot(133)
+
+aax.set_title('damage')
+bbx.set_title('leads')
+ccx.set_title('ridges')
+
 for i in range(1,lon_path.shape[0]):
     print(i)
 
@@ -355,8 +376,26 @@ for i in range(1,lon_path.shape[0]):
     ax.scatter(x,y,c=dd,s=10,cmap=plt.cm.Purples,vmin=0.1,vmax=1)         #marker size should be radius dependant
     bx.scatter(x,y,c=ll,s=10,cmap=plt.cm.Purples,vmin=0.1,vmax=1)
     cx.scatter(x,y,c=rr,s=10,cmap=plt.cm.Purples,vmin=0.1,vmax=1)
-
+    
+    #overlay figure
+    
     cl = next(color)
+    
+    mask = mask=dd>0.1
+    xxx = x[mask]
+    yyy = y[mask]
+    aax.plot(xxx,yyy,'o',c=cl,markersize=3,label=date[i].strftime('%Y%m%d'),alpha=.5)
+    
+    mask = mask=ll>0.1
+    xxx = x[mask]
+    yyy = y[mask]
+    bbx.plot(xxx,yyy,'o',c=cl,markersize=3,label=date[i].strftime('%Y%m%d'),alpha=.5)
+    
+    mask = mask=rr>0.1
+    xxx = x[mask]
+    yyy = y[mask]
+    ccx.plot(xxx,yyy,'o',c=cl,markersize=3,label=date[i].strftime('%Y%m%d'),alpha=.5)
+
     
     #ship moving with the VBs
     ax.plot(xl,yl,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
@@ -368,6 +407,11 @@ for i in range(1,lon_path.shape[0]):
     fig1.savefig(outpath+outname,bbox_inches='tight')
     plt.close()
 
+aax.legend(loc='upper left',prop={'size':12}, fancybox=True, framealpha=0.5,numpoints=1,ncol=4)
+outname='virtual_buoys_cum_'+outpath_name
+print(outname)
+fig1a.savefig(outpath+outname,bbox_inches='tight')
+plt.close()
 
 #total damage plot - best coverage is x days before the end
 fp=-1
@@ -464,6 +508,9 @@ heat = ax.scatter(x,y,c=dd,s=5,cmap=plt.cm.afmhot_r,vmin=vmin,vmax=vmax)
 cb = plt.colorbar(heat, ax=ax, pad=.01, orientation="horizontal")
 cb.set_label(label='Number of days',fontsize=20)
 cb.ax.tick_params(labelsize=20)
+
+#first activation
+
 
 ll = np.ma.masked_where(~(np.isfinite(lat_path[fp,:])),ltotal); ll = np.ma.compressed(ll)
 heat = bx.scatter(x,y,c=ll,s=5,cmap=plt.cm.afmhot_r,vmin=vmin,vmax=vmax)

@@ -30,6 +30,11 @@ lonpos=1
 #latpos=1
 #lonpos=2
 
+#CIRFA cruise
+shipfile = '../../downloads/CIRFA_cruise_stationM.csv'
+latpos=2
+lonpos=1
+
 #copy this file to region 'c' - central
 f = open(shipfile,"r")
 copy = open(shipfile.split('.csv')[0]+'_c.csv',"wt")

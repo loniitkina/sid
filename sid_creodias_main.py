@@ -8,10 +8,12 @@ from glob import glob
 #WARNING: this script downloads EW amd IW, but our drift algorithm only works for EW currently!
 
 #This script will make a polygon of 100x100km around Polarstern and download the S-1 scenes to out_folder
-out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
+#out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1'
 ##N-ICE
 #out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/N-ICE-2015/Satellite_Images/SENTINEL-1A'
 #out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1_NICE'  #temporary directory
+#CIRFA cruise
+out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1_CIRFA'
 
 #MOSAiC
 #read the PS positions
@@ -26,13 +28,16 @@ out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1
 #leg3
 #ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
 #ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[e,w,n,s,se,sw,nw,ne]_200km.csv'))
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
 
 ##N-ICE
 #ps_files = sorted(glob('../../downloads/lance_leg1*_200km.csv'))
 #ps_files = ['../../downloads/lance_leg1_s_200km.csv']+sorted(glob('../../downloads/lance_leg1_[se,sw,nw,ne]?_200km.csv'))
 #ps_files = ['../../downloads/lance_leg1_w_200km.csv']
 #ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
+
+#CIRFA cruise
+ps_files=sorted(glob('../../downloads/CIRFA_cruise_stationM*.csv'))
 
 print(ps_files)
 
@@ -53,18 +58,26 @@ for ps_file in ps_files:
     lon = np.array(lon,dtype=np.float)
     lat = np.array(lat,dtype=np.float)
     dt = [ datetime.strptime(x, "%Y-%m-%d %H:%M:%S") for x in dt ]
+    print(dt)
 
     #get 12UTC positions
-    full_hour= np.where(np.array([ x.minute for x in dt ])==0,1,0)
-    noon=np.where(np.array([ x.hour for x in dt ])==12,1,0)*full_hour
+    #full_hour= np.where(np.array([ x.minute for x in dt ])==0,1,0)
+    #noon=np.where(np.array([ x.hour for x in dt ])==12,1,0)*full_hour
     
-    #N-ICE
-    full_hour= np.where(np.array([ x.minute for x in dt ])==55,1,0)
-    noon=np.where(np.array([ x.hour for x in dt ])==11,1,0)*full_hour
-
-    lat_noon=np.ma.array(lat,mask=noon==0).compressed()
-    lon_noon=np.ma.array(lon,mask=noon==0).compressed()
-    dt_noon=np.ma.array(dt,mask=noon==0).compressed()
+    ##N-ICE
+    #full_hour= np.where(np.array([ x.minute for x in dt ])==55,1,0)
+    #noon=np.where(np.array([ x.hour for x in dt ])==11,1,0)*full_hour
+    
+    #lat_noon=np.ma.array(lat,mask=noon==0).compressed()
+    #lon_noon=np.ma.array(lon,mask=noon==0).compressed()
+    #dt_noon=np.ma.array(dt,mask=noon==0).compressed()
+    
+    #CIRFA cruise (just 7am times)
+    lat_noon=lat
+    lon_noon=lon
+    dt_noon=dt
+    
+    print(dt_noon)
     
     outProj = Proj(init='epsg:4326')
     FloeNaviProj = Proj('+proj=stere +lat_0=%f +lon_0=%f +x_0=0 +y_0=0 +ellps=WGS84'%(0,0))

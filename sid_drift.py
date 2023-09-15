@@ -89,8 +89,11 @@ ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
 #ps_files=sorted(glob('../../downloads/lance_leg1_[s,w]*_200km.csv'))
 #ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
 
+#CIRFA
+ps_files=sorted(glob('../../downloads/CIRFA_cruise_stationM_*_200km.csv'))
+
 print(ps_files)
-#exit()
+
 
 for shipfile in ps_files:
     print('coordinates from file: ',shipfile)

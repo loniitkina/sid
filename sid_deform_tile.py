@@ -200,6 +200,7 @@ color=iter(plt.cm.jet_r(np.linspace(0,1,len(days)+1)))
 
 #days=['20200401','20200402','20200403','20200511']
 #days=['20191114']
+days=['20150115']
 
 #lists for time series
 date_ts=[]
@@ -555,29 +556,36 @@ for day in days:
                 fig5    = plt.figure(figsize=(20,10))
                 
                 #plot original divergence field
-                nx      = fig5.add_subplot(121)
+                nx      = fig5.add_subplot(131)
                 mn = pr.plot.area_def2basemap(area_def)
                 mn.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
                 mn.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
                 
-                #set up the plot for the flitered field
-                lx      = fig5.add_subplot(122)
+                #set up the plot for the detection level flitered field
+                tx      = fig5.add_subplot(132)
                 ml = pr.plot.area_def2basemap(area_def)
                 ml.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-                ml.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])        
+                ml.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])   
+                
+                #set up the plot for the detection level flitered field and LKF filter field
+                lx      = fig5.add_subplot(133)
+                ml = pr.plot.area_def2basemap(area_def)
+                ml.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+                ml.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0]) 
 
                 #ship
                 xl, yl = mn(ship_lon, ship_lat)
                 nx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                tx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
                 lx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
                 
             else:
                 #tile center
                 xl, yl = mn(ship_lon, ship_lat)
-                nx.plot(xl,yl,'o',markeredgewidth=2,color='hotpink',markersize=10,markeredgecolor='k')
+                #nx.plot(xl,yl,'o',markeredgewidth=2,color='hotpink',markersize=10,markeredgecolor='k')
                 
             
-
+            #plot unfiltered data
             patches_all = []
             for k in range(div.shape[0]):
                 patch = Polygon(tripts[k,:,:])
@@ -598,6 +606,13 @@ for day in days:
             ##plot filled triangles
             #p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
             #nx.add_collection(p)
+            
+            #plot filtered data
+            tmp = np.ma.array(div,mask=threshold)
+            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=1)
+            p.set_array(tmp*1e6)
+            p.set_clim(interval)
+            tx.add_collection(p)
             
             ###########################################################################################################3
             
@@ -871,11 +886,13 @@ for day in days:
                 patches.append(patch)
             
             ##plot filled triangles
+            #pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k') #in case we want to see the triangle edges
             pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k')
             pc.set_array(tiled_div_f2[~tiled_threshold])
             pc.set_clim(interval)
             lx.add_collection(pc)
 
+            plt.show()
             outname = outpath+'filter_check_'+reg+date1_c.split('T')[0]+file_name_end+'.png'
             fig5.savefig(outname,bbox_inches='tight')
             plt.close(fig5)

@@ -4,6 +4,10 @@ from sid_func import getColumn
 from pyproj import Proj, transform
 from sid_creodias_func import download_from_polygon
 from glob import glob
+import sys
+
+#get the second key
+aut2 = sys.argv[1]
 
 #WARNING: this script downloads EW amd IW, but our drift algorithm only works for EW currently!
 
@@ -37,7 +41,7 @@ out_folder='/Data/pit000/ResearchData/IFT/EarthObservation/MOSAIC/SAR/Sentinel-1
 #ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
 
 #CIRFA cruise
-ps_files=sorted(glob('../../downloads/CIRFA_cruise_stationM*.csv'))
+ps_files=sorted(glob('../../downloads/CIRFA_cruise_stationM_*_200km.csv'))
 
 print(ps_files)
 
@@ -123,7 +127,7 @@ for ps_file in ps_files:
         print(start_date, region)
         #continue
 
-        output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, start_hour = '00', end_hour = '23', coverage=coverage)
+        output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, aut2, start_hour = '00', end_hour = '23', coverage=coverage)
 
         if output: 
             fname=output[1]

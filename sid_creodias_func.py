@@ -13,7 +13,7 @@ URL_DOWNLOAD = 'https://zipper.creodias.eu/download/UID?token='
 URL_TOKEN = 'https://identity.cloudferro.com/auth/realms/Creodias-new/protocol/openid-connect/token'
 
 
-def download_from_polygon(polygon, start_date, end_date, out_folder, aut2, start_hour = '00', end_hour = '23', coverage=.8):
+def download_from_polygon(polygon, start_date, end_date, out_folder, key, start_hour = '00', end_hour = '23', coverage=.8):
     '''
     This function downloads Sentinel-1 GRD products from Creodias
     
@@ -52,7 +52,7 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, aut2, start
             
     path = os.path.dirname(__file__)
     #token = create_token()
-    token = _get_token(aut2)    #get token with this new key from app
+    token = _get_token(key)    #get token with this new key from app
 
     # Remove temporary files
     for temp_files in glob.glob(f'{path}/*.tmp', recursive = True):
@@ -190,15 +190,17 @@ def get_lat_long(array):
     else: return np.min(array[0,0,:,1]), np.max(array[0,0,:,1]), np.min(array[0,0,:,0]), np.max(array[0,0,:,0])   
     
 #the functions below are copied from the https://source.coderefinery.org/cirfa/sat_search_download/
-#and are written by Henrik Fisser  - adopted to work with arguments to script
-def _get_token(aut2, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!"):
+#and are written by Henrik Fisser  - adopted to work with the key from App as arguments to main script
+def _get_token(key, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!"):
     refresh_token = _get_refresh_token(username)  # get refresh token from previous call stored in file
+    
     token_data = {
         'client_id': 'CLOUDFERRO_PUBLIC',
         'username': username,
         'password': password,
         'grant_type': 'refresh_token',
-        'refresh_token': refresh_token
+        'refresh_token': refresh_token,
+        'totp': None
     }
     if len(refresh_token) > 0:  # don't bother API if we know it isn't working because no refresh token
         response = requests.post(URL_TOKEN, data=token_data).json()
@@ -208,18 +210,19 @@ def _get_token(aut2, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!"
         token = response['access_token']
     except KeyError:  # we didn't find a refresh token or it's expired
         token_data['grant_type'] = 'password'  # renew login with password
-        token_data['totp'] = input(f'****** Provide the 2-factor authentication token for user "{username}":   ')  # ask user for token from App on phone
-        #token_data['totp'] = aut2
-        del token_data['refresh_token']  #  the disfunctional refresh token should not be provided
-        response = requests.post(URL_TOKEN, data=token_data).json()  # get token
+        if key: #this is a script argument that we passed to the main script
+            token_data['totp'] = key
+        else:
+            token_data['totp'] = input(f'****** Provide the 2-factor authentication token for user "{username}":   ')  # ask user for token from App on phone
         try:
-            token = response['access_token']  # it should be there
+            #get token with this token_data
+            response = requests.post(URL_TOKEN, data=token_data).json()
+            token = response['access_token']
+            
         except KeyError:
             raise RuntimeError(f'Unable to get token. Response from CREODIAS was {response}')  # could be wrong user credentials, or service is down etc.
     finally:
         _update_refresh_token(response['refresh_token'], username)  # response contains a refresh token, we keep it to maximize the time we don't ask the user for a 2-factor authentication token
-    #print(token)
-    #exit()
     return token
 
 
@@ -234,11 +237,6 @@ def _get_refresh_token(username):
         return ''  
 
 if __name__ == '__main__':
-    dir_out = os.path.dirname(__file__)
     username, password = os.environ["CREO_USER"], os.environ["CREO_PASSWORD"]
-    file_zip = os.path.join(dir_out, "test_to_be_deleted.zip")
-    kwargs = dict(username=username, password=password)
+    kwargs = dict(username=username, password=password, oauth_token=sys.argv[1])
     token = _get_token(**kwargs)  # test get token
-    token = _get_token(**kwargs)  # retry test to see if it works with refresh token
-    download(uid="a8eebdc2-31bb-57fa-8f96-3aeae4f2cdaf", username=username, password=password, outfile=file_zip)  # test if download also works
-    os.remove(file_zip)  # delete downloaded data

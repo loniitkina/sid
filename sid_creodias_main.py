@@ -2,12 +2,12 @@ import numpy as np
 from datetime import datetime
 from sid_func import getColumn
 from pyproj import Proj, transform
-from sid_creodias_func import download_from_polygon
+from sid_creodias_func_misha import download_from_polygon
 from glob import glob
 import sys
 
 #get the second key
-aut2 = sys.argv[1]
+key = sys.argv[1]
 
 #WARNING: this script downloads EW amd IW, but our drift algorithm only works for EW currently!
 
@@ -127,7 +127,7 @@ for ps_file in ps_files:
         print(start_date, region)
         #continue
 
-        output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, aut2, start_hour = '00', end_hour = '23', coverage=coverage)
+        output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, key, start_hour = '00', end_hour = '23', coverage=coverage)
 
         if output: 
             fname=output[1]

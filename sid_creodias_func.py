@@ -51,8 +51,7 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, key, start_
             end_hour = f'0{end_hour}'
             
     path = os.path.dirname(__file__)
-    #token = create_token()
-    token = _get_token(key)    #get token with this new key from app
+    token = get_token(key)    #get token with this App key
 
     # Remove temporary files
     for temp_files in glob.glob(f'{path}/*.tmp', recursive = True):
@@ -191,8 +190,8 @@ def get_lat_long(array):
     
 #the functions below are copied from the https://source.coderefinery.org/cirfa/sat_search_download/
 #and are written by Henrik Fisser  - adopted to work with the key from App as arguments to main script
-def _get_token(key, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!"):
-    refresh_token = _get_refresh_token(username)  # get refresh token from previous call stored in file
+def get_token(key, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!"):
+    refresh_token = get_refresh_token(username)  # get refresh token from previous call stored in file
     
     token_data = {
         'client_id': 'CLOUDFERRO_PUBLIC',
@@ -222,15 +221,15 @@ def _get_token(key, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!")
         except KeyError:
             raise RuntimeError(f'Unable to get token. Response from CREODIAS was {response}')  # could be wrong user credentials, or service is down etc.
     finally:
-        _update_refresh_token(response['refresh_token'], username)  # response contains a refresh token, we keep it to maximize the time we don't ask the user for a 2-factor authentication token
+        update_refresh_token(response['refresh_token'], username)  # response contains a refresh token, we keep it to maximize the time we don't ask the user for a 2-factor authentication token
     return token
 
 
-def _update_refresh_token(refresh_token, username):
+def update_refresh_token(refresh_token, username):
     os.environ[f'REFRESH_TOKEN_{username}'] = refresh_token
 
 
-def _get_refresh_token(username):
+def get_refresh_token(username):
     try:
         return os.environ[f'REFRESH_TOKEN_{username}']
     except KeyError:
@@ -239,4 +238,4 @@ def _get_refresh_token(username):
 if __name__ == '__main__':
     username, password = os.environ["CREO_USER"], os.environ["CREO_PASSWORD"]
     kwargs = dict(username=username, password=password, oauth_token=sys.argv[1])
-    token = _get_token(**kwargs)  # test get token
+    token = get_token(**kwargs)  # test get token

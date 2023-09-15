@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 from sid_func import getColumn
 from pyproj import Proj, transform
-from sid_creodias_func_misha import download_from_polygon
+from sid_creodias_func import download_from_polygon
 from glob import glob
 import sys
 

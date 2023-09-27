@@ -84,16 +84,22 @@ ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-
 ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
 ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
 
-##N-ICE 2015
-#ps_files=sorted(glob('../../downloads/lance_leg1*_200km.csv'))
-#ps_files=sorted(glob('../../downloads/lance_leg1_[s,w]*_200km.csv'))
-#ps_files = sorted(glob('../../downloads/lance_leg1_m*_200km.csv'))
+#N-ICE 2015
+ps_file_base = '../../downloads/lance_leg1_%s_200km.csv'
 
-#CIRFA
-ps_files=sorted(glob('../../downloads/CIRFA_cruise_stationM_*_200km.csv'))
+##CIRFA
+#ps_file_base='../../downloads/CIRFA_cruise_stationM_%s_200km.csv'
+
+regions=['c','msw','sw','s','mse','se','e','mne','ne','n','mnw','nw','w']
+regions=['sw','s','se','ne','n','nw','w']
+
+ps_files=[]
+for rr in regions:
+    rfile = glob(ps_file_base %(rr))[0]
+    #print(rfile)
+    ps_files.append(rfile)
 
 print(ps_files)
-
 
 for shipfile in ps_files:
     print('coordinates from file: ',shipfile)
@@ -247,7 +253,7 @@ for shipfile in ps_files:
         
         if f1 == f2: print('same file'); continue
         
-        date1 = f1.split('/')[-1].split('.zip')[0].split('_')[4]
+        date1 = f1.split('/')[-1].split('.zip')[0].split('_')[4]       
         date2 = f2.split('/')[-1].split('.zip')[0].split('_')[4]
         dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
         dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
@@ -343,9 +349,9 @@ for shipfile in ps_files:
         #np.savez(out_file,upm = upm2,vpm = vpm2, apm = apm2, rpm = rpm2, hpm = hpm2, lon1 = lon1pm2, lat1 = lat1pm2, lon2 = lon2pm2, lat2 = lat2pm2)
         np.savez(out_file,upm = upm2,vpm = vpm2, apm = apm2, rpm = rpm2, hpm = hpm2, lon1 = lon1pm2, lat1 = lat1pm2)
         
-        container = np.load(out_file)
-        print(container.files)
-        print(container['upm'])
+        #container = np.load(out_file)
+        #print(container.files)
+        #print(container['upm'])
 
 
         ## ==== PLOTTING ====
@@ -395,3 +401,14 @@ for shipfile in ps_files:
         
         plt.savefig(outpath+'SeaIceDrift_PM_img2_'+date1+'_'+date2+'_'+region+'.png', dpi=500, bbox_inches='tight', pad_inches=0)
         plt.close('all')
+
+        #import ipdb; ipdb.set_trace()
+        #store the intensities and coordinates for a mosaic plot
+        #15,19,21 Jan are good dates
+        #dump the PM data into numpy file
+        lon2_all, lat2_all = sid.n2.get_geolocation_grids()     #get all coordinates for the second image
+        out_file = outpath_drift+'S1_'+date1+'_'+date2+'_'+region+'.npz'
+        np.savez(out_file,sigma = s02,lon2=lon2_all,lat2=lat2_all)  #17MB = reasonable size
+        print(out_file, 'stored.')
+        
+        

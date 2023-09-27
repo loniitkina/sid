@@ -58,12 +58,12 @@ if threshold_filter:
     tname='_thfilter'
     #such output is only sensible if threshold filter is on
     #active floe size
-    afs=True
+    afs=False
     ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
     #just save level 1 data and exit
-    parcel=True
+    parcel=False
     #LKF angles
-    lkf_angles=True
+    lkf_angles=False
 else:
     tname='_nothfilter'
     afs=False
@@ -132,6 +132,13 @@ shipfile = '../../downloads/lance_leg1.csv'
 regn = 84; regs = 81
 regw = 10; rege = 30
 
+##CIRFA cruise
+#reg = 'cirfa'   #used in filenames
+#shipfile = '../../downloads/CIRFA_cruise_stationM.csv'
+##Region limits for the overview map
+#regn = 82; regs = 77
+#regw = -25; rege = 5
+
 #for getting timestampts of drift files
 main_trackfile_tail = '_c'+rname+'-fnames.csv'
 main_trackfile=shipfile.split('.csv')[0]+main_trackfile_tail
@@ -188,7 +195,7 @@ for fn in rlist:
 #regions have to be arranged CW  - or convex hull of frames wont work!
 #start with c and continue with most likely good coverage (e.g. s)
 regions=['c','msw','sw','s','mse','se','e','mne','ne','n','mnw','nw','w']
-#regions=['c','s','w','e','n','sw','se','nw','ne']
+#regions=['c']
 
 noons = getColumn(main_trackfile,0,header=False)
 noons = [ datetime.strptime(noons[i], "%Y-%m-%d %H:%M:%S") for i in range(len(noons)) ]
@@ -200,7 +207,7 @@ color=iter(plt.cm.jet_r(np.linspace(0,1,len(days)+1)))
 
 #days=['20200401','20200402','20200403','20200511']
 #days=['20191114']
-days=['20150115']
+#days=['20150115']   #19-23 Jan strong deformation at Lance (the letter N shape)
 
 #lists for time series
 date_ts=[]
@@ -261,6 +268,9 @@ for day in days:
         timestamp2.append(date2)
         timediff.append(diff)
         
+        #WARNING, pick the right reference date
+        ref_date=dt2
+        
         #tile center - from track file
         shipfile_tile = shipfile.split('.csv')[0]+'_'+region+'_200km.csv'
         print(shipfile_tile)
@@ -268,7 +278,7 @@ for day in days:
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
         if dtb[0]>dt1: continue
         if dtb[-1]<dt1: continue
-        mi = np.argmin(abs(np.asarray(dtb)-dt1))
+        mi = np.argmin(abs(np.asarray(dtb)-ref_date))
         ship_lon = np.asarray(getColumn(shipfile_tile,1),dtype=float)[mi]
         ship_lat = np.asarray(getColumn(shipfile_tile,2),dtype=float)[mi]
         if np.isnan(ship_lon): continue
@@ -293,7 +303,22 @@ for day in days:
         #reproject center position
         xl, yl = m(ship_lon, ship_lat)
 
-        #reproject vertices
+        #reproject vertices to geo coordinates
+        x, y = transform(inProj,outProj,lon,lat)
+        
+        
+        #WARNING: here we start workig with the second image coordinates
+        #get lat,lon for the second image in the SAR pair
+        #get displacements
+        dx = diff*u; dy = diff*v
+        #estimate positions after drift
+        x = x + dx
+        y = y + dy
+        lon,lat = transform(outProj,inProj,x,y) 
+        
+        
+        
+        #reproject vertices to image coordinates
         x, y = m(lon, lat)
         
         #cut out region
@@ -553,7 +578,7 @@ for day in days:
             
             #plot LKF##################################################################################################3
             if region=='c':
-                fig5    = plt.figure(figsize=(20,10))
+                fig5    = plt.figure(figsize=(20,10))   #   
                 
                 #plot original divergence field
                 nx      = fig5.add_subplot(131)
@@ -579,11 +604,54 @@ for day in days:
                 tx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
                 lx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
                 
+                #just image over a smaller area centered to Lance (c tile)
+                #background intensities from the second image in the pair
+                fig6    = plt.figure(figsize=(15,10))
+                zx      = fig6.add_subplot(121)
+                
+                mz = pr.plot.area_def2basemap(area_def)
+                mz.drawmeridians(np.arange(10.,30.,5.),latmax=85.,labels=[0,0,0,0,])
+                mz.drawparallels(np.arange(79.,80.,.1),labels=[0,0,0,0])
+                
+                zx2      = fig6.add_subplot(122)
+                mz = pr.plot.area_def2basemap(area_def)
+                mz.drawmeridians(np.arange(0.,30.,5.),latmax=85.,labels=[0,0,0,0,])
+                mz.drawparallels(np.arange(79.,80.,.1),labels=[0,0,0,0])
+                
+                s1_file = inpath+'S1_'+date1+'_'+date2+'_'+region+'.npz'
+                container2 = np.load(s1_file)
+                sigma = container2['sigma']   
+                lat_s1 = container2['lat2']
+                lon_s1 = container2['lon2']
+                
+                xs1, ys1 = mz(lon_s1, lat_s1)
+                
+                #mask out no data in sigma
+                print(np.min(sigma),np.max(sigma))
+                sigma = np.ma.array(sigma,mask=sigma==0)
+                zx.pcolormesh(xs1,ys1,sigma,cmap=plt.cm.binary_r,vmin=1,vmax=255, alpha=1)
+                zx2.pcolormesh(xs1,ys1,sigma,cmap=plt.cm.binary_r,vmin=1,vmax=255, alpha=1)
+            
+                xz, yz = mz(ship_lon, ship_lat)
+                zx.plot(xz,yz,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                zx2.plot(xz,yz,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                
+                ##limit map extent
+                zx.set_xlim(100000,300000)
+                zx.set_ylim(100000,300000)
+                zx2.set_xlim(100000,300000)
+                zx2.set_ylim(100000,300000)
+                
+                ##Hide the ticks, to that the animation looks nicer
+                #zx.axes.get_xaxis().set_visible(False)
+                #zx.axes.get_yaxis().set_visible(False)
+                #zx2.axes.get_xaxis().set_visible(False)
+                #zx2.axes.get_yaxis().set_visible(False)
+                
             else:
                 #tile center
                 xl, yl = mn(ship_lon, ship_lat)
                 #nx.plot(xl,yl,'o',markeredgewidth=2,color='hotpink',markersize=10,markeredgecolor='k')
-                
             
             #plot unfiltered data
             patches_all = []
@@ -592,7 +660,7 @@ for day in days:
                 patches_all.append(patch)
 
             #plot filled triangles
-            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=1)
+            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=.5)
             p.set_array(div*1e6)
             p.set_clim(interval)
             nx.add_collection(p)
@@ -609,7 +677,7 @@ for day in days:
             
             #plot filtered data
             tmp = np.ma.array(div,mask=threshold)
-            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=1)
+            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=.5)
             p.set_array(tmp*1e6)
             p.set_clim(interval)
             tx.add_collection(p)
@@ -861,6 +929,7 @@ for day in days:
         print('We have data for date: ',day)
         #update pindex (triangle index) for afs and lkf_id
         pindex = np.arange(0,tiled_tripts.shape[0]);pindex = np.ma.array(pindex, mask=tiled_threshold); pindex = np.ma.compressed(pindex)
+        print(pindex.shape)
         
         ##tiles can go beyond the mapped region (plot extent)
         ##limit the cover by corner coordinates
@@ -868,16 +937,17 @@ for day in days:
         #print(tiled_cover_frame)
         
         if lkf_filter:
-            #plot all tile coverage
-            #here it is safe to do convex hull - no more new regions are coming
-            tiled_cover=unary_union(tiled_cover)
-            if tiled_cover.geom_type == 'MultiPolygon':
-                for geom in tiled_cover.geoms:
-                    xg, yg = geom.exterior.xy 
-                    lx.fill(xg, yg, fc='none', ec='purple', ls='--')
-            else:
-                xg, yg = tiled_cover.exterior.xy 
-                lx.fill(xg, yg, fc='none', ec='purple', ls='--')
+            #WARNING: uncomment this if you want the tile cover!
+            ##plot all tile coverage
+            ##here it is safe to do convex hull - no more new regions are coming
+            #tiled_cover=unary_union(tiled_cover)
+            #if tiled_cover.geom_type == 'MultiPolygon':
+                #for geom in tiled_cover.geoms:
+                    #xg, yg = geom.exterior.xy 
+                    #lx.fill(xg, yg, fc='none', ec='purple', ls='--')
+            #else:
+                #xg, yg = tiled_cover.exterior.xy 
+                #lx.fill(xg, yg, fc='none', ec='purple', ls='--')
             
             #plot tiled and filterd data   
             patches = []
@@ -887,16 +957,28 @@ for day in days:
             
             ##plot filled triangles
             #pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k') #in case we want to see the triangle edges
-            pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k')
-            pc.set_array(tiled_div_f2[~tiled_threshold])
+            pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=.5)
+            pc.set_array(tiled_div_f2[~tiled_threshold]*1e6)
             pc.set_clim(interval)
             lx.add_collection(pc)
+            
+            #same on the zoom in figure with SAR background
+            pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=.5)
+            pc.set_array(tiled_div_f2[~tiled_threshold]*1e6)
+            pc.set_clim(interval)
+            
+            zx2.add_collection(pc)
 
-            plt.show()
+            #plt.show()
             outname = outpath+'filter_check_'+reg+date1_c.split('T')[0]+file_name_end+'.png'
             fig5.savefig(outname,bbox_inches='tight')
             plt.close(fig5)
-            print('Filter CHECK figure saved!: ',outname)
+            
+            outname = outpath+'filter_SAR_'+reg+date1_c.split('T')[0]+file_name_end+'.png'
+            fig6.savefig(outname,bbox_inches='tight')
+            plt.close(fig6)
+            
+            print('Filter CHECK figures saved!: ',outname)
             ###########################################################################################################################################3
         
         #store all pindex/divergence/shear/tripts/area/minang data

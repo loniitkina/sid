@@ -11,3 +11,5 @@ We use the sequences of deformation fields to:
 1) track sea ice cover than underwent sea ice deformation (damage parcles), and 
 2) derive LKF and CDC geometry.
 
+The method is published here: 
+Itkin, P.: Novel methods to study sea ice deformation, linear kinematic features and coherent dynamic elements from imaging remote sensing data, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2023-2626, 2023. 

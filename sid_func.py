@@ -255,7 +255,6 @@ def coarse_grain(tripts,tripts_seed,div,shr,minang,size_limit,ang_limit=15,cov_l
     area_seed = []
     area_seed_eff =[]
     minang_seed = []
-    id_seed = []
     tripts_seed_keep = []
     for t in range(0,len(tripts_seed)): 
         qg = Polygon(tripts_seed[t])
@@ -286,16 +285,7 @@ def coarse_grain(tripts,tripts_seed,div,shr,minang,size_limit,ang_limit=15,cov_l
         #extract deformation values for weighted means
         dd = div[idxs]
         ss = shr[idxs]
-        
-        ##collect all lkf IDs of triangles
-        #idd = lkf_id[idxs]
-        ##get rid of doubles
-        #iddd = list(dict.fromkeys(idd))
-        ##print(iddd)
-        ##get 
-        ##print(len(iddd))
-        ##exit()
-        
+               
         #check that at least 50% of the seeded triangle is covered by the original small triangles (their intersections)
         #get total area covered by small triangles in this seeded triangle
         #none of these values are masked
@@ -325,13 +315,11 @@ def coarse_grain(tripts,tripts_seed,div,shr,minang,size_limit,ang_limit=15,cov_l
             area_seed.append(ars) #the whole seeded triangle area should be used or LS will differ between the filterig methods
             
             minang_seed.append(mas)
-            #id_seed.append(len(iddd))
 
     div_seed = np.array(div_seed)
     shr_seed = np.array(shr_seed)
     area_seed = np.array(area_seed)
     minang_seed = np.array(minang_seed)
-    #id_seed = np.array(id_seed)
     tripts_seed_keep = np.array(tripts_seed_keep)
 
     return(div_seed,shr_seed,area_seed,area_seed_eff,minang_seed,tripts_seed_keep)
@@ -792,6 +780,7 @@ def seed_parcels(target_date,base_time,base_x,base_y,spacing,radius):
     mi = np.argmin(abs(np.asarray(base_time)-target_date))
     target_x = base_x[mi]
     target_y = base_y[mi]
+    print('Target coordinates: ',target_x,target_y)
 
     #create a grid of spacing of X m in each direction in the radius from the ship's initial position
     xbf = np.arange(target_x-radius, target_x+radius+spacing, spacing)    #add some space over the edge (will be nan immediately at first step: to keep space for new parcels)

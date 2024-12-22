@@ -26,6 +26,7 @@ filtering=True
 reg = 'lance_leg1'
 
 inpath = '/scratch/pit000/results/sid/deform200km/'
+inpath = '/scratch/pit000/results/sid/deform200km_stp5_factor1/'
 
 #file_name_end and output
 radius = 200000
@@ -59,6 +60,7 @@ outname_td = inpath+'td_'+reg+file_name_end+'_strict30.npz'
 powerlaw = 'powerlaw_test_'+reg+file_name_end+'_strict30.png'
 
 outpath = '/scratch/pit000/results/sid/plots200km/'
+outpath = '/scratch/pit000/results/sid/plots200km_stp5_factor1/'
 interval = [-1, 1]  #expected divergence values (div in s-1 * 10e6) for filter plot
 
 plt.rcParams['agg.path.chunksize'] = 10000
@@ -88,15 +90,18 @@ tls_list = []
 #input produced by sid_deform_tile.py
 fnames = sorted(glob(inpath+'Scaling_*.npz'))
 fnames = sorted(glob(inpath+'Scaling_800_2015*'+file_name_end+'_tiled.npz'))
+fnames = sorted(glob(inpath+'Scaling_200_2015*'+file_name_end+'_stp1_tiled.npz'))
 
 for fname in fnames:
     print(fname)
     #get date
-    date = fname.split('_')[2]
+    #date = fname.split('_')[2]
+    date = fname.split('_')[4]
     dt = datetime.strptime(date, "%Y%m%dT%H%M%S")
     
     #check that we have max 26h time difference (discard the data spanning over missing days) - name come just from c-tile, so this is not ideal...
-    date2 = fname.split('_')[3]
+    #date2 = fname.split('_')[3]
+    date2 = fname.split('_')[5]
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
     diff = (dt2-dt).seconds + (dt2-dt).days*24*60*60
     #if diff> 33*60*60:  #morning afternoon difference can be 32 hours - very liberal setting to cover as much of time in January/February (similar to TS data)
@@ -105,7 +110,8 @@ for fname in fnames:
         continue
         
     #get nominal resolution (distance between nods)
-    dst = int(fname.split('_')[1])
+    #dst = int(fname.split('_')[1])
+    dst = int(fname.split('_')[3])
     #dst=800
     
     #load data
@@ -138,7 +144,8 @@ for fname in fnames:
     
     #reduce pointless analysis
     #check size and shape of input triangles - if filtering this was already done as part of thresholding
-    too_big = area>max_area
+    #too_big = area>max_area
+    too_big = area>max_area*10
     #check their min angles
     too_sharp = minang<minang_limit
     #mask out bad triangle
@@ -154,7 +161,8 @@ for fname in fnames:
     
     #threshold
     #dummy_ls_all, dummy_td_all, dummy_max_td_all
-    threshold_file = glob(inpath+'dummy_*'+date+'*c'+file_name_end+'.csv')[0]   #use the values from the center tile
+    #threshold_file = glob(inpath+'dummy_*'+date+'*c'+file_name_end+'.csv')[0]   #use the values from the center tile
+    threshold_file = glob(inpath+'dummy_'+reg+'_'+date+'*c'+rname+'.csv')[0]    #there should only be one such file!
     print(threshold_file)
     dummy_ls = getColumn(threshold_file,0,header=False)
     dummy_td = getColumn(threshold_file,1,header=False)
@@ -170,7 +178,7 @@ for fname in fnames:
         area_def = pickle.load(pkl)
     
     #fig2, bx = plt.subplots(3, 3,figsize=(20,20))
-    fig2    = plt.figure(figsize=(20,10))
+    fig2    = plt.figure(figsize=(20,20))
     #bx = fig2.add_subplot(3,3,1)
     
     #m = pr.plot.area_def2basemap(area_def)
@@ -250,16 +258,20 @@ for fname in fnames:
             ls_lists[str(j)].append(ls)
             ls_lists_eff[str(j)].append(ls_eff)
             
-            ls_m = np.int(np.mean(ls))
-            #print(ls_m)
+            ls_m = np.round(np.mean(ls)/1000,1)
+            print(ls_m)
             
             bx = fig2.add_subplot(3,3,idx)
-            bx.set_title(('L'+str(ls_m)))#title
+            bx.set_title(('$\lambda$'+str(ls_m)+' km'))#title
     
             m = pr.plot.area_def2basemap(area_def)
             m.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
             m.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
             
+            #plot grey background, so that the missing data is better visible
+            bx.set_facecolor('0.9')
+                
+            #draw coarse triangles with colors
             patches_all = []
             for k in range(div_coarse.shape[0]):
                 patch = Polygon(tripts_coarse[k,:,:])
@@ -271,10 +283,22 @@ for fname in fnames:
             p.set_clim(interval)
             bx.add_collection(p)
             
+            if ls_m > 1:
+                #draw original shortest triangles over this as empty polygons with black lines
+                patches = []
+                for k in range(div.shape[0]):
+                    patch = Polygon(tripts[k,:,:])
+                    patches.append(patch)
+                
+                p = PatchCollection(patches, ec= '0.5', fc=None, alpha=0.5, lw=.5)
+                bx.add_collection(p)
+            
         idx=idx+1
     
+    #plt.show()
     multiplot = 'multiplot_'+file_name_end+'_'+reg+'_'+date+'_'+file_name_end+'_1000.png'
-    fig2.savefig(outpath+multiplot)
+    
+    fig2.savefig(outpath+multiplot,bbox_inches='tight')
     print('Multiplot figure saved to: '+outpath+multiplot)
     
     #Plot over the dummies

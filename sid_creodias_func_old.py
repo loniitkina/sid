@@ -13,7 +13,7 @@ URL_DOWNLOAD = 'https://zipper.creodias.eu/download/UID?token='
 URL_TOKEN = 'https://identity.cloudferro.com/auth/realms/Creodias-new/protocol/openid-connect/token'
 
 
-def download_from_polygon(polygon, start_date, end_date, out_folder, username, password, key, start_hour = '00', end_hour = '23', coverage=.8):
+def download_from_polygon(polygon, start_date, end_date, out_folder, key, start_hour = '00', end_hour = '23', coverage=.8):
     '''
     This function downloads Sentinel-1 GRD products from Creodias
     
@@ -51,14 +51,14 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, username, p
             end_hour = f'0{end_hour}'
             
     path = os.path.dirname(__file__)
-
-    token = get_token(username, password, key)    #get token with these credentials
+    #token = create_token()
+    token = _get_token(key)    #get token with this new key from app
 
     # Remove temporary files
     for temp_files in glob.glob(f'{path}/*.tmp', recursive = True):
         os.remove(temp_files)
 
-    # Extract the url in the finder
+    # Extract the downlod url
     URL = f'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate={start_date}T{start_hour}%3A00%3A00Z&completionDate={end_date}T{end_hour}%3A59%3A59Z&productType=GRD&sensorMode=EW&geometry=POLYGON(({polygon[2]}+{polygon[1]}%2C{polygon[3]}+{polygon[1]}%2C{polygon[3]}+{polygon[0]}%2C{polygon[2]}+{polygon[0]}%2C{polygon[2]}+{polygon[1]}))&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
 
     r = find_products(URL)
@@ -100,6 +100,7 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, username, p
             return 1,fname
         
     # Extract the url for download
+    #url_download = f'{r.json()["features"][id]["properties"]["services"]["download"]["url"]}?token={token["access_token"]}'
     url_download = f'{r.json()["features"][id]["properties"]["services"]["download"]["url"]}?token={token}'
     
     #The product is not downloaded from finder, but from zipper
@@ -109,6 +110,21 @@ def download_from_polygon(polygon, start_date, end_date, out_folder, username, p
     pathlib.Path(out_folder).mkdir(parents=True, exist_ok=True)
     r = download_products(url_download, out_folder)
     return 0 if r is None else 1,fname
+
+def OpenID():
+    try:
+        r = KeycloakOpenID(server_url="https://auth.creodias.eu/auth/",
+                    client_id="CLOUDFERRO_PUBLIC",
+                    realm_name="DIAS")
+    except keycloak.exceptions.KeycloakError:
+        # Maybe set up for a retry, or continue in a retry loop
+        print('Timeout')
+        OpenID()
+    except keycloak.exceptions.KeycloakGetError:
+        # Maybe set up for a retry, or continue in a retry loop
+        print('Timeout')
+        OpenID()
+    return r
 
 def find_products(url: str):
     try:
@@ -134,6 +150,13 @@ def download_products(url, out):
     except urllib.error.HTTPError:
         r = None
     return r
+
+#similar to get_token - this is redundant now
+def create_token():
+
+    keycloak_openid = OpenID()
+    print("Id opened")
+    return keycloak_openid.token("polona.itkin@uit.no", "GGP2D3j2uDZczxK!")
 
 
 def get_intersection(get_poly_im, polygon):
@@ -167,9 +190,9 @@ def get_lat_long(array):
     else: return np.min(array[0,0,:,1]), np.max(array[0,0,:,1]), np.min(array[0,0,:,0]), np.max(array[0,0,:,0])   
     
 #the functions below are copied from the https://source.coderefinery.org/cirfa/sat_search_download/
-#and are written by Henrik Fisser  - adopted to work with the key from App as arguments to main script
-def get_token(username, password, key):
-    refresh_token = get_refresh_token(username)  # get refresh token from previous call stored in file
+#and are written by Henrik Fisser  - adopted to work with arguments to script
+def _get_token(key, username="polona.itkin@uit.no", password="GGP2D3j2uDZczxK!"):
+    refresh_token = _get_refresh_token(username)  # get refresh token from previous call stored in file
     
     token_data = {
         'client_id': 'CLOUDFERRO_PUBLIC',
@@ -199,22 +222,22 @@ def get_token(username, password, key):
         except KeyError:
             raise RuntimeError(f'Unable to get token. Response from CREODIAS was {response}')  # could be wrong user credentials, or service is down etc.
     finally:
-        update_refresh_token(response['refresh_token'], username)  # response contains a refresh token, we keep it to maximize the time we don't ask the user for a 2-factor authentication token
+        _update_refresh_token(response['refresh_token'], username)  # response contains a refresh token, we keep it to maximize the time we don't ask the user for a 2-factor authentication token
+
     return token
 
 
-def update_refresh_token(refresh_token, username):
+def _update_refresh_token(refresh_token, username):
     os.environ[f'REFRESH_TOKEN_{username}'] = refresh_token
 
 
-def get_refresh_token(username):
+def _get_refresh_token(username):
     try:
         return os.environ[f'REFRESH_TOKEN_{username}']
     except KeyError:
         return ''  
 
-#This is not working yet, I need to have a file...
 if __name__ == '__main__':
     username, password = os.environ["CREO_USER"], os.environ["CREO_PASSWORD"]
     kwargs = dict(username=username, password=password, oauth_token=sys.argv[1])
-    token = get_token(**kwargs)  # test get token
+    token = _get_token(**kwargs)  # test get token

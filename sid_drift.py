@@ -48,6 +48,8 @@ print(mode)
 #stp = 5; factor=1;        #200m step
 stp = 10; factor=0.5    #default run with 800m step (80m averaged pixel, sampled every 10 points)
 
+ext = '_%s_%s_' %(stp,factor)   #for plot naming
+
 #subsampling area around the ship (in degrees)
 lon_diff = 15
 lat_diff = 2
@@ -55,7 +57,7 @@ lat_diff = 2
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 outpath_drift = '../../results/sid/drift/stp10_factor05/'
 outpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05_200km/'
-#outpath_drift = '../../results/sid/drift/stp5_factor1/'
+#outpath_drift = '/scratch/pit000/results/sid/drift/stp5_factor1/'
 outpath = '/scratch/pit000/results/sid/plots/'
 
 # ==== ICE DRIFT RETRIEVAL ====
@@ -72,26 +74,30 @@ inpath = '../../data/Sentinel-1/'  #make ln -s of all files from remote server a
 #cover all tiles
 
 #leg1
-ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1*_200km.csv'))
+#ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1*_200km.csv'))
 ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_m*_200km.csv'))
+ps_file_base = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0_%s_200km.csv'
 
 #leg2
 #ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2*_200km.csv'))
-ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_m*_200km.csv'))
+#ps_files=sorted(glob('../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_m*_200km.csv'))
+ps_file_base = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0_%s_200km.csv'
 
 #leg3
 #ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,e,w,n,s,se,sw,nw,ne].csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?.csv'))
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
-ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_[c,w,n,s,se,sw,nw,ne]_200km.csv')+glob('../../downloads/position_leg3_nh-track_[se,sw,nw,ne]?_200km.csv'))
+#ps_files=sorted(glob('../../downloads/position_leg3_nh-track_m*_200km.csv'))
+ps_file_base = '../../downloads/position_leg3_nh-track_%s_200km.csv'
 
 #N-ICE 2015
-ps_file_base = '../../downloads/lance_leg1_%s_200km.csv'
+#ps_file_base = '../../downloads/lance_leg1_%s_200km.csv'
 
 ##CIRFA
 #ps_file_base='../../downloads/CIRFA_cruise_stationM_%s_200km.csv'
 
 regions=['c','msw','sw','s','mse','se','e','mne','ne','n','mnw','nw','w']
-regions=['sw','s','se','ne','n','nw','w']
+regions=['se','e','mne','ne','n','mnw','nw','w']    #finishing leg 3 run after a crach in mse
+#regions=['sw','s','se','ne','n','nw','w']
 
 ps_files=[]
 for rr in regions:
@@ -112,16 +118,6 @@ for shipfile in ps_files:
     fl = getColumn(trackfile,1,header=False)
     fl = [ inpath+i.split('.SAFE')[0]+'.zip' for i in fl ]
     print(fl)
-
-    ##file list
-    #fl = sorted(glob(inpath+'S1*.zip'))
-    ##print(fl)
-    ##fl = fl[:-80]   #leg 1
-    ##fl = fl[56:-80] #leg 1 after processing error (file 47 was last)
-    ##fl = fl[-80:-55]    #process all March/April event period
-    ##fl = fl[-55:]	#process all the way
-    #print(fl)
-    ##exit()
 
     #date list
     dl = []
@@ -185,7 +181,7 @@ for shipfile in ps_files:
                 f2 = fl[j+1]
             except:
                 #at some point there will be no more files
-                print('no more files in region: ', region)
+                print('no more f1 files in region: ', region)
                 f1='dummy'
                 continue
             print(f1)
@@ -197,14 +193,14 @@ for shipfile in ps_files:
             try:
                 f2 = fl[k+1]
             except:
-                print('no more files in region: ', region)
+                print('no more f2 files in region: ', region)
                 f2='dummy'
                 continue
             print(f2)
         
         #go to next region
-        if f2=='dummy':
-            continue
+        if (f1=='dummy') or (f2=='dummy'):
+            print('moving to next region: ',f1,f2); continue
 
         #check that files really exist
         file_exists = exists(f1)
@@ -246,8 +242,6 @@ for shipfile in ps_files:
         print('We are working with files: ', region)
         print(f1)
         print(f2)
-
-        
         
         #WARNING: the file has to be EW, IW wont work with Nansat: ValueError: Cannot find band {'name': 'sigma0_HV'}! band_number is from 1 to 13
         
@@ -259,8 +253,6 @@ for shipfile in ps_files:
         dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
         print(date1,date2)
             
-
-        
         #find where ship/CO is
         mettime = getColumn(shipfile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
@@ -271,7 +263,7 @@ for shipfile in ps_files:
         ship_lat = np.asarray(getColumn(shipfile,2),dtype=float)[mi]
         if np.isnan(ship_lon): continue
 
-        print('ship at: ',ship_lon,ship_lat)
+        print('Ship at: ',ship_lon,ship_lat)
 
         #get time difference
         timediff = (dt2 - dt1).total_seconds()
@@ -407,7 +399,7 @@ for shipfile in ps_files:
         #15,19,21 Jan are good dates
         #dump the PM data into numpy file
         lon2_all, lat2_all = sid.n2.get_geolocation_grids()     #get all coordinates for the second image
-        out_file = outpath_drift+'S1_'+date1+'_'+date2+'_'+region+'.npz'
+        out_file = outpath_drift+'S1_'+date1+'_'+date2+'_'+region+ext+'.npz'
         np.savez(out_file,sigma = s02,lon2=lon2_all,lat2=lat2_all)  #17MB = reasonable size
         print(out_file, 'stored.')
         

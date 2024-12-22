@@ -43,7 +43,7 @@ print('Doing: ',file_name_end, reg)
 
 powerlaw = 'powerlaw_'+naming+'_'+reg+'_fit.png'
 outpath = '/scratch/pit000/results/sid/plots200km/'
-
+#outpath = '/scratch/pit000/results/sid/plots200km_stp5_factor1/'
 
 #Plotting
 fig1 = plt.figure(figsize=(21,7))
@@ -79,6 +79,7 @@ cx.set_yscale('log')
 #threshold
 #dummy_ls_all, dummy_td_all, dummy_max_td_all
 inpath = '/scratch/pit000/results/sid/deform200km/'
+#inpath = '/scratch/pit000/results/sid/deform200km_stp5_factor1/'
 date='2015'
 #threshold_file = glob(inpath+'dummy_*'+date+'*c'+file_name_end+'.csv')[0]   #use the values from the center tile
 threshold_files = glob(inpath+'dummy_*'+date+'*'+rname+'.csv')   #use the values from the center tile
@@ -135,10 +136,15 @@ ax.loglog(x_all,a_dum2*x_all**k_dum2,linewidth=1,c='k',ls=':')
 bx.loglog(x_all,a_dum2*x_all**k_dum2,linewidth=1,c='k',ls=':')
 
 #convert to displacements
-#get time difference
+#get time difference - WARNING: this is just last tf
+print(tf)
 #/scratch/pit000/results/sid/deform200km/dummy_lance_leg1_20150206T062144_20150207T133434_se_200km.csv
 date1=tf.split('_')[3]
 date2=tf.split('_')[4]
+
+#date1=tf.split('_')[5]
+#date2=tf.split('_')[6]
+
 dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
 dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
 tls = (dt2-dt1).seconds + (dt2-dt1).days*24*60*60
@@ -190,6 +196,7 @@ mean_dist_sar=[]
 std_dist_sar=[]
 
 inpath = '/scratch/pit000/results/sid/deform200km/'
+#inpath = '/scratch/pit000/results/sid/deform200km_stp5_factor1/'
 #infile = inpath+'td_'+reg+file_name_end+'_1000.npz'     #allowing all time differences up to 33 hours
 infile = inpath+'td_'+reg+file_name_end+'_strict.npz'   #only allowing 22 to 26h time difference - not working as this is c-tile only...
 infile = inpath+'td_'+reg+file_name_end+'_strict30.npz' #now also with minang=30 limitation to see with max_def limit changes...
@@ -259,6 +266,7 @@ a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_sar[:5],meantd_list_sar[:5])   #ski
 #dummy x data for plotting
 #x = np.arange(min(meanls_list_sar), max(meanls_list_sar), 1)
 x = np.arange(meanls_list_sar[0], meanls_list_sar[5], 1)
+#x = np.arange(meanls_list_sar[0], meanls_list_sar[3], 1)
 
 bx.loglog(x,a*x**k,linewidth=3,c='b')
 bx.loglog(x_all,a*x_all**k,linewidth=3,c='b',ls=':',label=r'$D=%.2f*10^{-6} L^{%.2f}$ (DL & LKFF)' %(a*10e6,k))
@@ -639,7 +647,7 @@ cx.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 a,k,cix,ciy_upp,ciy_low = logfit(meanls_list_b,mean_dist_b_high)
 cx.loglog(x,a*x**k,linewidth=3,c='g')
 cx.loglog(x1,a*x1**k,linewidth=3,c='g',ls=':',label=r'$D=%.1f L^{%.2f}$' %(a,k))
-cx.plot(cix,ciy_low,'--', c= 'r',linewidth=1)
+cx.plot(cix,ciy_low,'--', c= 'r',linewidth=1,label=r'$99\%\,confidence\,band$')
 cx.plot(cix,ciy_upp,'--', c= 'r',linewidth=1)
 
 

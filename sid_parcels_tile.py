@@ -2,6 +2,7 @@ from datetime import datetime
 from glob import glob
 import numpy as np
 import pyresample as pr
+from pyresample.geometry import AreaDefinition
 from sid_func import getColumn, seed_parcels
 import matplotlib.pyplot as plt
 
@@ -9,31 +10,38 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-#for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
+#Check that no additional data is in the pipeline - for parcel tracking we need to have subsequnet data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
 
-#WARNING: how accurate are the input S-1 data? Geolocation in GRD is still approximate... Use snap ESA to imporve geolocaton for s-1
+#TASK: how accurate are the input S-1 data? Geolocation in GRD is still approximate... Use snap ESA to imporve geolocaton for s-1
 #This option not available for RS-2, ask KSAT
 
 #TASK: feed your own tiffs to Sea_ice_drift (change geolocation, apply calibration, apply noise correction, use DB instead of linar scale for intensity)
 #algorithm works with open CV for feature detection
 
-#TASK: make flowchart for parcels
-
-#WARNING: CHECK what is the time difference between the parts of the mosaic and use different drift products for different parts of the mosaic!!!
-
-#WARNING: completely straight lines are artefacts!!! Missing data at the image edge! - how can we maske them? maybe they have lead==1 and id at [-spare_parcels:]
+#WARNING: completely straight lines are artefacts!!! Missing data at the image edge! - how can we mask them? maybe they have lead==1 and id at [-spare_parcels:]
 
 #================================================================PARAMETERS
 
 radius = 60000          #use a radius shorter than in the parcel producing script - or lots of boundary parcels will be lost fast!
 #radius = 50000
-radius = 100000
+#radius = 20000000
 #spacing= 300            #at spacing shorter than 500m, there will be lots of nans...
 spacing= 800
+#spacing = spacing*100
+resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
 spare_parcels=5000
 spare_parcels=100000
+print('Working with radius %i km and parcel size %i m...' %(radius/1000,spacing))
 
 just_plot=False
+
+#input
+radius_in = 200000
+rname = '_'+str(int(radius_in/1000))+'km'
+tname='_thfilter'
+lname='_lkffilter'
+file_name_end = rname+tname+lname
+print('Your input is: ',file_name_end)
 
 #for output
 #fp = 6  #final image pair
@@ -43,9 +51,10 @@ just_plot=False
 inpath = '/scratch/pit000/results/sid/parcels/'
 inpath = '/scratch/pit000/results/sid/deform200km/'
 
-inpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05/'
+#inpath_drift = '/scratch/pit000/results/sid/drift/stp10_factor05/'
 outpath_data = inpath
 outpath = '/scratch/pit000/results/sid/parcels200km/'
+outpath = '/scratch/pit000/results/sid/parcels200km_test/'
 
 #read in the drift product and calculate displacements from starting point until the first break in the SAR data (1 week)
 #fl = sorted(glob(inpath_drift+'SeaIceDrift_2020*.npz'))[1:]
@@ -62,15 +71,14 @@ outpath = '/scratch/pit000/results/sid/parcels200km/'
 #fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:47]#[26:36]
 #outpath_name = 'leg3_event'
 
-#fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
-#whole spring: 15.3 - 07.5 03:00
-shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
-#fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:-2]
-fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:82]
-outpath_name = 'leg3_all'
+##fl = sorted(glob(inpath+'Damage_2020*.npz'))[5:65]  #this should work for leg 3
+##whole spring: 15.3 - 07.5 03:00
+#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+##fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:-2]
+#fl = sorted(glob(inpath+'Damage_2020*.npz'))[37:82]
+#outpath_name = 'leg3_all'
+#print(fl)
 
-print(fl)
-#exit()
 
 ##November case: 11.11 04:00 - 24.11 19:00, based on the large scale buoy array from JH
 #shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
@@ -85,11 +93,30 @@ print(fl)
 #outpath_name = 'DYNAMIC_keep'   #keep non-covered parcels with mean drift and zero values
 #simba_file = '../../downloads/2019T58_300234065171790_TS.csv'
 
-start = fl[0].split('_')[-3]
-start = datetime.strptime(start, "%Y%m%dT%H%M%S")
-print(start)
+#N-ICE 
+#'../../downloads/lance_leg1.csv'   #wrong order of lat,lon columns
+shipfile = '../../downloads/lance_leg1_c_200km.csv'
+#fl = sorted(glob(inpath+'Damage_2015*.npz'))[:18]    
+fl = sorted(glob(inpath+'Damage_2015*'+file_name_end+'_tiled.npz'))[:13] #Only until 4 February, star could take into account stp name
+fl = sorted(glob(inpath+'Damage_2015*'+file_name_end+'_stp1_tiled.npz')) #Only until 9 February
 
-resolution=str(spacing)	#for naming of output, this is combination of drift/parcel input and grid spacing
+#old and new files:
+fl = sorted(glob(inpath+'Damage_2015*'+file_name_end+'_tiled.npz'))+sorted(glob(inpath+'Damage_2015*'+file_name_end+'_stp1_tiled.npz'))
+
+print(fl)
+print(len(fl))
+outpath_name='lance_leg1'
+#exit()
+
+##CIRFA cruise
+#shipfile = '../../downloads/CIRFA_cruise_stationM.csv'
+#fl = sorted(glob(inpath+'Damage_2022*'+file_name_end+'_tiled.npz'))
+#print(fl)
+#outpath_name = 'CIRFA'
+
+start = fl[0].split('_')[1]
+start = datetime.strptime(start, "%Y%m%dT%H%M%S")
+print('Starting time: ',start)
 
 #get ship location
 ship_time = getColumn(shipfile,0)
@@ -102,7 +129,32 @@ from pyproj import Proj, transform
 inProj = Proj(init='epsg:4326')
 #Use same projection as in pattern matching part of the sea ice drift algorithm
 outProj = Proj('+proj=laea +lat_0=%f +lon_0=%f +datum=WGS84 +ellps=WGS84 +units=m' % (90, 10))
-ship_x,ship_y = transform(inProj,outProj,ship_lon, ship_lat)
+ship_x,ship_y = transform(inProj,outProj,ship_lon,ship_lat)
+
+mi = np.argmin(abs(np.asarray(ship_time)-start))
+ship_lon1 = ship_lon[mi]
+ship_lat1 = ship_lat[mi]
+print('Starting with ship at: ',ship_lon1,ship_lat1)
+
+#Check figure: are we at the right place
+area_id = 'around ship'
+description = 'North Pole LAEA Europe'
+proj_id = 'ship'
+proj_dict = {'proj':'laea', 'lat_0':90, 'lon_0':10, 'datum':'WGS84', 'ellps':'WGS84', 'units':'m'}
+
+regn = 84; regs = 81
+regw = 10; rege = 30
+xc1,yc1 = transform(inProj,outProj,regw, regs)
+xc2,yc2 = transform(inProj,outProj,rege, regn)
+area_extent = (xc1,yc1,xc2,yc2)
+area_def2 = AreaDefinition(area_id, description, proj_id, proj_dict, 300, 1000, area_extent)
+
+fig1    = plt.figure(figsize=(10,10))
+ax      = fig1.add_subplot(111)
+ma = pr.plot.area_def2basemap(area_def2)
+ma.drawmapscale(regw+2, regs+.2, regw+10, regs+.3, 50, units='km', barstyle='fancy',fontsize=14)
+ma.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+ma.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
 
 #===============================================================================SETUP DONE
 
@@ -131,47 +183,56 @@ for i in range(0,len(fl)):
     if just_plot:
         print('No calculations - just plotting!')
         break
-    ##read in the drift data
-    #print(fl[i])
-    #container = np.load(fl[i])
-    #lat1 = container['lat1']     #these arrays are as big as both scenes together (nan-where no overlap), ~5000x5000 of 80m-pixels = 400x400km
-    #lon1 = container['lon1']
-    #u = container['upm']
-    #v = container['vpm']
-    #hpm = container['hpm'] 
-        
-    ##quality filter 
-    ##strict quality filter (hpm > 9) will leave holes in deforming areas
-    #gpi = hpm > 4
-    #u = u[gpi]
-    #v = v[gpi]
-    #lon1 = lon1[gpi]
-    #lat1 = lat1[gpi]
     
     #get damage data
     print(fl[i])
     container = np.load(fl[i])
-    lat_dmg = container['lat']      #triangle centroids
+    lat_dmg = container['lat']      #triangle centroids (all triangles)
     lon_dmg = container['lon']
-    dmg = container['d']
-    rid = container['r']
-    lea = container['l']
-    #sz = container['s']    #shear zones - not implemented yet
+    dmg = container['d']            #0,1 array with all damaged triangles as 1
+    rid = container['r']            #convergence
+    lea = container['l']            #divergence
+    #sz = container['s']            #shear zones - not implemented yet
     
     u = container['u']
     v = container['v']
-    dt = container['dt']
+    dt = container['dt']    #tiled
     
     #project data coordinates
-    #x1,y1 = transform(inProj,outProj,lon1,lat1)
     x1,y1 = transform(inProj,outProj,lon_dmg,lat_dmg)
     
+    #check figure just in the first step
+    if i==0:
+        #reproject vertices
+        xa, ya = ma(lon_dmg, lat_dmg)
+        #reproject ship coordinates
+        xla, yla = ma(ship_lon1, ship_lat1)
+        #reproject VB
+        blon,blat = transform(outProj,inProj,x_buoy,y_buoy)
+        xb, yb = ma(blon, blat)
+        
+        ax.plot(xa,ya,'.',color='r', alpha=.1)
+        ax.plot(xb,yb,'.',color='b', alpha=.1)
+        ax.plot(xla,yla,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+        
+        #plt.show()
+        outname = outpath+'area_check_VB_'+outpath_name+file_name_end+'.png'
+        fig1.savefig(outname,bbox_inches='tight')
+        plt.close(fig1)
+    
     #get dates
-    date1 = fl[i].split('_')[-3]
-    date2 = fl[i].split('_')[-2].split('.')[0]
+    #check that dt1 is same as dt2 in the previous step - abort if not - we need sequential data!
+    date1 = fl[i].split('_')[1]
     dt1 = datetime.strptime(date1, "%Y%m%dT%H%M%S")
+    
+    if 'dt2' in locals():   #does it existis from previous step
+        if dt1!=dt2:
+            print('STOP: This data is not subsequnet!',dt1,dt2);exit()
+    
+    date2 = fl[i].split('_')[2].split('.')[0]
     dt2 = datetime.strptime(date2, "%Y%m%dT%H%M%S")
-    diff = (dt2-dt1).total_seconds()
+    
+    diff = (dt2-dt1).total_seconds()    #not tiled, uniform
     #print(diff)
 
     #get displacements
@@ -198,16 +259,14 @@ for i in range(0,len(fl)):
         if x_buoy[m]==0:
             continue
         
-        ##sea ice drift/displacement mask for data with 400m resolution, 600m spacing between buoys, 300 m drift precission (based on buoys)    
-        #mask = (x1>x_buoy[m]-spacing) & (x1<x_buoy[m]+spacing) & (y1>y_buoy[m]-spacing) & (y1<y_buoy[m]+spacing)
-        #damage mask for data with ~400m resolution            
+        #get search window for data            
         mask = (x1>x_buoy[m]-spacing/2) & (x1<x_buoy[m]+spacing/2) & (y1>y_buoy[m]-spacing/2) & (y1<y_buoy[m]+spacing/2)
         
-        #get the mean location for parcel (and update parcel location for the search in next step)
-        #if there is no damage, put in a mean displacement/zero damage to keep the buoy (otherwise: converting a masked element to nan)
+        #get the mean location for parcel, update parcel location for the search in next step and assign damage values
         tmp = np.ma.masked_invalid(x2[mask]).compressed()
         if tmp.size == 0:
-
+            #no triangle found
+            #put in a mean displacement/zero damage to keep the buoy (otherwise: converting a masked element to nan)
             x_buoy[m] = x_buoy[m]+dxm
             y_buoy[m] = y_buoy[m]+dym
             #print(x_buoy[m])
@@ -219,6 +278,7 @@ for i in range(0,len(fl)):
             leads[i+1,m] = 0
             ridges[i+1,m] = 0
         else:
+            #at least one triangle found
             x_buoy[m] = np.mean(np.ma.masked_invalid(x2[mask]))
             y_buoy[m] = np.mean(np.ma.masked_invalid(y2[mask]))
             
@@ -296,6 +356,8 @@ damage = container['damage']
 leads = container['leads']
 ridges = container['ridges']
 age = container['age']
+
+
 
 out_file = outpath_data+outpath_name+'VB_dates.npz'
 container = np.load(out_file, allow_pickle=True)
@@ -414,8 +476,8 @@ fig1a.savefig(outpath+outname,bbox_inches='tight')
 plt.close()
 
 #total damage plot - best coverage is x days before the end
-fp=-1
-#fp=-4
+fp=-2
+#fp=-7  #N-ICE
 #fp=-3	#March April event: 6 April
 #fp=-33	#whole spring: 30 April there is about half parcels left
 print(date[fp])
@@ -548,6 +610,7 @@ start = date[0].strftime('%Y%m%d')
 end = date[fp].strftime('%Y%m%d')
 outname='virtual_buoys_classified'+outpath_name+resolution+'_m_'+start+'_'+end+'_'+str(int(radius/1000))+'km'
 print(outpath+outname)
+plt.show()
 fig2.savefig(outpath+outname,bbox_inches='tight')
 plt.close()
 

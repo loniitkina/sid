@@ -2,12 +2,19 @@ import numpy as np
 from datetime import datetime
 from sid_func import getColumn
 from pyproj import Proj, transform
-from sid_creodias_func import download_from_polygon
+from sid_creodias_func_old import download_from_polygon
 from glob import glob
 import sys
 
 #get the second key
 key = sys.argv[1]
+
+#read CREODIAS credentials
+f=open("creodias_credentials.txt","r")
+lines=f.readlines()
+username=lines[0]
+password=lines[1]
+f.close()
 
 #WARNING: this script downloads EW amd IW, but our drift algorithm only works for EW currently!
 
@@ -126,6 +133,8 @@ for ps_file in ps_files:
         
         print(start_date, region)
         #continue
+
+        #output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, username, password, key, start_hour = '00', end_hour = '23', coverage=coverage)
 
         output = download_from_polygon(polarstern_poly, start_date, end_date, out_folder, key, start_hour = '00', end_hour = '23', coverage=coverage)
 

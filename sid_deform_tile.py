@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.offsetbox import AnchoredText
 
 #supress warnings
 import warnings
@@ -31,62 +32,6 @@ warnings.filterwarnings("ignore")
 #no, that does not work use this instead: https://anaconda.org/conda-forge/shapely
 #does not work :(
 
-#using the treshold to discard the data with poor signal/noise ratio
-threshold_filter=True
-
-#filtering for better values along the LKFs as recommended for SAR data by Buillion et al
-lkf_filter=True
-kernel=3    #3 is recommend by Sylvain (but for coarser resolution)
-interval = [-1, 1]  #expected divergence values (div in s-1 * 10e6) for filter plot
-
-#minang_limit is used in threshold_filter and lkf_filter
-#best set very low or zero when wanting to detect all features (will include MIZ!)
-#can be set to 15, when working with scalling
-minang_limit=5  #this will leave out some triangles over wide LKFs (dense points at the edges of the feature make narrow triangles!)
-minang_limit=2
-
-#min amount of data to do the triangulation
-min_nod_number=100
-
-#select area size
-#radius = 120000 #will leave gaps between the 200-km tiles
-radius = 200000
-
-#naming and output
-rname = '_'+str(int(radius/1000))+'km'
-if threshold_filter:
-    tname='_thfilter'
-    #such output is only sensible if threshold filter is on
-    #active floe size
-    afs=False
-    ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
-    #just save level 1 data and exit
-    parcel=False
-    #LKF angles
-    lkf_angles=False
-else:
-    tname='_nothfilter'
-    afs=False
-    parcel=False
-    lkf_angles=False
-    
-if lkf_filter:
-    lname='_lkffilter'
-else:
-    lname='_nolkfilter'
-
-file_name_end = rname+tname+lname
-print('Your output will be: ',file_name_end)
-
-file_name_end_csv = file_name_end+'.csv'
-
-scaling=True
-if scaling:
-    #create log-spaced vector and convert it to integers
-    n=9 # number of samples
-    stp=np.exp(np.linspace(np.log(1),np.log(300),n))
-    stp = stp.astype(int)
-
 #-------------------------------------------------------------------INPUT
 #threshold detection values: step and factor differ for each for each input data (usually put in different folders/paths)
 #resolution=factor X step
@@ -100,15 +45,15 @@ if scaling:
 #extra_margin = 20   #some allowance #20 in test5 gave best results so far (but also lets in the last artifacts in LKF filter)
 #20 was a good margin for factor=80, seems like 25% was a good estimate
 #no margin necessary for scaling, but use 10 to get clean LKFs for other analysis where 'less is more' (e.g. parcels)
-extra_margin = 30   #this is a good option for 'less is more': removed most of the artifacts (and some data) should work well for parcels and AFS!
+#extra_margin = 30   #this is a good option for 'less is more': removed most of the artifacts (and some data) should work well for parcels and AFS!
 
 #800 m resolution data (pixel/factor=80m, step=10)
 #inpath = '/scratch/pit000/results/sid/drift/stp10_factor05/'
-inpath = '/scratch/pit000/results/sid/drift/stp10_factor05'+rname+'/'
+inpath = '/scratch/pit000/results/sid/drift/stp10_factor05_200km/'
 step = 10      #grid resolution of drift 
 factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, which translates to 80 m here)
 
-#200 m resolution data
+##200 m resolution data
 #inpath = '/scratch/pit000/results/sid/drift/stp5_factor1/'
 #step = 5
 #factor = 40
@@ -116,9 +61,9 @@ factor = 80    #pixel size (factor in sid_drift, default factor in FT is 0.5, wh
 ##MOSAiC
 #reg = 'mosaic'   #used in filenames
 ##for mapping/projection
-#shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
+##shipfile = '../../downloads/data_master-solution_mosaic-leg1-20191016-20191213-floenavi-refstat-v1p0.csv'
 ##shipfile = '../../downloads/data_master-solution_mosaic-leg2-20191214-20200224-floenavi-refstat-v1p0.csv'
-##shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
+#shipfile = '../../downloads/position_leg3_nh-track.csv'	#leg3 (and transition to leg 4 until 6 June)
 ##Region limits for the overview map
 #lon_diff = 15
 #ship_lon=17.147909; ship_lat=87.132429      #March/April event start
@@ -139,16 +84,117 @@ regw = 10; rege = 30
 #regn = 82; regs = 77
 #regw = -25; rege = 5
 
+###########################################################################################################PARAMETERS
+#using the treshold to discard the data with poor signal/noise ratio
+threshold_filter=True
+
+#filtering for better values along the LKFs as recommended for SAR data by Buillion et al
+lkf_filter=True
+kernel=3    #3 is recommend by Sylvain (but for coarser resolution)
+interval = [-1, 1]  #expected divergence values (div in s-1 * 10e6) for filter plot
+
+#minang_limit is used in threshold_filter and lkf_filter
+#best set very low or zero when wanting to detect all features (will include MIZ!)
+#can be set to 15, when working with scalling
+minang_limit=5  #this will leave out some triangles over wide LKFs (dense points at the edges of the feature make narrow triangles!)
+minang_limit=2
+
+#min amount of data to do the triangulation
+min_nod_number=100
+
+#select area size
+#radius = 120000 #will leave gaps between the 200-km tiles
+radius = 200000 #some hard-coded naming depends on this
+
+#should we triangulate second or first SAR scene coordinates
+#second works works OK for deformation and CDE products, but not for parcels yet
+second_latlon=False
+
+#naming and output
+rname = '_'+str(int(radius/1000))+'km'
+if threshold_filter:
+    tname='_thfilter'
+    #such output is only sensible if threshold filter is on
+    filter_fig=True
+    #active floe size
+    afs=True
+    ##for parcel tracking we need to have consequtive data: second scene in pair needs to be first scene in the next pair! (combo option is not possible here)
+    #just save level 1 data and exit
+    parcel=True
+    #LKF angles
+    lkf_angles=False
+else:
+    tname='_nothfilter'
+    afs=False
+    parcel=False
+    lkf_angles=False
+    
+if lkf_filter:
+    lname='_lkffilter'
+else:
+    lname='_nolkfilter'
+
+#This script can also be used for subsampling for scaling law
+scaling=False
+if scaling:
+    #create log-spaced vector and convert it to integers
+    n=9 # number of samples
+    stp_list=np.exp(np.linspace(np.log(1),np.log(300),n))
+    stp_list = stp_list.astype(int)
+    
+    #SET HERE MANUALY your subsamplig interval/step
+    stp=stp_list[7] #lots of missing days for list=7,8 will not work, no data    
+    
+    #If the output is ment for scaling above stp==1, then no other output is needed
+    if stp>1:
+        afs=False; parcel=True; lkf_angles=False
+    
+    #LKFfilter kernel also needs adjustments
+    if stp>stp_list[1]:
+        kernel=2            #connected LKFs even at list=5, kernel could be left at=3!
+        min_nod_number=9
+        #extra_margin=-30    #works for step35=list5, and step17=list4, stp8=list3, step4=list2
+        
+    if stp>stp_list[2]:
+        kernel=1    #this is same as no LKF filter...
+        min_nod_number=3
+        #extra_margin=-40
+    
+    #extra_margin=30 was used as exag_factor=pixel_spacing+extra margin: 80m+30m to get the DL
+    #here we use it directly
+    exag_fac = 1.3*factor   #OK
+    exag_fac = 1.25*factor
+    #exag_fac = 1.2*factor   #some rhomboid effects left
+
+    print('Steps/subsampling intervals: ', stp_list)
+
+else:
+    stp=1
+    #extra_margin=30 #for factor=80m
+    exag_fac = 1.3*factor
+    
+sname='_stp'+str(stp)
+
+print('Working on step/subsampling interval: ',stp)
+print('Usig exagerattion factor for filtering: ', exag_fac)
+
+#------------------------------------------------------------------OUTPUT
+outpath_def = '/scratch/pit000/results/sid/deform200km/'
+#outpath_def = '/scratch/pit000/results/sid/deform200km_stp5_factor1/'
+
+#outpath = '/scratch/pit000/results/sid/plots/'
+outpath = '/scratch/pit000/results/sid/plots200km/'
+#outpath = '/scratch/pit000/results/sid/plots200km_stp5_factor1/'
+
 #for getting timestampts of drift files
 main_trackfile_tail = '_c'+rname+'-fnames.csv'
 main_trackfile=shipfile.split('.csv')[0]+main_trackfile_tail
 print('Your study area is: ',main_trackfile)
 
-#------------------------------------------------------------------OUTPUT
-outpath_def = '/scratch/pit000/results/sid/deform200km/'
+file_name_end = rname+tname+lname+sname
+print('Your output will be: ',file_name_end)
 
-#outpath = '/scratch/pit000/results/sid/plots/'
-outpath = '/scratch/pit000/results/sid/plots200km/'
+file_name_end_csv = file_name_end+'.csv'
 
 #-------------------------------------------------------------------------------------------------------------------end of parameters
 #map of frames and valid data = overview map
@@ -207,7 +253,13 @@ color=iter(plt.cm.jet_r(np.linspace(0,1,len(days)+1)))
 
 #days=['20200401','20200402','20200403','20200511']
 #days=['20191114']
-#days=['20150115']   #19-23 Jan strong deformation at Lance (the letter N shape)
+#days=['20150119','20150120','20150121','20150122','20150123','20150124','20150125','20150126','20150127','20150203']
+#days=['20150204','20150205','20150206','20150207','20150208','20150209','20150210']
+#days=['20150124']   #for outreach figure (scales)
+
+#days=days[23:]  #This is for leg3 (there is a problem with 17 March data)
+print(days)
+
 
 #lists for time series
 date_ts=[]
@@ -233,6 +285,11 @@ for day in days:
     timestamp1=[]
     timestamp2=[]
     timediff=[]
+    
+    #for backward overlaying of sigma data
+    sigma_data=[]
+    xs1_data=[]
+    ys1_data=[]
 
     for region in regions:
         print(region)
@@ -250,11 +307,11 @@ for day in days:
             
         #read in all the data
         container = np.load(fname)
-        u = container['upm']     
-        v = container['vpm']
-        hpm = container['hpm']    #hessian
-        lat = container['lat1']
-        lon = container['lon1']
+        u = container['upm'][::stp,::stp]     
+        v = container['vpm'][::stp,::stp]
+        hpm = container['hpm'][::stp,::stp]    #hessian
+        lat = container['lat1'][::stp,::stp]
+        lon = container['lon1'][::stp,::stp]
         print('Size of input matrix:', u.size)
             
         #get time difference
@@ -268,16 +325,19 @@ for day in days:
         timestamp2.append(date2)
         timediff.append(diff)
         
-        #WARNING, pick the right reference date
-        ref_date=dt2
+        #pick the right reference date
+        if second_latlon:
+            ref_date=dt2
+        else:
+            ref_date=dt1
         
         #tile center - from track file
         shipfile_tile = shipfile.split('.csv')[0]+'_'+region+'_200km.csv'
         print(shipfile_tile)
         mettime = getColumn(shipfile_tile,0)
         dtb = [ datetime.strptime(mettime[i], "%Y-%m-%d %H:%M:%S") for i in range(len(mettime)) ]
-        if dtb[0]>dt1: continue
-        if dtb[-1]<dt1: continue
+        if dtb[0]>ref_date: continue
+        if dtb[-1]<ref_date: continue
         mi = np.argmin(abs(np.asarray(dtb)-ref_date))
         ship_lon = np.asarray(getColumn(shipfile_tile,1),dtype=float)[mi]
         ship_lat = np.asarray(getColumn(shipfile_tile,2),dtype=float)[mi]
@@ -303,20 +363,18 @@ for day in days:
         #reproject center position
         xl, yl = m(ship_lon, ship_lat)
 
-        #reproject vertices to geo coordinates
-        x, y = transform(inProj,outProj,lon,lat)
-        
-        
-        #WARNING: here we start workig with the second image coordinates
-        #get lat,lon for the second image in the SAR pair
-        #get displacements
-        dx = diff*u; dy = diff*v
-        #estimate positions after drift
-        x = x + dx
-        y = y + dy
-        lon,lat = transform(outProj,inProj,x,y) 
-        
-        
+        #WARNING: here we start working with the second image coordinates
+        if second_latlon:
+            #reproject vertices to geo coordinates
+            x1, y1 = transform(inProj,outProj,lon,lat)
+            
+            #get lat,lon for the second image in the SAR pair
+            #get displacements
+            dx = diff*u; dy = diff*v
+            #estimate positions after drift
+            x2 = x1 + dx
+            y2 = y1 + dy
+            lon,lat = transform(outProj,inProj,x2,y2) 
         
         #reproject vertices to image coordinates
         x, y = m(lon, lat)
@@ -372,7 +430,8 @@ for day in days:
         xa, ya = ma(lons, lats)
         #reproject ship coordinates
         xla, yla = ma(ship_lon, ship_lat)
-        ax.plot(xa,ya,'.',color=cl, alpha=.3)
+        #ax.plot(xa,ya,'.',color=cl, alpha=.3)
+        frames = ax.fill(xg, yg, fc='none', ec=cl)
         #ship
         ax.plot(xla,yla,'*',markeredgewidth=2,color=cl,markersize=20,markeredgecolor='k')
         ##################################################################3
@@ -398,7 +457,7 @@ for day in days:
         #full mesh
         gx.triplot(pts[:,0], pts[:,1], tri.simplices.copy(), color='k', alpha=0.5, label='full')
         #colors for the nods
-        colormesh=iter(plt.cm.jet_r(np.linspace(0,1,len(stp))))
+        #colormesh=iter(plt.cm.jet_r(np.linspace(0,1,len(stp))))
 
         ##################################################################3
 
@@ -415,67 +474,70 @@ for day in days:
         dymean = np.mean(vs)*diff
 
         dst = step*factor
-        exag_fac = factor+extra_margin
+        #exag_fac = factor+extra_margin
         #max deformation rates also follows a powerlaw - with apperantly same slope as the threshold!!!
         #is this resolution and product independent? Is there any limit in feature tracking?
         exag_fac_max = factor*100                   #80*100=8km total displacement!
         
-        dummy_td_all = []
-        dummy_ls_all = []
-        dummy_max_td_all = []
-        
-        for j in stp:
-            distance = dst*j
-            
-            dummy_vert = np.array([[0,0],[distance,0],[0,distance]])
-            dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac)/diff])
-            dummy_vvert = np.array([dymean/diff,dymean/diff,dymean/diff])             
-            dummy_a,dummy_b,dummy_c,dummy_d,dummy_e,dummy_f=deformation(dummy_vert,dummy_uvert,dummy_vvert)
-            
-            #because this is only one nod, there will be divergence (increase in area) and shearing (change in shape, angles)
-            dummy_div = dummy_a+dummy_b
-            dummy_shr = .5*np.sqrt((dummy_a-dummy_d)**2+(dummy_b+dummy_c)**2)
-            dummy_td = np.sqrt(dummy_div**2 + dummy_shr**2)
-            dummy_ls = np.sqrt(dummy_f)
-            
-            #store in a list
-            dummy_td_all.append(dummy_td)
-            dummy_ls_all.append(dummy_ls)
-        
-            #now also make some estimates of what is the max deformation/displacement that we measure
-            max_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac_max)/diff])
-            max_a,max_b,max_c,max_d,max_e,max_f=deformation(dummy_vert,max_uvert,dummy_vvert)
-            max_div = max_a+max_b
-            max_shr = .5*np.sqrt((max_a-max_d)**2+(max_b+max_c)**2)
-            max_td = np.sqrt(max_div**2 + max_shr**2)
-            
-            #store in a list
-            dummy_max_td_all.append(max_td)
-        
-        print(dummy_td_all)
-        print(dummy_max_td_all)
-        
-        #store in a file
-        tt = [dummy_ls_all, dummy_td_all, dummy_max_td_all]
-        table = list(zip(*tt))
-        outname_dummy = 'dummy_'+reg+'_'+date1+'_'+date2+'_'+region+rname+'.csv'
-        output = outpath_def + outname_dummy
-        with open(output, 'wb') as f:
-            np.savetxt(f, table, fmt="%s", delimiter=",")
+        if scaling:
+            #only do this for the subsamplig interval=1
+            if stp==1:
+                dummy_td_all = []
+                dummy_ls_all = []
+                dummy_max_td_all = []
+                
+                for j in stp_list:
+                    distance = dst*j
+                    
+                    dummy_vert = np.array([[0,0],[distance,0],[0,distance]])
+                    dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac)/diff])
+                    
+                    dummy_vvert = np.array([dymean/diff,dymean/diff,dymean/diff])             
+                    dummy_a,dummy_b,dummy_c,dummy_d,dummy_e,dummy_f=deformation(dummy_vert,dummy_uvert,dummy_vvert)
+                    
+                    #because this is only one nod, there will be divergence (increase in area) and shearing (change in shape, angles)
+                    dummy_div = dummy_a+dummy_b
+                    dummy_shr = .5*np.sqrt((dummy_a-dummy_d)**2+(dummy_b+dummy_c)**2)
+                    dummy_td = np.sqrt(dummy_div**2 + dummy_shr**2)
+                    dummy_ls = np.sqrt(dummy_f)
+                    
+                    #store in a list
+                    dummy_td_all.append(dummy_td)
+                    dummy_ls_all.append(dummy_ls)
+                
+                    #now also make some estimates of what is the max deformation/displacement that we measure
+                    max_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac_max)/diff])
+                    max_a,max_b,max_c,max_d,max_e,max_f=deformation(dummy_vert,max_uvert,dummy_vvert)
+                    max_div = max_a+max_b
+                    max_shr = .5*np.sqrt((max_a-max_d)**2+(max_b+max_c)**2)
+                    max_td = np.sqrt(max_div**2 + max_shr**2)
+                    
+                    #store in a list
+                    dummy_max_td_all.append(max_td)
+                
+                print(dummy_td_all)
+                print(dummy_max_td_all)
+                
+                #store in a file
+                tt = [dummy_ls_all, dummy_td_all, dummy_max_td_all]
+                table = list(zip(*tt))
+                outname_dummy = 'dummy_'+reg+'_'+date1+'_'+date2+'_'+region+rname+'.csv'
+                output = outpath_def + outname_dummy
+                with open(output, 'wb') as f:
+                    np.savetxt(f, table, fmt="%s", delimiter=",")
         
         
         #now get a slightly higher value for the LKF filtering
         distance = step*factor
-        exag_fac = factor+extra_margin
+        #exag_fac = factor+extra_margin
+        
             
         dummy_vert = np.array([[0,0],[distance,0],[0,distance]])
         dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean+exag_fac)/diff])    #use average velocities and add a min (exaggerated) step at only one node
+        #dummy_uvert = np.array([dxmean/diff,dxmean/diff,(dxmean*extra_margin)/diff])
         dummy_vvert = np.array([dymean/diff,dymean/diff,dymean/diff])
-        
         dummy_a,dummy_b,dummy_c,dummy_d,dummy_e,dummy_f=deformation(dummy_vert,dummy_uvert,dummy_vvert)
         dummy_div = dummy_a+dummy_b
-        #print(dummy_div)
-        
         dummy_shr = .5*np.sqrt((dummy_a-dummy_d)**2+(dummy_b+dummy_c)**2)
         dummy_td = np.sqrt(dummy_div**2 + dummy_shr**2)
         #print(dummy_td)
@@ -577,48 +639,102 @@ for day in days:
             pindex = np.ma.compressed(pindex)
             
             #plot LKF##################################################################################################3
-            if region=='c':
-                fig5    = plt.figure(figsize=(20,10))   #   
-                
-                #plot original divergence field
-                nx      = fig5.add_subplot(131)
-                mn = pr.plot.area_def2basemap(area_def)
-                mn.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-                mn.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
-                
-                #set up the plot for the detection level flitered field
-                tx      = fig5.add_subplot(132)
-                ml = pr.plot.area_def2basemap(area_def)
-                ml.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-                ml.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])   
-                
-                #set up the plot for the detection level flitered field and LKF filter field
-                lx      = fig5.add_subplot(133)
-                ml = pr.plot.area_def2basemap(area_def)
-                ml.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
-                ml.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0]) 
+            if filter_fig:
+                if region=='c':
+                    fig5    = plt.figure(figsize=(20,10))   #   
+                    
+                    #plot original divergence field
+                    nx      = fig5.add_subplot(131)
+                    mn = pr.plot.area_def2basemap(area_def)
+                    mn.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+                    mn.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])
+                    
+                    #set up the plot for the detection level filtered field
+                    tx      = fig5.add_subplot(132)
+                    mn = pr.plot.area_def2basemap(area_def)
+                    mn.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+                    mn.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0])   
+                    
+                    #set up the plot for the detection level flitered field and LKF filter field
+                    lx      = fig5.add_subplot(133)
+                    mn = pr.plot.area_def2basemap(area_def)
+                    mn.drawmeridians(np.arange(0.,360.,5.),latmax=90.,labels=[0,0,0,1,])
+                    mn.drawparallels(np.arange(79.,90.,1),labels=[1,0,0,0]) 
 
-                #ship
-                xl, yl = mn(ship_lon, ship_lat)
-                nx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-                tx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-                lx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                    #ship
+                    #xl, yl = mn(ship_lon, ship_lat)
+                    nx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                    tx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                    lx.plot(xl,yl,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                    
+                    #SAR image over a smaller area centered to Lance
+                    #background intensities from the second image in the pair
+                    #fig6    = plt.figure(figsize=(15,10))
+                    fig6    = plt.figure(figsize=(30,20))   #high resolution for the outreach figure
+                    zx      = fig6.add_subplot(121)
+                    
+                    mz = pr.plot.area_def2basemap(area_def)
+                    mz.drawmeridians(np.arange(10.,30.,5.),latmax=85.,labels=[0,0,0,0,])
+                    mz.drawparallels(np.arange(79.,80.,.1),labels=[0,0,0,0])
+                    
+                    zx2      = fig6.add_subplot(122)
+                    mz = pr.plot.area_def2basemap(area_def)
+                    mz.drawmeridians(np.arange(0.,30.,5.),latmax=85.,labels=[0,0,0,0,])
+                    mz.drawparallels(np.arange(79.,80.,.1),labels=[0,0,0,0])
+                    
+                    ##limit map extent
+                    zx.set_xlim(100000,300000)
+                    zx.set_ylim(100000,300000)
+                    zx2.set_xlim(100000,300000)
+                    zx2.set_ylim(100000,300000)
+                    
+                    #annotate the date
+                    title_date=datetime.strftime(ref_date, "%Y/%m/%d")
+                    
+                    at = AnchoredText(title_date, prop=dict(size=12), frameon=True, loc='upper left')
+                    at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+                    nx.add_artist(at)
+                    
+                    at = AnchoredText(title_date, prop=dict(size=12), frameon=True, loc='upper left')
+                    at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+                    zx.add_artist(at)
+                    
+                    #plot the ship
+                    xz, yz = mz(ship_lon, ship_lat)
+                    zx.plot(xz,yz,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                    #zx2.plot(xz,yz,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
                 
-                #just image over a smaller area centered to Lance (c tile)
-                #background intensities from the second image in the pair
-                fig6    = plt.figure(figsize=(15,10))
-                zx      = fig6.add_subplot(121)
+                #plot unfiltered data
+                patches_all = []
+                for k in range(div.shape[0]):
+                    patch = Polygon(tripts[k,:,:])
+                    patches_all.append(patch)
+
+                #plot filled triangles
+                pn = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=.5)
+                pn.set_array(div*1e6)
+                pn.set_clim(interval)
+                nx.add_collection(pn)
                 
-                mz = pr.plot.area_def2basemap(area_def)
-                mz.drawmeridians(np.arange(10.,30.,5.),latmax=85.,labels=[0,0,0,0,])
-                mz.drawparallels(np.arange(79.,80.,.1),labels=[0,0,0,0])
+                ##check what we are filtering
+                #patches_p = []
+                #for k in pindex:
+                    #patch = Polygon(tripts[k])
+                    #patches_p.append(patch)
+
+                ##plot filled triangles
+                #p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
+                #nx.add_collection(p)
                 
-                zx2      = fig6.add_subplot(122)
-                mz = pr.plot.area_def2basemap(area_def)
-                mz.drawmeridians(np.arange(0.,30.,5.),latmax=85.,labels=[0,0,0,0,])
-                mz.drawparallels(np.arange(79.,80.,.1),labels=[0,0,0,0])
+                #plot filtered data
+                tmp = np.ma.array(div,mask=threshold)
+                pt = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=.5)
+                pt.set_array(tmp*1e6)
+                pt.set_clim(interval)
+                tx.add_collection(pt)
                 
-                s1_file = inpath+'S1_'+date1+'_'+date2+'_'+region+'.npz'
+                #plot the SAR intensities
+                s1_file = glob(inpath+'S1_'+date1+'_'+date2+'_'+region+'*.npz')[0]
                 container2 = np.load(s1_file)
                 sigma = container2['sigma']   
                 lat_s1 = container2['lat2']
@@ -629,60 +745,18 @@ for day in days:
                 #mask out no data in sigma
                 print(np.min(sigma),np.max(sigma))
                 sigma = np.ma.array(sigma,mask=sigma==0)
-                zx.pcolormesh(xs1,ys1,sigma,cmap=plt.cm.binary_r,vmin=1,vmax=255, alpha=1)
-                zx2.pcolormesh(xs1,ys1,sigma,cmap=plt.cm.binary_r,vmin=1,vmax=255, alpha=1)
-            
-                xz, yz = mz(ship_lon, ship_lat)
-                zx.plot(xz,yz,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
-                zx2.plot(xz,yz,'*',markeredgewidth=2,color='hotpink',markersize=20,markeredgecolor='k')
+                #WARNING: this will overlay also data that is not used in the tiling - then some shapes will be off in location and deformation (different timing)!!!
+                #instead of plotting right away, store and then reverse the order...
                 
-                ##limit map extent
-                zx.set_xlim(100000,300000)
-                zx.set_ylim(100000,300000)
-                zx2.set_xlim(100000,300000)
-                zx2.set_ylim(100000,300000)
+                ##some coordinates had no valid values sometimes...
+                #ys1 = np.ma.masked_where(~(np.isfinite(xs1)),ys1).compressed()
+                #sigma = np.ma.masked_where(~(np.isfinite(xs1)),sigma).compressed()
+                #xs1 = np.ma.masked_where(~(np.isfinite(xs1)),xs1).compressed()
                 
-                ##Hide the ticks, to that the animation looks nicer
-                #zx.axes.get_xaxis().set_visible(False)
-                #zx.axes.get_yaxis().set_visible(False)
-                #zx2.axes.get_xaxis().set_visible(False)
-                #zx2.axes.get_yaxis().set_visible(False)
-                
-            else:
-                #tile center
-                xl, yl = mn(ship_lon, ship_lat)
-                #nx.plot(xl,yl,'o',markeredgewidth=2,color='hotpink',markersize=10,markeredgecolor='k')
-            
-            #plot unfiltered data
-            patches_all = []
-            for k in range(div.shape[0]):
-                patch = Polygon(tripts[k,:,:])
-                patches_all.append(patch)
-
-            #plot filled triangles
-            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=.5)
-            p.set_array(div*1e6)
-            p.set_clim(interval)
-            nx.add_collection(p)
-            
-            ##check what we are filtering
-            #patches_p = []
-            #for k in pindex:
-                #patch = Polygon(tripts[k])
-                #patches_p.append(patch)
-
-            ##plot filled triangles
-            #p = PatchCollection(patches_p, ec= 'g', fc=None, alpha=1)
-            #nx.add_collection(p)
-            
-            #plot filtered data
-            tmp = np.ma.array(div,mask=threshold)
-            p = PatchCollection(patches_all, cmap=plt.cm.bwr, alpha=.5)
-            p.set_array(tmp*1e6)
-            p.set_clim(interval)
-            tx.add_collection(p)
-            
-            ###########################################################################################################3
+                sigma_data.append(sigma)
+                xs1_data.append(xs1)
+                ys1_data.append(ys1)
+                ###########################################################################################################3
             
             #n_list = []
             for p in pindex:
@@ -832,11 +906,13 @@ for day in days:
             if len(tmp)>1:
                 tile = MultiPolygon(tmp)
             elif len(tmp)==0:
-                continue
+                print('No data found')
             else:
                 tile=tmp[0]
-        
-        print(tile.geom_type)
+            
+            #print(tile)
+            #print(tile.geom_type)
+            #exit()
             
         #in case this is just a single point or line (still not Polygon or MultiPolygon), there is no point in continuing here
         if tile.geom_type != 'Polygon':# or tile.geom_type != 'MultiPolygon':
@@ -876,6 +952,8 @@ for day in days:
         else:
             #add new nods
             #difference: a.difference(b) is what is covered by a, but not by b
+            print('this is tile:')
+            print(tile)
             diff_tile = tile.difference(tiled_cover)
             new_nods=[]
             for i in range(0,len(ctr_nods)):
@@ -935,8 +1013,16 @@ for day in days:
         ##limit the cover by corner coordinates
         #tiled_cover_frame=tiled_cover.intersection(plot_corners)
         #print(tiled_cover_frame)
+        #here it is safe to do convex hull - no more new regions are coming
+        tiled_cover = tiled_cover.convex_hull
+        print(tiled_cover)
+        #store as vertices - This should not be MultiPolygon
+        xg, yg = tiled_cover.exterior.xy
+        tiled_cover = [ np.array([i,j]) for i,j in zip(xg,yg) ]
         
-        if lkf_filter:
+        
+        if filter_fig:
+            
             #WARNING: uncomment this if you want the tile cover!
             ##plot all tile coverage
             ##here it is safe to do convex hull - no more new regions are coming
@@ -956,18 +1042,27 @@ for day in days:
                 patches.append(patch)
             
             ##plot filled triangles
-            #pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k') #in case we want to see the triangle edges
-            pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=.5)
-            pc.set_array(tiled_div_f2[~tiled_threshold]*1e6)
-            pc.set_clim(interval)
-            lx.add_collection(pc)
+            #pl = PatchCollection(patches, cmap=plt.cm.bwr, alpha=1, edgecolor='k') #in case we want to see the triangle edges
+            pl = PatchCollection(patches, cmap=plt.cm.bwr, alpha=.5)
+            pl.set_array(tiled_div_f2[~tiled_threshold]*1e6)
+            pl.set_clim(interval)
+            lx.add_collection(pl)
             
             #same on the zoom in figure with SAR background
-            pc = PatchCollection(patches, cmap=plt.cm.bwr, alpha=.5)
-            pc.set_array(tiled_div_f2[~tiled_threshold]*1e6)
-            pc.set_clim(interval)
+            #reverse the order to have the first region plotted on top
+            for rn in reversed(range(0,len(sigma_data))):
+                try:
+                    zx.pcolormesh(xs1_data[rn],ys1_data[rn],sigma_data[rn],cmap=plt.cm.binary_r,vmin=1,vmax=255, alpha=1)
+                    zx2.pcolormesh(xs1_data[rn],ys1_data[rn],sigma_data[rn],cmap=plt.cm.binary_r,vmin=1,vmax=255, alpha=1)
+                except:
+                    #in case there is no data (or invalid values in the coordinates)
+                    #WARNING: this needs to a better check
+                    print('No data');continue
             
-            zx2.add_collection(pc)
+            pz = PatchCollection(patches, cmap=plt.cm.bwr, alpha=.5)
+            pz.set_array(tiled_div_f2[~tiled_threshold]*1e6)
+            pz.set_clim(interval)
+            zx2.add_collection(pz)
 
             #plt.show()
             outname = outpath+'filter_check_'+reg+date1_c.split('T')[0]+file_name_end+'.png'
@@ -979,6 +1074,7 @@ for day in days:
             plt.close(fig6)
             
             print('Filter CHECK figures saved!: ',outname)
+            #exit()
             ###########################################################################################################################################3
         
         #store all pindex/divergence/shear/tripts/area/minang data
@@ -1017,7 +1113,7 @@ for day in days:
             #final coordinates can be stored by drift script or calculated from displacements
             
             #dump damage & drift data into numpy file
-            out_file = outpath_def+'Damage_'+date1_c+'_'+date2_c+'_tiled.npz'
+            out_file = outpath_def+'Damage_'+date1_c+'_'+date2_c+file_name_end+'_tiled.npz'
             np.savez(out_file,lon = ctrd_lon,lat = ctrd_lat, d = damage, l=lead, r=ridge, s=shear_zone, u=tiled_utri, v=tiled_vtri, dt=tiled_dt)
 
             print('Storing parcel data: ',out_file)
@@ -1113,37 +1209,45 @@ for day in days:
         fig4.savefig(outpath+outname)
         plt.close(fig4)
     
-    #save the data for time series
-    #these are spatial averages and some value need to be used for all those masked areas - average???
-    date_ts.append(dt1)
+    ##save the data for time series
+    ##these are spatial averages and some value need to be used for all those masked areas - average???
+    #date_ts.append(ref_date)
     
-    posd = np.ma.array(tiled_div_f2,mask=tiled_div_f2<0)
-    negd = np.ma.array(tiled_div_f2,mask=tiled_div_f2>0)
-    mpdiv.append(np.ma.filled(np.mean(posd), fill_value=-999))                     #add fill values (-999)
-    mpdiv_sd.append(np.ma.filled(np.std(posd), fill_value=-999))
-    mndiv.append(np.ma.filled(np.mean(negd), fill_value=-999))
-    mndiv_sd.append(np.ma.filled(np.std(negd), fill_value=-999))
+    #posd = np.ma.array(tiled_div_f2,mask=tiled_div_f2<0)
+    #negd = np.ma.array(tiled_div_f2,mask=tiled_div_f2>0)
+    #mpdiv.append(np.ma.filled(np.mean(posd), fill_value=-999))                     #add fill values (-999)
+    #mpdiv_sd.append(np.ma.filled(np.std(posd), fill_value=-999))
+    #mndiv.append(np.ma.filled(np.mean(negd), fill_value=-999))
+    #mndiv_sd.append(np.ma.filled(np.std(negd), fill_value=-999))
     
-    mdiv.append(np.ma.filled(np.mean(tiled_div_f2), fill_value=-999))
-    mdiv_sd.append(np.ma.filled(np.std(tiled_div_f2), fill_value=-999))
+    #mdiv.append(np.ma.filled(np.mean(tiled_div_f2), fill_value=-999))
+    #mdiv_sd.append(np.ma.filled(np.std(tiled_div_f2), fill_value=-999))
     
-    mshr.append(np.ma.filled(np.mean(tiled_shr_f2), fill_value=-999))
-    mshr_sd.append(np.ma.filled(np.std(tiled_shr_f2), fill_value=-999))
+    #mshr.append(np.ma.filled(np.mean(tiled_shr_f2), fill_value=-999))
+    #mshr_sd.append(np.ma.filled(np.std(tiled_shr_f2), fill_value=-999))
 
-#write data for time series 
-print('Storing data for the time series')
-tt = [date_ts, mpdiv, mndiv, mdiv, mshr, mpdiv_sd, mndiv_sd, mdiv_sd, mshr_sd]
-table = list(zip(*tt))
+##write data for time series 
+#print('Storing data for the time series')
+#tt = [date_ts, mpdiv, mndiv, mdiv, mshr, mpdiv_sd, mndiv_sd, mdiv_sd, mshr_sd]
+#table = list(zip(*tt))
 
-outname_ts = 'ts_'+reg+'_'+file_name_end_csv
-output = outpath_def + outname_ts
-print(output)
-with open(output, 'ab') as f:
-    #header
-    f.write(b'date, mean divergence, std divergence, mean convergence, std convergence, mean divergence, std divergence, mean shear, std shear\n')
-    np.savetxt(f, table, fmt="%s", delimiter=",")
-    
+#outname_ts = 'ts_'+reg+'_'+file_name_end_csv
+#output = outpath_def + outname_ts
+#print(output)
+#with open(output, 'ab') as f:
+    ##header
+    #f.write(b'date, mean divergence, std divergence, mean convergence, std convergence, mean divergence, std divergence, mean shear, std shear\n')
+    #np.savetxt(f, table, fmt="%s", delimiter=",")
+  
+#cb = plt.colorbar(frames, ax=ax, pad=.01)  # draw colorbar
+#cb.ax.set_yticklabels(days.strftime('%d %b %Y'))
+#plt.show()
+
 outname = outpath+'overview_map_'+reg+file_name_end
 print(outname)
 fig1.savefig(outname,bbox_inches='tight')
 plt.close(fig1)
+
+#for producing animations
+#convert -delay 50 /scratch/pit000/results/sid/plots200km/filter_check_lance_leg1*_200km_thfilter_lkffilter.png /scratch/pit000/results/sid/plots200km/filter_check_lance_leg1_anim.gif
+#convert -delay 50 /scratch/pit000/results/sid/plots200km/filter_SAR_lance_leg1*_200km_thfilter_lkffilter.png /scratch/pit000/results/sid/plots200km/filter_SAR_lance_leg1_anim.gif
